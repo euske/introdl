@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="../common.css" />
+<title>第3回 なぜニューラルネットワークで学習できるのか?
+/ 真面目なプログラマのためのディープラーニング入門</title>
+<style><!--
+.delta { text-decoration: underline; }
+.data1 { background: #ffccff; }
+.data2 { background: #ccffff; }
+.data3 { background: #ffffcc; }
+input[type=range][orient=vertical] {
+    writing-mode: bt-lr; /* IE */
+    -webkit-appearance: slider-vertical; /* WebKit */
+    width: 8px;
+    height: 175px;
+    padding: 0 5px;
+--></style>
+<script src="optim.js"></script>
+<body onload="main();">
+<div class=nav>
+<a href="../index.html">&lt; もどる</a>
+</div>
+
+<h1>第3回 なぜニューラルネットワークで学習できるのか?</h1>
+
+<ol>
+<li> <a href="#nn-what">ニューラルネットワークとは何か?</a>
+<ul>
+  <li> <a href="#nn-def">ニューラルネットワークの定義</a>
+  <li class=ex> <a href="#ex3-1">演習3-1. 入力と出力を定義する</a>
+  <li> <a href="#nn-why">ニューラルネットワークはなぜこれほど流行しているのか?</a>
+  <li class=ex> <a href="#ex3-2">演習3-2. 損失を定義する</a>
+  <li> <a href="#nn-simplest">簡単なニューラルネットワーク</a>
+  <li class=ex> <a href="#ex3-3">演習3-3. ニューラルネットワークを手計算する</a>
+  <li class=ex> <a href="#ex3-4">演習3-4. ニューラルネットワークをPythonで計算する</a>
+</ul>
+<li> <a href="#learn-nn">ニューラルネットワーク学習のしくみ</a>
+<ul>
+  <li> <a href="#learn-optim">最適化問題と勾配降下法</a>
+  <li> <a href="#learn-gd">勾配降下法を使う</a>
+  <li class=ex> <a href="#ex3-5">演習3-5. L<sub>MSE</sub>を計算する</a>
+  <li class=ex> <a href="#ex3-6">演習3-6. 偏微分を計算する</a>
+  <li class=ex> <a href="#ex3-7">演習3-7. &nabla;L<sub>MSE</sub>を計算する</a>
+  <li class=ex> <a href="#ex3-8">演習3-8. 勾配降下法の練習</a>
+</ul>
+<li> <a href="#nn-impl">ニューラルネットワークを実装する</a>
+<ul>
+  <li> <a href="#learn-node">単一ノードの学習</a>
+  <li class=ex> <a href="#ex3-9">演習3-9. 勾配降下法をPythonで実行する</a>
+  <li> <a href="#learn-layer">ノードの数を増やす</a>
+  <li class=ex> <a href="#ex3-10">演習3-10. レイヤーのデータ構造を推測する</a>
+  <li class=ex> <a href="#ex3-11">演習3-11. Layer クラスを使う</a>
+  <li> <a href="#learn-bp">多層化する (誤差逆伝播法)</a>
+  <li class=ex> <a href="#ex3-12">演習3-12. ニューラルネットワークを使ってピタゴラスの定理を学習する</a>
+  <li class=ex> <a href="#ex3-adv">発展課題. 別のプログラミング言語で実装</a>
+  <li> <a href="#learn-why">なぜ層を増やすと学習性能が上がるのか?</a>
+</ul>
+<li> <a href="#summary">まとめ</a>
+</ol>
+
+
+<h2 id="nn-what">1. ニューラルネットワークとは何か?</h2>
+
+<h3 id="nn-def">1.1. ニューラルネットワークの定義</h3>
+<p>
+<u>ニューラルネットワーク</u> (neural network) とは、
+モデルとして以下のような架空の装置を使った
+<strong>教師つき機械学習</strong>の方式である:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="300" height="190">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="80" cy="20" r="15" />
+  <circle cx="80" cy="60" r="15" />
+  <circle cx="80" cy="100" r="15" />
+  <circle cx="80" cy="140" r="15" />
+  <circle cx="140" cy="40" r="15" />
+  <circle cx="140" cy="80" r="15" />
+  <circle cx="140" cy="120" r="15" />
+  <circle cx="200" cy="60" r="15" />
+  <circle cx="200" cy="100" r="15" />
+  <g marker-end="url(#arrow)">
+    <line x1="45" x2="60" y1="20" y2="20" />
+    <line x1="45" x2="60" y1="60" y2="60" />
+    <line x1="45" x2="60" y1="100" y2="100" />
+    <line x1="45" x2="60" y1="140" y2="140" />
+    <line x1="215" x2="230" y1="60" y2="60" />
+    <line x1="215" x2="230" y1="100" y2="100" />
+    <line x1="95" x2="125" y1="20" y2="30" />
+    <line x1="95" x2="125" y1="20" y2="65" />
+    <line x1="95" x2="125" y1="20" y2="105" />
+    <line x1="95" x2="125" y1="60" y2="40" />
+    <line x1="95" x2="125" y1="60" y2="75" />
+    <line x1="95" x2="125" y1="60" y2="110" />
+    <line x1="95" x2="125" y1="100" y2="45" />
+    <line x1="95" x2="125" y1="100" y2="80" />
+    <line x1="95" x2="125" y1="100" y2="115" />
+    <line x1="95" x2="125" y1="140" y2="55" />
+    <line x1="95" x2="125" y1="140" y2="85" />
+    <line x1="95" x2="125" y1="140" y2="120" />
+    <line x1="155" x2="185" y1="40" y2="55" />
+    <line x1="155" x2="185" y1="40" y2="90" />
+    <line x1="155" x2="185" y1="80" y2="60" />
+    <line x1="155" x2="185" y1="80" y2="95" />
+    <line x1="155" x2="185" y1="120" y2="65" />
+    <line x1="155" x2="185" y1="120" y2="100" />
+  </g>
+</g>
+<g style="font-size:75%;">
+<text x="140" y="180" text-anchor="middle">ニューロン (ノード)</text>
+<text x="40" y="20" dy="0.4em" text-anchor="end">入力1</text>
+<text x="40" y="60" dy="0.4em" text-anchor="end">入力2</text>
+<text x="40" y="100" dy="0.4em" text-anchor="end">入力3</text>
+<text x="40" y="140" dy="0.4em" text-anchor="end">入力4</text>
+<text x="240" y="60" dy="0.4em">出力1</text>
+<text x="240" y="100" dy="0.4em">出力2</text>
+</g>
+</svg>
+</div>
+<p>
+上の図の ○ 部分は人間の神経回路を模した<u>ニューロン</u> (neuron) という架空の装置である。
+(機械学習の文脈では、実際の生物との関連はあまり考えないので、
+ニューロンではなく<u>ノード</u> (node) と呼ぶことが多い。)
+ニューラルネットワークの入力と出力は、以下のように定義される:
+<ul>
+<li> 入力: 決められた個数の 0〜1 の範囲の実数 (上の例では 4個)
+<li> 出力: 決められた個数の 0〜1 の範囲の実数 (上の例では 2個)
+</ul>
+
+<p>
+入力と出力は、0〜1 の範囲で数値化できるものであればなんでもよい
+(実際には、入力はこの範囲内でなくてもよいが、ここでは簡単のため 0〜1 を仮定する)。
+したがって、画像のようなものも「各ピクセルの RGB値」を個別の入力と考えれば、
+「ある大きさの画像 = ある個数の数値からなるベクトル」と定義できるから、
+入力として使えるわけである。いっぽう、出力が画像であってもかまわない
+(実際そういうニューラルネットワークもある)。
+他の機械学習と同様に、ニューラルネットワークも訓練データを与え、
+入力と出力の相関 (関数) を学習させる。
+<p>
+ニューラルネットワークの各ノードは、非常に単純な機械である。
+これは得られた入力を重みづけて合計し、その値がある特定の
+<u>しきい値</u> (threshold) を超えたら 1 を、
+そうでなければ 0 を出力する (実際はもうすこし複雑だが、説明は後述する)。
+
+<div class=exercise id="ex3-1">
+<div class=header>演習3-1. 入力と出力を定義する</div>
+<p>
+ニューラルネットワークを使って以下の関数を学習したい。
+「入力」と「出力」はどのような量になりうるか。
+<ol type=a>
+<li> 過去10日間の気温を入力し、明日の気温を予想する関数。
+<li> 決められた大きさの画像を入力し、そこにネコが写っているかどうかを判定する関数。
+<li> 決められた大きさの画像を入力し、そこに写っている動物の種類が
+「ネコ」「イヌ」「ウシ」「ウマ」のどれかを判定する関数。
+</ol>
+</div>
+
+<h3 id="nn-why">1.2. ニューラルネットワークはなぜこれほど流行しているのか?</h3>
+<p>
+今日、ニューラルネットワークが使われている大きな理由は
+「<strong>汎用性</strong>」および
+「<strong>スケーラビリティの良さ</strong>」である。
+つまり:
+<ul>
+<li> 入力と出力の数を好きに決められるので、あらゆる問題に応用できる。
+<li> 入力と出力の数が増えても、現実的な時間内で学習可能である。
+</ul>
+<p>
+この違いは先に紹介した決定木と比べると顕著である。
+決定木では、入力パラメータの数はそれほど多くはできない (せいぜい数十個) し、
+一般的に出力は「ひとつの値」しか得られない。
+また、決定木では生成される木の複雑さには限りがある。
+これに対してニューラルネットワークは数百〜数万個の入力をとることができ、
+モデルが巨大化しても、現実的な時間内で学習可能なことが多い。
+なぜこのような特徴が生じるのか、これを次に説明しよう。
+
+<h4>ニューラルネットワークに要求される条件</h4>
+<p>
+じつはニューラルネットワークを使うためには、以下のことが必要である:
+<ol>
+<li> 学習の度合いが「<u>損失</u> (loss)」として数値化できること。
+<li> 損失を表す関数が<u>微分可能</u> (differentiable) であること。
+</ol>
+
+<p>
+損失とは「現在の学習の<strong>悪さ</strong>」を表す数値である。
+損失は小さいほどよく、損失 0 が最小である (負の数はとらないものとする)。
+なぜ「良さ」ではなく「悪さ」を表すのかというと、
+「理想の学習状態 = 損失 0」と定義すると理解しやすいからである。
+もし尺度を逆にして「良さ」を定義しようとすると、
+その最高値がいくつなのかはっきりしないし、
+たとえ「良さ 1.0 = 最高」と定義したとしても、
+「良さ 0 (最悪の状態)」というものがいったいどんな状態なのか、想像しにくい。
+一般に、<strong>良いものは一意に定義可能だが、
+悪いものには無数の「悪くなりかた」がある</strong>からである。
+
+<div class=exercise id="ex3-2">
+<div class=header>演習3-2. 損失を定義する</div>
+<p>
+以下の学習タスクにおける「損失」を定義せよ (微分可能かどうかは考えなくてよい)。
+損失が 0 の状態とはどんな状態か?
+損失が大きい (悪い) 状態とは、どんな状態か?
+<ol type=a>
+<li> 過去10日間の気温を入力し、明日の気温を予想するタスク。
+<li> 画像にネコが<strong>何匹</strong>含まれているかどうかを判定するタスク。
+<li> 画像に含まれるネコの<strong>大きさ</strong>を判定するタスク。
+</ol>
+</div>
+
+<h4>ニューラルネットワークの欠点</h4>
+<p>
+このようにもてはやされているニューラルネットワークであるが、
+当然ながら欠点も存在する。とくに大きな欠点は
+「<strong>ブラックボックス性</strong>」である。
+伝統的な機械学習の方法 (回帰など) と比べると、ニューラルネットワークは
+数学的にモデル化するには複雑すぎ、ふるまいが予測不可能なことが多い。
+とくに大規模なニューラルネットワークになると、そもそも
+「なぜ動くのか」を開発者自身もはっきり説明できないことが多く、
+もっぱら経験による推測に頼ることになる。あとで説明するように
+「とりあえず実験すると性能が上がるが、なぜかはよくわからない」という
+テクニックも数多く存在する。近年
+「<u>説明可能なニューラルネットワーク</u> (explainable neural network)」という
+分野で活発な研究がおこなわれているが、
+まだブレイクスルーと言える結果は出ていない。
+率直にいえば、
+<strong>ニューラルネットワークなぞ使わずにすめば、使わないほうがよい</strong>のである。
+
+
+<h3 id="nn-simplest">1.3. 簡単なニューラルネットワーク</h3>
+<p>
+たとえば以下のような 1つのノードだけをもつニューラルネットワークを考えよう。
+これは入力 x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub> を重みづけて足し、
+その値があるしきい値 C を超えていれば 1 を、そうでなければ 0 を
+出力するものとする。式で書くと、以下のようになる:
+<ul>
+<li> w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> &lt; C ... 0
+<li> w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> &ge; C ... 1
+</ul>
+<p>
+ここでは入力 x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub> に対応する
+<u>重み</u> (weight) を、
+それぞれ w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub> と表している。
+さらに簡単のため、しきい値をつねに 0 として、
+かわりに左辺に <u>バイアス</u> (bias) を加える方式に変形する:
+<ul>
+<li> w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> + b &lt; 0 ... 0
+<li> w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> + b &ge; 0 ... 1
+</ul>
+<p>
+ここで、バイアスは b で表している。
+なお、重み・バイアスは、<strong>負の値になることもありうる</strong>。
+この装置を図にすると、以下のようになる:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="230" height="100">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="120" cy="50" r="20" />
+  <g marker-end="url(#arrow)">
+    <line x1="35" y1="10" x2="100" y2="43" />
+    <line x1="35" y1="40" x2="100" y2="47" />
+    <line x1="35" y1="70" x2="100" y2="53" />
+    <line x1="75" y1="80" x2="100" y2="57" />
+    <line x1="140" y1="50" x2="190" y2="50" />
+  </g>
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+<text x="120" y="80" dy="0.5em">ノード</text>
+<text x="30" y="5" dy="0.5em" text-anchor="end">x1</text>
+<text x="30" y="35" dy="0.5em" text-anchor="end">x2</text>
+<text x="30" y="65" dy="0.5em" text-anchor="end">x3</text>
+<text x="65" y="15" dy="0.5em">w1</text>
+<text x="65" y="40" dy="0.5em">w2</text>
+<text x="65" y="60" dy="0.5em">w3</text>
+<text x="70" y="80" dy="0.5em" text-anchor="end">b</text>
+<text x="190" y="30" dy="0.5em">y</text>
+</g>
+</svg>
+</div>
+<p>
+以上の処理を Python で書いてみると、以下のようなコードになる:
+<blockquote><pre>
+if w1*x1 + w2*x2 + w3*x3 + b &lt; 0:
+    y = 0
+else:  <span class=comment># w1*x1 + w2*x2 + w3*x3 + b &gt;= 0:</span>
+    y = 1
+</pre></blockquote>
+
+<div class=exercise id="ex3-3">
+<div class=header>演習3-3. ニューラルネットワークを手計算する</div>
+<p>
+上の例で (w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b) = (1.0, 0.5, -2.0, 1.0) とするとき、
+以下の問に答えよ:
+<ul>
+<li> (x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>) = (0, 0, 0) のときの、
+y の値を求めよ。
+<li> (x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>) = (0, 1, 1) のときの、
+y の値を求めよ。
+</ul>
+</div>
+
+<p>
+実際には、<strong>上の定義は正確ではない</strong>。
+あとで説明するように、ニューラルネットワークの出力は
+<strong>微分可能でなければならない</strong>のである。
+これを解決するために、<code>if</code>文のかわりに
+<u>活性化関数</u> (activation function) というものを使う。
+活性化関数とは、以下のような性質をみたす微分可能な関数のことである:
+<ul>
+<li> x &lt; 0 の場合 ... f(x) = 0 に近づく
+<li> x &ge; 0 の場合 ... f(x) = 1 に近づく
+</ul>
+
+<p>
+活性化関数にはさまざまな種類があるが、よく使われるのは
+<u>シグモイド関数</u> (sigmoid function): &sigma;(x) である。
+これは以下のような性質をもつ:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="100">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="100" y1="100" x2="100" y2="1" marker-end="url(#arrow)" />
+  <line x1="0" y1="95" x2="199" y2="95" marker-end="url(#arrow)" />
+  <line x1="0" y1="5" x2="200" y2="5" stroke-dasharray="3,3" />
+  <path d="M0,95 c150,0,50,-90,200,-90" />
+</g>
+<g style="font-size:75%;">
+<text x="105" y="10" dy="0.5em">+1</text>
+<text x="105" y="85" dy="0.5em">0</text>
+<text x="195" y="85" dy="0.5em" text-anchor="end">x</text>
+</g>
+</svg>
+<center>
+&sigma;(x) = 1 / (1 + e<sup>x</sup>)
+</center>
+</div>
+<p>
+実際にはシグモイド関数は、x=0 以上になったからといって、
+すぐに y=0 → 1 に変化したりしない。しかしニューラルネットワークにおいては
+関数が微分可能であることが重要なので、このような関数を使っている。
+シグモイド関数を使うと、上の <code>if</code>文とほぼ同じ結果が得られる。
+すでに関数 <code>sigmoid</code> が定義されているとして、
+上のコードを書き直してみると:
+<blockquote><pre>
+y = sigmoid(w1*x1 + w2*x2 + w3*x3 + b)
+</pre></blockquote>
+これだけなのである。
+
+<div class=exercise id="ex3-4">
+<div class=header>演習3-4. ニューラルネットワークをPythonで計算する</div>
+<p>
+(w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b) = (1.0, 0.5, -2.0, 1.0) とするとき、
+上の Python の式を使って、以下の <code>y</code> を求めよ。
+<ul>
+<li> (x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>) = (0, 0, 0) のときの、
+y の値。
+<li> (x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>) = (0, 1, 1) のときの、
+y の値。
+</ul>
+<p>
+ここで、関数 <code>sigmoid</code> は以下のように定義するものとする:
+<blockquote><pre>
+from math import exp
+def sigmoid(x):
+    return 1 / (1 + exp(-x))
+</pre></blockquote>
+</div>
+
+
+<h2 id="learn-nn">2. ニューラルネットワーク学習のしくみ</h2>
+<p>
+さて、上で定義した単一のノードからなるニューラルネットワーク
+(まだノードが1つしかにので「ネットワーク」とは呼べないが) を
+実際に学習 (訓練) させることを考える。
+上の例では、ネットワークの「機能」は
+w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b
+という 4つのパラメータのみによって決まっていた。
+繰り返すが、機械学習とは「探索」であるから、ここでの目的は
+「与えられた x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub> に対して、
+望みの出力 y が得られるような 4つの値
+(<code>w1</code>, <code>w2</code>, <code>w3</code> および <code>b</code>)」を
+探せばよいことになる。
+これが<strong>ニューラルネットワークの学習</strong>である。
+
+<h3 id="learn-optim">2.1. 最適化問題と勾配降下法</h3>
+<p>
+さて、実際の探索に入るまえに、
+<u>最適化問題</u> (optimization problem) というものを説明する。
+これは機械学習 (およびその他の探索問題) でよく使われるアイデアなので
+ぜひとも覚えてほしい。最適化問題を一言でいうと:
+<div class=formula>
+ある与えられた関数に対して、その出力値が最小 (または最大) になるような入力値を見つけること。
+</div>
+例として、以下の簡単な最適化問題をやってみよう。
+下の10個のスライダーを動かして、損失 (loss) がなるべく小さくなるように
+してほしい。最適な解を見つければ、損失は 0 になるはずである:
+<div>
+<table align=center border><tr>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b0"></td>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b1"></td>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b2"></td>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b3"></td>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b4"></td>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b5"></td>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b6"></td>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b7"></td>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b8"></td>
+<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b9"></td>
+</tr><tr>
+<td colspan="8">損失 (ゼロが目標)</td><td colspan="2" align=center><span id="bout"></span></td>
+</table>
+</div>
+<p>
+上の例を実際にやってみると、なかなか一筋縄ではいかないことがわかる。
+各スライダーは相互に影響しあっているため、あるスライダーを
+動かしたときの変化が、別のスライダーによって変わることがあるためだ。
+<p>
+では、まったく同じ問題の「ヒントつきのバージョン」を紹介する。
+これは各スライダーの下に、それをどちらの方向に動かせば損失が下がるかという
+ヒントが矢印「↓」「↑」で表示される (矢印が表示されない場合は、
+スライダーをどちらに動かしても損失が増えてしまうことを示す)。
+<div>
+<table align=center border><tr>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c0"></td>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c1"></td>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c2"></td>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c3"></td>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c4"></td>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c5"></td>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c6"></td>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c7"></td>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c8"></td>
+<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c9"></td>
+</tr><tr>
+<td id="d0">&nbsp;</td><td id="d1">&nbsp;</td><td id="d2">&nbsp;</td><td id="d3">&nbsp;</td><td id="d4">&nbsp;</td>
+<td id="d5">&nbsp;</td><td id="d6">&nbsp;</td><td id="d7">&nbsp;</td><td id="d8">&nbsp;</td><td id="d9">&nbsp;</td>
+</tr><tr>
+<td colspan="8">損失 (ゼロが目標)</td><td colspan="2" align=center><span id="cout"></span></td>
+</table>
+</div>
+<p>
+ヒントを使うと、損失をかなり簡単に下げることができる。
+(コツは、矢印をたよりに「複数のスライダーを少しずつ動かす」ことである。)
+人によっては、完全に 0 にできるポイントを見つけられたかもしれない。
+各スライダーは 11段階 (0〜10) あるので、
+もしヒントがなければ、最適な解を見つけるのに
+11<sup>10</sup> = 25,937,424,601通りの組み合せを試す必要があった。
+このように、ヒントを使って入力値を少しずつ変化させ、
+最適解を見つける方法を <u>勾配降下法</u> (gradient descent) という。
+<p>
+もうすこし抽象的に考えると、最適化問題とは、たとえば以下のような
+曲線で表された関数に対して、もっとも低い (あるいは高い) 点を
+見つけることに相当する。このとき、関数の全体像はわからないが、
+現在いる地点 x<sub>0</sub> の近傍が見えており、この地点の微分が計算できたとする。
+現在の入力に対する微分を計算したものを <u>勾配</u> (gradient) という。
+実際には、入力は 10個の値から成り立つ「10要素のベクトル」とみなせるため、
+その勾配も 10要素のベクトルとなる。
+上でヒントとして表示された矢印「↑」「↓」は各パラメータの勾配の向きを表しており、
+これに従ってスライダーを動かせば最適解に近づけるわけである。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="150">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="20" y1="150" x2="20" y2="1" marker-end="url(#arrow)" />
+  <line x1="0" y1="125" x2="199" y2="125" marker-end="url(#arrow)" />
+  <path d="M10,5 c10,50,20,80,50,60 c15,-10,30,0,50,30 c20,30,40,20,50,0 c10,-20,20,-50,30,-100"
+        stroke-dasharray="1,3" />
+  <path d="M85,65 l10,8" marker-end="url(#arrow)" stroke-width="2" />
+  <rect x="79" y="57" width="20" height="20" />
+  <line x1="85" y1="65" x2="85" y2="125" stroke-dasharray="4,2" />
+</g>
+<circle cx="85" cy="65" r="4" fill="black" stroke="none" />
+<g style="font-size:75%;">
+<text x="100" y="20" dy="0.5em">全体像は不明</text>
+<text x="105" y="65" dy="0.5em">勾配</text>
+<text x="30" y="92" dy="0.0em">近傍だけ</text>
+<text x="30" y="92" dy="1.1em">が見える</text>
+<text x="25" y="135" dy="0.5em">0</text>
+<text x="80" y="132" dy="0.5em">x0</text>
+</g>
+</svg>
+</div>
+<p>
+<strong>ニューラルネットワークの学習における根本的な戦略は、
+この勾配降下法を使うこと</strong>である。
+これがニューラルネットワークの「究極の原理」といってもよい。
+最初にニューラルネットワークの出力 (および損失関数) が
+「微分可能でなければならない」としたのは、このためである。
+勾配降下法では、入力を少しずつ変化させながら解に近づいていく。
+勾配降下法は必ずしも完璧な解に得られる保証があるわけではないが、
+「十分に実用的な結果」が得られるまで処理を繰り返せばよく、
+この点ではコンピュータで実行させるのに向いている処理であるといえる。
+
+<p>
+では次に、勾配降下法を使って
+実際のニューラルネットワークを学習させる方法を説明する。
+
+<h3 id="learn-gd">2.2. 勾配降下法を使う</h3>
+<p>
+ニューラルネットワークの学習にあたっては、
+まず<u>損失関数</u> (loss function) というものを定義しなければならない。
+<a href="#nn-simplest">1.3</a> の例にあるニューラルネットワークは、
+以下のように定義されていた
+(&sigma; はシグモイド関数をあらわす) :
+<div class=formula>
+y = &sigma;(w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> + b)
+</div>
+<p>
+ここで学習したい正解値を y<sub>0</sub> とすると、
+損失関数 L は「出力 y と y<sub>0</sub> の差」として定義できる:
+<div class=formula>
+L = (y - y<sub>0</sub>)<sup>2</sup>
+</div>
+ここで二乗しているのは、正負を無視するためである。
+絶対値を使う手もあるが、二乗のほうが微分しやすいのでこうしている。
+実際の機械学習では、y<sub>0</sub> はひとつではなく、
+訓練データの数だけ存在するので、損失関数はそれらすべてを平均したものになる:
+<div class=formula>
+L<sub>MSE</sub> = <span class=sym>&Sigma;</span> (y - y<sub>0</sub>)<sup>2</sup> / N
+</div>
+<p>
+ここでの損失は、いわゆる<u>平均二乗誤差</u> (Mean Squared Error, MSE) と
+呼ばれるものである (N は訓練データの個数)。
+この値を最小化するために勾配降下法を使えば、
+ニューラルネットワークの学習ができる。
+<p>
+さて、勾配降下法には微分が必要ということは上で述べたが、
+具体的には何を微分すればよいのか?
+もう一度、整理すると
+<ul>
+<li> L<sub>MSE</sub> の値は、ニューラルネットワークの出力 <strong>y</strong> と、
+  正解値 <strong>y<sub>0</sub></strong> で決まる。
+<li> 出力 y は、各訓練データの入力 <strong>(x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>)</strong> と、
+重み+バイアス <strong>(w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub> および b)</strong> で決まる。
+</ul>
+<p>
+ここで注意したいのは、
+<strong>各入力 x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub> と正解 y<sub>0</sub> は
+訓練データによって決まっており、変えることはできない</strong>ということである。
+我々が変えられるのは
+<strong>(w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub> および b)</strong> だけだ。
+これを念頭に置いて L<sub>MSE</sub> を書き直してみよう。
+まず、訓練データを以下のように仮定する:
+<table border align=center>
+<tr><th>x<sub>1</sub></th><th>x<sub>2</sub></th><th>x<sub>3</sub></th><th></th><th>y<sub>0</sub></th></tr>
+<tr><td>0</td><td>0</td><td>0</td><td></td><td>1</td></tr>
+<tr><td>0</td><td>1</td><td>0</td><td></td><td>1</td></tr>
+<tr><td>1</td><td>0</td><td>1</td><td></td><td>0</td></tr>
+</table>
+<p>
+上の値を使って L<sub>MSE</sub> を書きなおすと:
+<div class=formula>
+L<sub>MSE</sub> = (y(0,0,0) - 1)<sup>2</sup> +
+(y(0,1,0) - 1)<sup>2</sup> +
+(y(1,0,1) - 0)<sup>2</sup>
+</div>
+となる (本来は全体を 3 で割るべきだが、定数なので無視した)。
+繰り返すが、ここでの各 y は
+w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub> および b の関数でもあるので、
+つまり L<sub>MSE</sub> 全体も w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub> および b の
+値で定まる関数ということになる:
+<div class=formula>
+L<sub>MSE</sub> = N(w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b)
+</div>
+<p>
+あとは勾配降下法を使って、これが最小値をとるように
+w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub> および b の
+各値を求めれば、学習は完了である。
+
+<div class=exercise id="ex3-5">
+<div class=header>演習3-5. L<sub>MSE</sub>を計算する</div>
+<p>
+(w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b) = (1.0, 0.5, -2.0, 1.0) とするとき、
+上の訓練データに対する L<sub>MSE</sub>を求めよ。
+(計算には Python を使うこと)
+<p>
+ヒント:
+<pre>
+<span class=comment># 重みとバイアスを決める。</span>
+w1 = 1.0
+w2 = 0.5
+w3 = -2.0
+b = 1.0
+<span class=comment># 3つの訓練データに対する出力を計算する。</span>
+ya = sigmoid(w1*0 + w2*0 + w3*0 + b)
+yb = sigmoid(w1*0 + w2*1 + w3*0 + b)
+yc = sigmoid(w1*1 + w2*0 + w3*1 + b)
+loss = ...
+</pre>
+</div>
+<p>
+上の例で (w1, w2, w3, b) をいろいろな値に変化させたとき、
+L<sub>MSE</sub> はどのように変化するのだろうか?
+4次元の図は描けないが、以下の例は (w3 と b は固定して) w1 と w2 の値を
+それぞれ -2.0 〜 +2.0 の範囲で変化させたときの
+L<sub>MSE</sub> の値をプロットしたものである。
+図中でもっとも青い部分が L<sub>MSE</sub> が最小の点である:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="276" height="276">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<image x="10" y="10" width="256" height="256" href="grad1.png" />
+<g fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)">
+  <line x1="138" x2="138" y1="276" y2="2" />
+  <line x1="0" x2="274" y1="138" y2="138" />
+</g>
+<g style="font-size:75%;">
+<text fill="white" x="74" y="150" text-anchor="middle">w1</text>
+<text fill="white" x="140" y="74">w2</text>
+<text x="134" y="12" text-anchor="end">+2</text>
+<text x="134" y="276" text-anchor="end">-2</text>
+<text x="6" y="150" text-anchor="middle">-2</text>
+<text x="270" y="150" text-anchor="middle">+2</text>
+</g>
+</svg>
+</div>
+
+<p>
+実際の勾配降下法は、次のようなアルゴリズムである:
+<ol>
+<li> まず、(w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b) を
+ランダムな値に設定する。
+<li> 与えられた全訓練データに対して、<strong>損失関数 L<sub>MSE</sub> の勾配</strong>を計算する。
+<li> 勾配をもとに、(w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b) の値を
+<strong>すこしだけ</strong>変化させる。
+<li> 損失が十分に少なくなるまで、2. と 3. のステップを繰り返す。
+</ol>
+
+<p>
+ここでいう「損失関数 L<sub>MSE</sub> の勾配」とは、
+与えられた全訓練データに対する平均となっていることに注意しよう。
+比喩的にいえば、勾配とは、訓練データから寄せられる『不満の声』を集めたものである。
+一度にすべての不満に対応できるわけではないので、ニューラルネットワークは
+これらの意見の「中間をとって」学習していく。
+こうするとそのうち不満の声は次第に少なくなる (これ自体が大きな発見であった)、
+という仕組みである。
+
+<div class=figure>
+<img width="343" height="182" src="average.png">
+</div>
+
+<p>
+(ちなみに、全訓練データを見てから学習する処理を
+<u>バッチ学習</u> (batch learning) という。
+これと相対する概念は<u>オンライン学習</u> (online learning) で、
+訓練データが追加されるにつれて学習結果も更新していく方法である。)
+
+<p>
+L<sub>MSE</sub> に対する勾配 <span class=sym>&nabla;</span>L<sub>MSE</sub> は、
+次のように定義される:
+<div class=formula>
+<span class=sym>&nabla;</span>L<sub>MSE</sub> =
+(<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>w<sub>1</sub>, <span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>w<sub>2</sub>,
+<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>w<sub>3</sub>, <span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>b)
+</div>
+<p>
+ようするに、これは関数 L<sub>MSE</sub> を
+w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub> および b それぞれに対して
+微分 (偏微分) したものである。
+
+<div class=exercise id="ex3-6">
+<div class=header>演習3-6. 偏微分を計算する</div>
+<p>
+<u>偏微分</u> (partial derivative) とは、
+複数の変数からなる関数を、ある特定の変数についてのみ (他は定数とみなして)
+微分することである。「y を x で微分したもの」を通常の微分では
+dy/dx のように書くが、偏微分では <span class=sym>&part;</span>y/<span class=sym>&part;</span>x のように書く。
+<ul>
+<li> z = 2*x + 3*y を x について偏微分せよ。
+<li> s = a*a + 2*a*b + b*b を a について偏微分せよ。
+</ul>
+</div>
+
+<p>
+高校で習った合成関数の微分の公式
+f<sup>2</sup>(<em>x</em>)&prime; = 2&middot;f(<em>x</em>)&middot;f&prime;(<em>x</em>)
+を使って、
+<span class=sym>&nabla;</span>L<sub>MSE</sub> の各成分を計算すると:
+<div class=formula>
+<table>
+<tr><td><span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>w<sub>1</sub></td><td>=</td>
+<td>2&middot;(y(0,0,0) - 1)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>1</sub></td><td>+</td>
+<td>2&middot;(y(0,1,0) - 1)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>1</sub></td><td>+</td>
+<td>2&middot;(y(1,0,1) - 0)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>1</sub></td></tr>
+<tr><td><span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>w<sub>2</sub></td><td>=</td>
+<td>2&middot;(y(0,0,0) - 1)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>2</sub></td><td>+</td>
+<td>2&middot;(y(0,1,0) - 1)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>2</sub></td><td>+</td>
+<td>2&middot;(y(1,0,1) - 0)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>2</sub></td></tr>
+<tr><td><span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>w<sub>3</sub></td><td>=</td>
+<td>2&middot;(y(0,0,0) - 1)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>3</sub></td><td>+</td>
+<td>2&middot;(y(0,1,0) - 1)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>3</sub></td><td>+</td>
+<td>2&middot;(y(1,0,1) - 0)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>3</sub></td></tr>
+<tr><td><span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>b</td><td>=</td>
+<td>2&middot;(y(0,0,0) - 1)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>b</td><td>+</td>
+<td>2&middot;(y(0,1,0) - 1)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>b</td><td>+</td>
+<td>2&middot;(y(1,0,1) - 0)&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>b</td></tr>
+</table>
+<p>
+(注意: <span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>1</sub>, <span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>2</sub>, <span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>3</sub>, <span class=sym>&part;</span>y/<span class=sym>&part;</span>b は関数なので、値は毎回違う)
+</div>
+さらに
+f(g(<em>x</em>))&prime; = f&prime;(g(<em>x</em>))&middot;g&prime;(<em>x</em>)
+であることを利用して、
+<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>1</sub>,
+<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>2</sub>,
+<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>3</sub>,
+<span class=sym>&part;</span>y/<span class=sym>&part;</span>b
+はそれぞれ以下のように求められる。
+<div class=formula>
+y = &sigma;(w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> + b)<br>
+↓<br>
+<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>1</sub> = &sigma;&prime;(w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> + b) &middot; x<sub>1</sub>
+<br>
+<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>2</sub> = &sigma;&prime;(w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> + b) &middot; x<sub>2</sub>
+<br>
+<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>3</sub> = &sigma;&prime;(w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> + b) &middot; x<sub>3</sub>
+<br>
+<span class=sym>&part;</span>y/<span class=sym>&part;</span>b = &sigma;&prime;(w<sub>1</sub>&middot;x<sub>1</sub> + w<sub>2</sub>&middot;x<sub>2</sub> + w<sub>3</sub>&middot;x<sub>3</sub> + b) &middot; 1
+<br>
+</div>
+ここで、シグモイド関数の微分 &sigma;&prime;(x) は、以下のように簡単に表すことができる:
+<div class=formula>
+<table>
+<tr><td>&sigma;&prime;(x)</td><td> = e<sup>-x</sup> / (1 + e<sup>-x</sup>)<sup>2</sup></td></tr>
+<tr><td></td><td> = &sigma;(x)&middot;(1 - &sigma;(x)) = <strong>y&middot;(1 - y)</strong></td></tr>
+</table>
+</div>
+<p>
+これが何を意味しているかというと、
+<strong>以前計算した y の値を覚えておけば、
+その微分は <code>y * (1-y)</code> だけで求められる</strong> のである。
+シグモイド関数のこの性質を使うと、出力 y に対する勾配を簡単に求めることができる。
+<blockquote><pre>
+def d_sigmoid(y):
+    return y * (1-y)
+</pre></blockquote>
+
+<div class=exercise id="ex3-7">
+<div class=header>演習3-7. <span class=sym>&nabla;</span>L<sub>MSE</sub>を計算する</div>
+<p>
+ランダムに初期化された
+<code>w1</code>, <code>w2</code>, <code>w3</code>, <code>b</code>
+に対して、上の訓練データに対する損失関数の勾配
+<code>dw1</code> (<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>w<sub>1</sub>)、
+<code>dw2</code> (<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>w<sub>2</sub>)、
+<code>dw3</code> (<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>w<sub>3</sub>)、
+<code>db</code> (<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>b)
+をそれぞれ求める以下のプログラムを完成させよ:
+<pre>
+<span class=comment># 重みとバイアスをランダムに初期化する。</span>
+from random import random
+w1 = random()-0.5  <span class=comment># [-0.5, +0.5)の範囲の乱数。</span>
+w2 = random()-0.5
+w3 = random()-0.5
+b = random()-0.5
+<span class=comment># 3つの訓練データに対する出力を計算する。</span>
+ya = sigmoid(w1*0 + w2*0 + w3*0 + b)
+yb = sigmoid(w1*0 + w2*1 + w3*0 + b)
+yc = sigmoid(w1*1 + w2*0 + w3*1 + b)
+<span class=comment># それぞれの y が計算されたときのシグモイド関数の微分を求める。</span>
+dsa = d_sigmoid(ya)
+dsb = d_sigmoid(yb)
+dsc = d_sigmoid(yc)
+<span class=comment># 損失関数の各成分に対する勾配を求める。</span>
+dw1 = <span class=bl>???????</span>
+dw2 = <span class=bl>???????</span>
+dw3 = <span class=bl>???????</span>
+db = <span class=bl>???????</span>
+</pre>
+</div>
+<p>
+勾配が求まったら、あとはそれに応じて、損失関数が減少するように
+(w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b) の値を変化させればよい。
+ただし、ここで注意すべきは変化させる方向である。
+勾配 (微分) というのは、<strong>入力値が正に変化したときの損失関数の変化</strong>を
+あらわすので、関数の値を減少 (-) させたいなら、
+<strong>勾配の符号とは逆の方向に入力値を変化させなければならない</strong>。
+<table border align=center>
+<tr><th>負 (-) の場合</th><th>正 (+) の場合</th></tr>
+<tr>
+<td>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100" height="110">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="0" y1="90" x2="95" y2="90" marker-end="url(#arrow)" />
+  <line x1="10" y1="99" x2="10" y2="5" marker-end="url(#arrow)" />
+  <path d="M5,20 c0,0,20,50,40,50 c25,0,45,-60,45,-60" stroke-dasharray="1,3" />
+  <path d="M26,57 l20,20" marker-end="url(#arrow)" stroke-width="2" />
+  <path d="M26,90 l20,0" marker-end="url(#arrow)" stroke-width="4" />
+</g>
+<circle cx="26" cy="57" r="4" fill="black" stroke="none" />
+<g style="font-size:75%;">
+<text x="20" y="18" dy="0.5em">勾配が</text>
+<text x="20" y="32" dy="0.5em">負 (-) なら</text>
+<text x="15" y="100" dy="0.5em">正 (+) の向きへ</text>
+</g>
+</svg>
+</td><td>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100" height="110">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="0" y1="90" x2="95" y2="90" marker-end="url(#arrow)" />
+  <line x1="10" y1="99" x2="10" y2="5" marker-end="url(#arrow)" />
+  <path d="M5,20 c0,0,20,50,40,50 c25,0,45,-60,45,-60" stroke-dasharray="1,3" />
+  <path d="M68,57 l20,-25" marker-end="url(#arrow)" stroke-width="2" />
+  <path d="M68,90 l-20,0" marker-end="url(#arrow)" stroke-width="4" />
+</g>
+<circle cx="68" cy="57" r="4" fill="black" stroke="none" />
+<g style="font-size:75%;">
+<text x="20" y="18" dy="0.5em">勾配が</text>
+<text x="20" y="32" dy="0.5em">正 (+) なら</text>
+<text x="15" y="100" dy="0.5em">負 (-) の向きへ</text>
+</g>
+</svg>
+</td></tr>
+</table>
+<p>
+したがって、勾配が求まった後で実際に
+<code>w1</code>, <code>w2</code>, <code>w3</code>, <code>b</code>
+を変化させるコードは次のようになる:
+<blockquote><pre>
+alpha = 0.1
+w1 -= alpha * dw1
+w2 -= alpha * dw2
+w3 -= alpha * dw3
+b -= alpha * db
+</pre></blockquote>
+<p>
+ここで <code>alpha</code> という係数をかけていることに注意。
+これは <u>学習率</u> (learning rate) と呼ばれるもので、
+重み・バイアスを変化させる割合を決めるものである。
+勾配降下法では、勾配をもとに重み・バイアスを<strong>ちょっとずつ</strong>
+変化させていく必要がある (あまり急激に変化させると丁度いい点を通過してしまう)。
+たいていのニューラルネットワークの学習では、学習率として
+0.01 や 0.001 といった数値を使っている。
+
+<div class=exercise id="ex3-8">
+<div class=header>演習3-8. 勾配降下法の練習</div>
+<p>
+勾配降下法を使って、以下の関数
+<div class=formula>
+y = 2x<sup>4</sup> - 4x<sup>3</sup> + 3x + 2
+<!-- dy/dx = 8x^3 -12x^2 + 3 -->
+</div>
+が最小になるような点を求めたい。
+<ol type=a>
+<li> この関数の x = 1 における値と、そのときの勾配 dy/dx を求めよ。
+<li> 値を減少させるには、x を正/負のどちらに変化させるべきか?
+<li> 学習率 alpha = 0.1 として、x を変化させたときの値を求めよ。
+</ol>
+</div>
+
+
+<h2 id="nn-impl">3. ニューラルネットワークを実装する</h3>
+<p>
+では Python を使って実際にニューラルネットワークを実装してみよう。
+
+<h3 id="learn-node">3.1. 単一ノードの学習</h3>
+<p>
+最初に、1つのノードだけからなるニューラルネットワークを考える。
+ニューラルネットワークの学習では、重みとバイアスを
+勾配降下法を使って継続的に変化させている。
+ここでは、ひとつのノードの状態を保持するクラス
+<code>Node</code> を考える。
+<p>
+まず、データの初期化と出力の計算部分だけを実装する:
+<blockquote><pre>
+from random import random
+<span class=comment># 1つのノードを定義する。</span>
+class Node:
+    def __init__(self):
+        <span class=comment># 重みとバイアスをランダムに初期化する。</span>
+        self.w1 = random()-0.5
+        self.w2 = random()-0.5
+        self.w3 = random()-0.5
+        self.b = random()-0.5
+        self.x1 = self.x2 = self.x3 = self.y = None
+        self.loss = self.dw1 = self.dw2 = self.dw3 = self.db = 0
+        return
+
+    def forward(self, x1, x2, x3):
+        <span class=comment># 与えられた入力に対する出力を計算する。</span>
+        <span class=comment># このとき、入力と出力を保存しておく。</span>
+        self.x1 = x1
+        self.x2 = x2
+        self.x3 = x3
+        self.y = sigmoid(self.w1*x1 + self.w2*x2 + self.w3*x3 + self.b)
+        return self.y
+</pre></blockquote>
+<p>
+上のメソッド <code>forward()</code> は、与えられた入力に対する出力を計算する。
+また、このときの <code>x1</code>, <code>x2</code>, <code>x3</code>
+および <code>y</code> の値を保存しておく。
+<p>
+つぎに、勾配降下法をおこなう部分を定義する:
+<blockquote><pre>
+    def mse_loss(self, y0):
+        <span class=comment># 与えられた正解に対する損失を求める。</span>
+        self.loss += (self.y - y0)**2
+        <span class=comment># 損失関数の微分を計算する。</span>
+        delta = 2*(self.y - y0)
+        return delta
+
+    def backward(self, delta):
+        <span class=comment># self.y が計算されたときのシグモイド関数の微分を求める。</span>
+        ds = d_sigmoid(self.y)
+        <span class=comment># 各偏微分を計算する。</span>
+        self.dw1 += delta * ds * self.x1
+        self.dw2 += delta * ds * self.x2
+        self.dw3 += delta * ds * self.x3
+        self.db += delta * ds
+        return
+</pre></blockquote>
+<p>
+上のメソッド <code>mse_loss()</code> は正解 <code>ya</code> を受けとり、
+それに対する (平均二乗誤差を使った) 損失を求め、
+さらにその微分 <code>delta</code> を計算する。
+ここでいう <code>delta</code> とは、下の式で表される
+<span class=delta>2&middot;(y(0,0,0) - 1)</span> などの部分である。
+続けて呼ばれるメソッド <code>backward()</code> はこの
+<code>delta</code> を受けとり、
+それに合わせて勾配の各成分 <code>self.dw1</code>, <code>self.dw2</code>,
+<code>self.dw3</code>, <code>self.db</code> を決定する。
+これは求めたい成分のうち、各訓練データ 1個に対応する
+1つの項のみを計算していることに注意。
+すべての訓練データに対して <code>mse_loss()</code> および <code>backward()</code> を
+呼び終わると、<code>self.loss</code> には損失関数の値が格納されており、
+<code>self.dw1</code>, <code>self.dw2</code>,
+<code>self.dw3</code>, <code>self.db</code> にはそれぞれ最終的な勾配が格納されている。
+(このようにメソッドを <code>mse_loss()</code> と
+<code>backward()</code> の 2つに分けている理由はあとで説明する。)
+
+<div class=figure>
+<table align=center><tr>
+<th>変数</th><th></th>
+<th class=data1>1回目</th><th></th>
+<th class=data2>2回目</th><th></th>
+<th class=data3>3回目</th>
+</tr><tr>
+<td><code>self.loss</code></td><td>=</td>
+<td class=data1>(y(0,0,0) - 1)<sup>2</sup></td><td>+</td>
+<td class=data2>(y(0,1,0) - 1)<sup>2</sup></td><td>+</td>
+<td class=data3>(y(1,0,1) - 0)<sup>2</sup></td>
+</tr><tr>
+<td><code>self.dw1</code></td><td>=</td>
+<td class=data1><span class=delta>2&middot;(y(0,0,0) - 1)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>1</sub></td><td>+</td>
+<td class=data2><span class=delta>2&middot;(y(0,1,0) - 1)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>1</sub></td><td>+</td>
+<td class=data3><span class=delta>2&middot;(y(1,0,1) - 0)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>1</sub></td>
+</tr><tr>
+<td><code>self.dw2</code></td><td>=</td>
+<td class=data1><span class=delta>2&middot;(y(0,0,0) - 1)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>2</sub></td><td>+</td>
+<td class=data2><span class=delta>2&middot;(y(0,1,0) - 1)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>2</sub></td><td>+</td>
+<td class=data3><span class=delta>2&middot;(y(1,0,1) - 0)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>2</sub></td>
+</tr><tr>
+<td><code>self.dw3</code></td><td>=</td>
+<td class=data1><span class=delta>2&middot;(y(0,0,0) - 1)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>3</sub></td><td>+</td>
+<td class=data2><span class=delta>2&middot;(y(0,1,0) - 1)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>3</sub></td><td>+</td>
+<td class=data3><span class=delta>2&middot;(y(1,0,1) - 0)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>w<sub>3</sub></td>
+</tr><tr>
+<td><code>self.db</code></td><td>=</td>
+<td class=data1><span class=delta>2&middot;(y(0,0,0) - 1)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>b</td><td>+</td>
+<td class=data2><span class=delta>2&middot;(y(0,1,0) - 1)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>b</td><td>+</td>
+<td class=data3><span class=delta>2&middot;(y(1,0,1) - 0)</span>&middot;<span class=sym>&part;</span>y/<span class=sym>&part;</span>b</td>
+</tr></table>
+</div>
+
+<p>
+では、このクラスを実際に使ってみよう。
+<blockquote><pre>
+<span class=comment># ノードを初期化。</span>
+n1 = Node()
+<span class=comment># 1つめの訓練データに対する勾配を計算する。</span>
+y = n1.forward(0,0,0)
+delta = n1.mse_loss(1)
+n1.backward(delta)
+<span class=comment># 2つめの訓練データに対する勾配を計算する。</span>
+y = n1.forward(0,1,0)
+delta = n1.mse_loss(1)
+n1.backward(delta)
+<span class=comment># 3つめの訓練データに対する勾配を計算する。</span>
+y = n1.forward(1,0,1)
+delta = n1.mse_loss(0)
+n1.backward(delta)
+</pre></blockquote>
+<p>
+ここまで完了したあとで、オブジェクトの
+<code>self.dw1</code>, <code>self.dw2</code>,
+<code>self.dw3</code>, <code>self.db</code> にはそれぞれ勾配が
+格納されているはずである。
+これを使って、実際に損失が減る方向へと
+重み・バイアスを変化させるには、さらに別のメソッドが必要である:
+<blockquote><pre>
+    def update(self, alpha):
+        <span class=comment># 現在の勾配をもとに、損失が減る方向へ重み・バイアスを変化させる。</span>
+        self.w1 -= alpha * self.dw1
+        self.w2 -= alpha * self.dw2
+        self.w3 -= alpha * self.dw3
+        self.b -= alpha * self.db
+        <span class=comment># 計算用の変数をクリアしておく。</span>
+        self.loss = self.dw1 = self.dw2 = self.dw3 = self.db = 0
+        return
+</pre></blockquote>
+<p>
+いっさいがっさいをまとめると、以下のようになる。
+ここでは損失が十分に少なくなるであろうと期待して、
+処理を100回繰り返している:
+<blockquote><pre>
+<span class=comment># ノードを初期化。</span>
+n1 = Node()
+<span class=comment># 100回繰り返す。</span>
+for i in range(100):
+    <span class=comment># 各訓練データに対する勾配を計算する。</span>
+    y = n1.forward(0,0,0)
+    delta = n1.mse_loss(1)
+    n1.backward(delta)
+    y = n1.forward(0,1,0)
+    delta = n1.mse_loss(1)
+    n1.backward(delta)
+    y = n1.forward(1,0,1)
+    delta = n1.mse_loss(0)
+    n1.backward(delta)
+    <span class=comment># 現在の損失を表示する。</span>
+    print(n1.loss)
+    <span class=comment># 重み・バイアスを学習率 0.01 で変化させる。</span>
+    n1.update(0.01)
+</pre></blockquote>
+
+<div class=exercise id="ex3-9">
+<div class=header>演習3-9. 勾配降下法をPythonで実行する</div>
+<ol type=a>
+<li> 上の Python プログラムを実際に実行し、
+損失が減少していく様子を観察せよ。最終的な損失の値はいくつになるか?
+<li> 学習率 <code>alpha</code> を 0.1 に変更すると、最終的な損失はいくつになるか?
+<li> 学習率 0.1 でループ 1000回を繰り返すようにすると、最終的な損失はいくつになるか?
+<li> 学習率 0.1 でループ 1000回を繰り返したあとの、
+(0,0,0), (0,1,0), (1,0,1) それぞれの入力に対する
+ノードの出力を求めよ。
+</ol>
+</div>
+<p>
+学習における繰り返し回数を<u>反復回数</u> (iteration) と呼ぶ。
+学習率や反復回数を変えると、損失が変わることに注目してほしい。
+一般的に、反復回数が多くなるほど損失は減少するが、
+ある程度までくるとあまり減少しなくなる。
+学習率が大きくなると損失はより速く減少するようになるが、
+大きすぎると「ほどよい地点」を通りすぎてしまい、
+損失はある時点で止まるか、逆に上昇してしまうこともありうる。
+学習率や反復回数のような値は、学習によって得られた値ではなく、
+「学習方法に関する値」であるので、<u>ハイパーパラメータ</u>と呼ぶ。
+ハイパーパラメータは通常、人間があらかじめ決定しておく。
+
+
+<h3 id="learn-layer">3.2. ノードの数を増やす</h3>
+<p>
+さて、これまでは 1つの値だけを出力する単一のノードについてのみ扱ってきたが、
+これを複数のノードに拡張するにはどうすればよいだろうか。
+ニューラルネットワークでは、出力で得たい値と同じ個数だけノードが必要である。
+<p>
+そこで、ここでは複数のノードをまとめた <u>レイヤー</u> (layer、層) というものを定義しよう。
+レイヤーとは:
+<ul>
+<li> 複数の入力 (<code>nin</code>個) と出力 (<code>nout</code>個) をとる。
+<li> 入力-出力間の配線は、全接続されている (完全2部グラフ)。
+</ul>
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="230" height="142">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<rect x="80" y="1" width="60" height="140" fill="none" stroke="black" />
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="80" cy="20" r="15" fill="white" stroke-dasharray="4,4" />
+  <circle cx="80" cy="60" r="15" fill="white" stroke-dasharray="4,4" />
+  <circle cx="80" cy="100" r="15" fill="white" stroke-dasharray="4,4" />
+  <circle cx="140" cy="40" r="15" fill="white" />
+  <circle cx="140" cy="80" r="15" fill="white" />
+  <g marker-end="url(#arrow)">
+    <line x1="45" x2="60" y1="20" y2="20" />
+    <line x1="45" x2="60" y1="60" y2="60" />
+    <line x1="45" x2="60" y1="100" y2="100" />
+    <line x1="155" x2="170" y1="40" y2="40" />
+    <line x1="155" x2="170" y1="80" y2="80" />
+    <line x1="95" x2="125" y1="20" y2="30" />
+    <line x1="95" x2="125" y1="20" y2="65" />
+    <line x1="95" x2="125" y1="60" y2="40" />
+    <line x1="95" x2="125" y1="60" y2="75" />
+    <line x1="95" x2="125" y1="100" y2="45" />
+    <line x1="95" x2="125" y1="100" y2="80" />
+  </g>
+</g>
+<g style="font-size: 75%;">
+<text x="110" y="130" dy="0.4em" text-anchor="middle">レイヤー</text>
+<text x="40" y="20" dy="0.4em" text-anchor="end">入力1</text>
+<text x="40" y="60" dy="0.4em" text-anchor="end">入力2</text>
+<text x="40" y="100" dy="0.4em" text-anchor="end">入力3</text>
+<text x="180" y="40" dy="0.4em">出力1</text>
+<text x="180" y="80" dy="0.4em">出力2</text>
+</g>
+</svg>
+</div>
+<p>
+上の例では入力が3個、出力が2個となっているが、出力のほうが多くてもかまわない。
+注意すべきなのは「<strong>入力側にある点線の ○ は、実際に計算をおこなうノードではない</strong>」
+ということである。
+したがって、<strong>このレイヤーにおける本物のノードは 2個である</strong>。
+またここでの配線は全接続であるから、
+出力のノード1個に対して入力の個数ぶん (<code>nin</code>個) だけ配線が必要である。
+したがって、全部で nin×nout本の<u>接続</u> (connection) が存在する。
+<p>
+さて、このようなレイヤーを Python のクラスで実装してみよう:
+<blockquote><pre>
+from random import random
+<span class=comment># 入力 nin個、出力 nout個のレイヤーを定義する。</span>
+class Layer:
+    def __init__(self, nin, nout):
+        self.nin = nin
+        self.nout = nout
+        <span class=comment># 重み・バイアスを初期化する。</span>
+        self.w = [ [ random()-0.5 for j in range(self.nin) ] for i in range(self.nout) ]
+        self.b = [ random()-0.5 for i in range(self.nout) ]
+        <span class=comment># 計算用の変数を初期化する。</span>
+        self.x = self.y = None
+        self.dw = [ [ 0 for j in range(self.nin) ] for i in range(self.nout) ]
+        self.db = [ 0 for i in range(self.nout) ]
+        self.loss = 0
+        return
+</pre></blockquote>
+<p>
+やっていることは基本的にノードが 1つのときと同じである。
+ノードが 1つのときは重み・バイアスにそれぞれ個別の変数を使っていたが、
+ここでは Python のリストを活用している。
+変数 <code>w</code> と <code>dw</code> はそれぞれ
+「『<code>nin</code>個の要素をもつリスト』を要素としてもつ <code>nout</code>個のリスト」
+になっていることに注意。つまり
+<ul>
+<li> <code>self.w[i][j]</code> … i番目の出力ノードに対する、j番目の入力の重み
+<li> <code>self.b[i]</code> … i番目の出力ノードに対するバイアス
+</ul>
+<p>
+となる。
+
+<div class=exercise id="ex3-10">
+<div class=header>演習3-10. レイヤーのデータ構造を推測する</div>
+<p>
+上の例で示したレイヤーを実際に Python で表現するために
+<pre>
+layer1 = Layer(3, 2)
+</pre>
+を実行した。
+<code>layer1.w</code> および <code>layer1.b</code> は
+どのような構造のリストになっているか、想像せよ。
+</div>
+
+<code>forward()</code> メソッドも同様に実装すると、次のようになる。
+なお、ここでは入力・出力ともに単一の値ではなく、値のリストになっている:
+<blockquote><pre>
+    def forward(self, x):
+        <span class=comment># xは nin個の要素をもつ入力値のリスト。</span>
+        self.x = x
+        self.y = []
+        for i in range(self.nout):
+            <span class=comment># i番目のノードの重みリスト・バイアスを取り出す。</span>
+            w = self.w[i]
+            b = self.b[i]
+            z = b  <span class=comment># 最初にバイアスを足しておく。</span>
+            for j in range(self.nin):
+                <span class=comment># j番目の入力を重みをつけて足す。</span>
+                w1 = w[j]
+                x1 = x[j]
+                z += w1*x1
+            <span class=comment># 合計値をsigmoid()に通し、i番目のノードの出力とする。</span>
+            self.y.append(sigmoid(z))
+        <span class=comment># yは nout個の要素をもつ出力値のリスト</span>
+        return self.y
+</pre></blockquote>
+<p>
+以上のコードはわざと手続き的に書いてあるが、
+リスト内包表記および <code>zip()</code> 関数を使って
+もうすこし「Python的に」書いてみると、以下のようになる:
+<blockquote><pre>
+    def forward(self, x):  <span class=comment># Pythonicバージョン</span>
+        <span class=comment># xは nin個の要素をもつ入力値のリスト。</span>
+        <span class=comment># 与えられた入力に対する各ノードの出力を計算する。</span>
+        self.x = x
+        self.y = [
+            sigmoid(sum( w1*x1 for (w1,x1) in zip(w, x) ) + b)
+            for (w,b) in zip(self.w, self.b)
+        ]
+        <span class=comment># yは nout個の要素をもつ出力値のリスト</span>
+        return self.y
+</pre></blockquote>
+<p>
+<code>mse_loss()</code>、<code>update()</code> メソッドも同様に実装する。
+ここでも入力の <code>y0</code> は値のリストと仮定する。
+<blockquote><pre>
+    def mse_loss(self, y0s):
+        <span class=comment># 与えられた正解に対する損失を求める。</span>
+        self.loss += sum( (y1-y0)**2 for (y1,y0) in zip(self.y, y0s) )
+        <span class=comment># 損失関数の微分を計算する。</span>
+        delta = [ 2*(y1-y0) for (y1,y0) in zip(self.y, y0s) ]
+        return delta
+
+    def backward(self, delta):
+        <span class=comment># self.y が計算されたときのシグモイド関数の微分を求める。</span>
+        ds = [ d_sigmoid(y1) for y1 in self.y ]
+        <span class=comment># 各偏微分を計算する。</span>
+        for i in range(self.nout):
+            for j in range(self.nin):
+                self.dw[i][j] += delta[i] * ds[i] * self.x[j]
+        for i in range(self.nout):
+            self.db[i] += delta[i] * ds[i]
+        return
+
+    def update(self, alpha):
+        <span class=comment># 現在の勾配をもとに、損失が減る方向へ重み・バイアスを変化させる。</span>
+        for i in range(self.nout):
+            for j in range(self.nin):
+                self.w[i][j] -= alpha * self.dw[i][j]
+        for i in range(self.nout):
+            self.b[i] -= alpha * self.db[i]
+        <span class=comment># 計算用の変数をクリアしておく。</span>
+        for i in range(self.nout):
+            for j in range(self.nin):
+                self.dw[i][j] = 0
+        for i in range(self.nout):
+            self.db[i] = 0
+        self.loss = 0
+        return
+</pre></blockquote>
+
+<div class=exercise id="ex3-11">
+<div class=header>演習3-11. Layer クラスを使う</div>
+<p>
+上の <code>Layer</code> クラスを完成させ、
+これを使って <a href="#ex3-9">演習 3-9.</a> と
+同等のネットワーク (入力値 3個、出力値 1個) を実現せよ。
+<pre>
+layer1 = Layer(3, 1)
+</pre>
+<p>
+学習率 <code>alpha</code> を 0.1 にして
+ループを 100回繰り返し、損失がほぼ同じになることを確認せよ。
+</div>
+
+<h3 id="learn-bp">3.3. 多層化する  (誤差逆伝播法)</h3>
+<p>
+さて、ようやく複数のレイヤーを重ねて、
+真のニューラルネットワークを構築できる段階まで到達した。
+最初の例で示した、以下のようなネットワークを構築してみる。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="300" height="182">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<rect x="80" y="1" width="58" height="180" fill="none" stroke="black" />
+<rect x="142" y="1" width="58" height="180" fill="none" stroke="black" />
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="80" cy="20" r="15" fill="white" stroke-dasharray="4,4" />
+  <circle cx="80" cy="60" r="15" fill="white" stroke-dasharray="4,4" />
+  <circle cx="80" cy="100" r="15" fill="white" stroke-dasharray="4,4" />
+  <circle cx="80" cy="140" r="15" fill="white" stroke-dasharray="4,4" />
+  <circle cx="140" cy="40" r="15" fill="white" />
+  <circle cx="140" cy="80" r="15" fill="white" />
+  <circle cx="140" cy="120" r="15" fill="white" />
+  <circle cx="200" cy="60" r="15" fill="white" />
+  <circle cx="200" cy="100" r="15" fill="white" />
+  <g marker-end="url(#arrow)">
+    <line x1="45" x2="60" y1="20" y2="20" />
+    <line x1="45" x2="60" y1="60" y2="60" />
+    <line x1="45" x2="60" y1="100" y2="100" />
+    <line x1="45" x2="60" y1="140" y2="140" />
+    <line x1="215" x2="230" y1="60" y2="60" />
+    <line x1="215" x2="230" y1="100" y2="100" />
+    <line x1="95" x2="125" y1="20" y2="30" />
+    <line x1="95" x2="125" y1="20" y2="65" />
+    <line x1="95" x2="125" y1="20" y2="105" />
+    <line x1="95" x2="125" y1="60" y2="40" />
+    <line x1="95" x2="125" y1="60" y2="75" />
+    <line x1="95" x2="125" y1="60" y2="110" />
+    <line x1="95" x2="125" y1="100" y2="45" />
+    <line x1="95" x2="125" y1="100" y2="80" />
+    <line x1="95" x2="125" y1="100" y2="115" />
+    <line x1="95" x2="125" y1="140" y2="55" />
+    <line x1="95" x2="125" y1="140" y2="85" />
+    <line x1="95" x2="125" y1="140" y2="120" />
+    <line x1="155" x2="185" y1="40" y2="55" />
+    <line x1="155" x2="185" y1="40" y2="90" />
+    <line x1="155" x2="185" y1="80" y2="60" />
+    <line x1="155" x2="185" y1="80" y2="95" />
+    <line x1="155" x2="185" y1="120" y2="65" />
+    <line x1="155" x2="185" y1="120" y2="100" />
+  </g>
+</g>
+<g style="font-size: 75%;" text-anchor="middle">
+<text x="110" y="170" dy="0.4em">レイヤー1</text>
+<text x="170" y="170" dy="0.4em">レイヤー2</text>
+</g>
+</svg>
+</div>
+<p>
+ここでは 2つの <code>Layer</code> オブジェクトを使う。
+最初のレイヤーは入力値×4個と出力値×3個をもっており、
+2番目のレイヤーは入力値×3個と出力値×2個をもっている。
+1番目のレイヤーへの入力が「ネットワークへの入力」であり、
+2番目のレイヤーの出力が「ネットワークの最終的な出力」となる。
+各レイヤーのノードの個数 (= 出力値の個数) は任意に決められるが、
+複数のレイヤーを重ねるときは
+各レイヤー入力値の個数 (<code>nin</code>) が、
+そのひとつ前のレイヤー出力値の個数 (<code>nout</code>) と一致していなければならない。
+<p>
+上の例では、<code>layer1</code> オブジェクトの <code>nout</code> と、
+<code>layer2</code> オブジェクトの <code>nin</code> が同じである必要がある:
+<pre>
+layer1 = Layer(4, <mark>3</mark>)
+layer2 = Layer(<mark>3</mark>, 2)
+</pre>
+<p>
+ここで、多層ニューラルネットワークにきわめて重要なもうひとつの
+技術である <u>誤差逆伝播法</u> (backpropagation) を説明する。
+もう一度最初に戻って考えてみると、ニューラルネットワークの学習における目標は
+「損失を最小化するよう重み・バイアス (w, b) の値を調整する」ことであった。
+レイヤーが1つだけのとき、これは損失関数の勾配に合わせて
+w, b の値を変化させるだけであった。
+しかし、レイヤーは実際には (x, w, b) を入力とする関数なのだから、
+<strong>x の値を変化させても損失は減らすことができる</strong>はずである。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="240" height="180">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <path d="M40,0 c30,30,30,150,0,180" stroke-dasharray="4,4" />
+  <rect x="100" y="50" width="40" height="80" />
+  <path d="M65,90 l30,0" marker-end="url(#arrow)" />
+  <path d="M140,90 l30,0" marker-end="url(#arrow)" />
+  <path d="M120,20 l0,25" marker-end="url(#arrow)" />
+  <path d="M200,80 c5,-3,10,0,15,10 c7,15,15,20,20,0" stroke-width="1" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+<text x="5" y="90" dy="-0.5em" text-anchor="start">以前の</text>
+<text x="5" y="90" dy="0.5em" text-anchor="start">レイヤー</text>
+<text x="80" y="80" dy="0.4em">x</text>
+<text x="180" y="80" dy="0.4em">y</text>
+<text x="120" y="10" dy="0.4em">w, b</text>
+<text x="120" y="160" dy="-0.5em">最後の</text>
+<text x="120" y="160" dy="0.5em">レイヤー</text>
+<text x="220" y="70" dy="0.5em">損失</text>
+</g>
+</svg>
+</div>
+
+<p>
+とはいえ、レイヤーが 1つだけのときは、
+x は実際の訓練データなわけであるから、変化させることはできない。
+しかしこれより前にもレイヤーがあるときは、
+x はひとつ前のレイヤーの出力である。
+したがって、もしこのレイヤーを「よりよい出力」を出すように
+調整できれば、さらに損失が減らせるはずである。
+これが誤差逆伝播法のアイデアである。
+つまり:
+<ul>
+<li> レイヤーが 1つだけのときは、そのレイヤーが自前で w, b を調整して損失を下げるしかなかった。
+<li> 前のレイヤーが存在する場合は、そのレイヤーは自前の w, b の調整に加えて、
+  入力の x を調整してもらうよう、前のレイヤーに「依頼する」ことができる。
+<li> このように依頼が少しずつ前のレイヤーへと「伝播」していく。
+</ul>
+<p>
+このプロセスはレイヤーをさかのぼっていき、最初のレイヤーに到達するまで続く。
+最初のレイヤーはもう x を調整することはできないため、伝播はそこで終わる。
+このようにすると、複数のレイヤーが協調的に学習することが可能になる。
+この協調性がニューラルネットワークの性能につながっている。
+
+<p>
+では実際に、どのように x の値を調整すればよいだろうか?
+ここでも勾配を使う。あるレイヤーが
+2つの入力 x<sub>1</sub>, x<sub>2</sub> および
+3つの出力 y<sub>1</sub>, y<sub>2</sub>, y<sub>3</sub> をもつとき、
+各出力を x<sub>1</sub> と x<sub>2</sub> でそれぞれ偏微分すると次のようになる:
+<div class=formula>
+y<sub>1</sub> = &sigma;(w<sub>11</sub>&middot;x<sub>1</sub> + w<sub>12</sub>&middot;x<sub>2</sub> + b<sub>1</sub>)<br>
+y<sub>2</sub> = &sigma;(w<sub>21</sub>&middot;x<sub>1</sub> + w<sub>22</sub>&middot;x<sub>2</sub> + b<sub>2</sub>)<br>
+y<sub>3</sub> = &sigma;(w<sub>31</sub>&middot;x<sub>1</sub> + w<sub>32</sub>&middot;x<sub>2</sub> + b<sub>3</sub>)<br>
+↓<br>
+<span class=sym>&part;</span>y<sub>1</sub>/<span class=sym>&part;</span>x<sub>1</sub> =
+&sigma;&prime;(w<sub>11</sub>&middot;x<sub>1</sub> + w<sub>12</sub>&middot;x<sub>2</sub> + b<sub>1</sub>) &middot; w<sub>11</sub><br>
+<span class=sym>&part;</span>y<sub>2</sub>/<span class=sym>&part;</span>x<sub>1</sub> =
+&sigma;&prime;(w<sub>21</sub>&middot;x<sub>1</sub> + w<sub>22</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) &middot; w<sub>21</sub><br>
+<span class=sym>&part;</span>y<sub>3</sub>/<span class=sym>&part;</span>x<sub>1</sub> =
+&sigma;&prime;(w<sub>31</sub>&middot;x<sub>1</sub> + w<sub>32</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) &middot; w<sub>31</sub><br>
+<span class=sym>&part;</span>y<sub>1</sub>/<span class=sym>&part;</span>x<sub>2</sub> =
+&sigma;&prime;(w<sub>11</sub>&middot;x<sub>1</sub> + w<sub>12</sub>&middot;x<sub>2</sub> + b<sub>1</sub>) &middot; w<sub>12</sub><br>
+<span class=sym>&part;</span>y<sub>2</sub>/<span class=sym>&part;</span>x<sub>2</sub> =
+&sigma;&prime;(w<sub>21</sub>&middot;x<sub>1</sub> + w<sub>22</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) &middot; w<sub>22</sub><br>
+<span class=sym>&part;</span>y<sub>3</sub>/<span class=sym>&part;</span>x<sub>2</sub> =
+&sigma;&prime;(w<sub>31</sub>&middot;x<sub>1</sub> + w<sub>32</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) &middot; w<sub>32</sub><br>
+</div>
+<p>
+このように、x<sub>1</sub>, x<sub>2</sub> への各微分は 3つずつできるのだが、
+<strong>この x<sub>1</sub>, x<sub>2</sub> はひとつ前のレイヤーの出力である</strong>ことに注意。
+ひとつ前のレイヤーから見れば、前レイヤーの出力 y<sub>1</sub>&prime;, y<sub>2</sub>&prime; が
+3つの異なる訓練データに対して使われたときの損失と同じことなので、
+最終的な微分はこれらを足し合わせたものになる。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="150">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<rect x="-35" y="1" width="60" height="140" fill="none" stroke="black" />
+<rect x="82" y="1" width="58" height="140" fill="none" stroke="black" />
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="25" cy="40" r="15" fill="white" />
+  <circle cx="25" cy="80" r="15" fill="white" />
+  <circle cx="80" cy="40" r="15" fill="white" stroke-dasharray="4,4" />
+  <circle cx="80" cy="80" r="15" fill="white" stroke-dasharray="4,4" />
+  <circle cx="140" cy="20" r="15" fill="white" />
+  <circle cx="140" cy="60" r="15" fill="white" />
+  <circle cx="140" cy="100" r="15" fill="white" />
+  <g marker-end="url(#arrow)">
+    <line x1="40" x2="60" y1="40" y2="40" />
+    <line x1="40" x2="60" y1="80" y2="80" />
+    <line x1="155" x2="170" y1="20" y2="20" />
+    <line x1="155" x2="170" y1="60" y2="60" />
+    <line x1="155" x2="170" y1="100" y2="100" />
+    <line x1="95" x2="125" y1="40" y2="20" />
+    <line x1="95" x2="125" y1="40" y2="55" />
+    <line x1="95" x2="125" y1="40" y2="90" />
+    <line x1="95" x2="125" y1="80" y2="30" />
+    <line x1="95" x2="125" y1="80" y2="60" />
+    <line x1="95" x2="125" y1="80" y2="95" />
+  </g>
+</g>
+<g style="font-size: 75%;">
+<text x="20" y="40" dy="0.5em">y1&prime;</text>
+<text x="20" y="80" dy="0.5em">y2&prime;</text>
+<text x="70" y="40" dy="0.5em">x1</text>
+<text x="70" y="80" dy="0.5em">x2</text>
+<text x="170" y="10" dy="0.5em">y1</text>
+<text x="170" y="50" dy="0.5em">y2</text>
+<text x="170" y="90" dy="0.5em">y3</text>
+<text x="0" y="115" dy="0.5em">ひとつ前の</text>
+<text x="0" y="130" dy="0.5em">レイヤー</text>
+<text x="110" y="130" dy="0.5em" text-anchor="middle">レイヤー</text>
+</g>
+</svg>
+</div>
+
+<p>
+さて、実際に求めたいのは損失関数 L<sub>MSE</sub> に対する偏微分
+<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>x<sub>1</sub> および
+<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>x<sub>2</sub>
+であった:
+<div class=formula>
+<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>x<sub>1</sub> = <span class=delta>2&middot;(y - y<sub>0</sub>)</span> &middot; (<span class=sym>&part;</span>y<sub>1</sub>/<span class=sym>&part;</span>x<sub>1</sub> + <span class=sym>&part;</span>y<sub>2</sub>/<span class=sym>&part;</span>x<sub>1</sub> + <span class=sym>&part;</span>y<sub>3</sub>/<span class=sym>&part;</span>x<sub>1</sub>)
+<br>
+<span class=sym>&part;</span>L<sub>MSE</sub>/<span class=sym>&part;</span>x<sub>2</sub> = <span class=delta>2&middot;(y - y<sub>0</sub>)</span> &middot; (<span class=sym>&part;</span>y<sub>1</sub>/<span class=sym>&part;</span>x<sub>2</sub> + <span class=sym>&part;</span>y<sub>2</sub>/<span class=sym>&part;</span>x<sub>2</sub> + <span class=sym>&part;</span>y<sub>3</sub>/<span class=sym>&part;</span>x<sub>2</sub>)
+</div>
+<p>
+ここで <span class=delta>2&middot;(y - y<sub>0</sub>)</span> と
+表されている部分は何だろうか? これは
+<code>backward()</code> が受けとっていた値 <code>delta</code> である。
+つまり、前レイヤーに対する勾配にもすべて <code>delta</code> が
+掛けられているのである。
+これに合わせ、<code>backward()</code> メソッドの最後の部分を
+以下のように変更する:
+<blockquote><pre>
+    def backward(self, delta):
+        <span class=comment># self.y が計算されたときのシグモイド関数の微分を求める。</span>
+        ds = [ d_sigmoid(y1) for y1 in self.y ]
+        <span class=comment># 各偏微分を計算する。</span>
+        for i in range(self.nout):
+            for j in range(self.nin):
+                self.dw[i][j] += delta[i] * ds[i] * self.x[j]
+        for i in range(self.nout):
+            self.db[i] += delta[i] * ds[i]
+        <mark><span class=comment># 各入力値の微分を求める。</span></mark>
+        <mark>dx = [</mark>
+        <mark>    sum( delta[j]*ds[j]*self.w[j][i] for j in range(self.nout) )</mark>
+        <mark>    for i in range(self.nin)</mark>
+        <mark>]</mark>
+        return <mark>dx</mark>
+</blockquote></pre>
+<p>
+ここでもう一度思い出してほしいのだが、
+この <code>backward()</code> が返す値 <code>dx</code> は、
+ひとつ前のレイヤーに対する勾配である。
+つまり、<strong>前レイヤーの <code>backward()</code> が受けとる
+<code>delta</code> になっている</strong>のである。
+このように次々と delta を掛けながら <code>backward()</code> が呼ばれ、
+勾配が計算されていく。数学的には、これは微分における
+<u>連鎖律</u> (chain rule) を利用したアルゴリズムになっている。
+この処理の流れを図示すると、以下のようになる:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="410" height="150">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <rect x="40" y="10" width="60" height="120" />
+  <rect x="140" y="10" width="60" height="120" />
+  <rect x="240" y="10" width="60" height="120" />
+  <path d="M10,40 l50,0" marker-end="url(#arrow)" />
+  <path d="M75,40 l85,0" marker-end="url(#arrow)" />
+  <path d="M175,40 l85,0" marker-end="url(#arrow)" />
+  <path d="M275,40 l115,0" marker-end="url(#arrow)" />
+  <path d="M390,90 l-30,0" marker-end="url(#arrow)" />
+  <path d="M345,90 l-65,0" marker-end="url(#arrow)" />
+  <path d="M265,90 l-85,0" marker-end="url(#arrow)" />
+  <path d="M165,90 l-85,0" marker-end="url(#arrow)" />
+  <circle r="4" cx="70" cy="40" />
+  <circle r="4" cx="170" cy="40" />
+  <circle r="4" cx="270" cy="40" />
+  <circle r="4" cx="70" cy="90" />
+  <circle r="4" cx="170" cy="90" />
+  <circle r="4" cx="270" cy="90" />
+  <circle r="4" cx="350" cy="90" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+<text x="30" y="30" dy="0.5em">x</text>
+<text x="120" y="30" dy="0.5em">y</text>
+<text x="220" y="30" dy="0.5em">y</text>
+<text x="400" y="30" dy="0.5em">y</text>
+<text x="400" y="80" dy="0.5em">y0</text>
+<text x="320" y="80" dy="0.5em">delta</text>
+<text x="220" y="80" dy="0.5em">delta</text>
+<text x="120" y="80" dy="0.5em">delta</text>
+<text x="70" y="50" dy="0.5em">forward</text>
+<text x="170" y="50" dy="0.5em">forward</text>
+<text x="270" y="50" dy="0.5em">forward</text>
+<text x="70" y="100" dy="0.5em">backward</text>
+<text x="170" y="100" dy="0.5em">backward</text>
+<text x="270" y="100" dy="0.5em">backward</text>
+<text x="350" y="100" dy="0.5em">mse_loss</text>
+<text x="70" y="140" dy="0.5em">レイヤー1</text>
+<text x="170" y="140" dy="0.5em">レイヤー2</text>
+<text x="270" y="140" dy="0.5em">レイヤー3</text>
+</g>
+</svg>
+</div>
+
+<p>
+このように拡張した <code>Layer</code> クラスを使うには、以下のようにすればよい。
+<code>layer1</code>, <code>layer2</code>, ..., <code>layerN</code> の
+N個のレイヤーがあったとすると:
+<blockquote><pre>
+x = <em>入力データ</em>
+y0 = <em>正解データ</em>
+<span class=comment># 訓練データの各入力に対する出力を計算する。</span>
+y = layer1.forward(x)  <span class=comment># 1番目のレイヤー</span>
+y = layer2.forward(y)  <span class=comment># 2番目のレイヤー</span>
+...
+y = layerN.forward(y)  <span class=comment># 最後のレイヤー</span>
+<span class=comment># 正解データに対する損失を計算する。</span>
+delta = layerN.mse_loss(y0)
+<span class=comment># 各レイヤーの勾配を計算していく。</span>
+delta = layerN.backward(delta)  <span class=comment># 最後のレイヤー</span>
+...
+delta = layer2.backward(delta)  <span class=comment># 2番目のレイヤー</span>
+delta = layer1.backward(delta)  <span class=comment># 1番目のレイヤー</span>
+</pre></blockquote>
+
+<p>
+多層ニューラルネットワークの使う際の処理をまとめると:
+<ul>
+<li> 推論するとき … 入力データを各レイヤーの <code>forward()</code> メソッドに順に通す。
+<li> 学習するとき … 各レイヤーの <code>forward()</code> を実行した後に、
+  正解データを使って <code>mse_loss()</code> で損失を計算し、
+  今度は逆順に各レイヤーに対して <code>backward()</code> を呼び、
+  勾配を更新する。
+</ul>
+
+<p>
+実際には、<code>mse_loss()</code> メソッドは独立した関数として定義でき、
+Layerクラスに所属する必要はない。
+
+<div class=exercise id="ex3-12">
+<div class=header>演習3-12. ニューラルネットワークを使ってピタゴラスの定理を学習する</div>
+<p>
+多層ニューラルネットワークを使って、3変数のピタゴラスの定理の関数
+y = &radic;((x<sub>1</sub><sup>2</sup> + x<sub>2</sub><sup>2</sup> + x<sub>3</sub><sup>2</sup>) / 3)
+を学習したい。入力値 x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub> は
+どれも 0〜1 の範囲とし、出力値は 0〜1 の範囲である。
+<p>
+まず、100個のランダムな訓練データを用意する。
+<blockquote><pre>
+<span class=comment># 100個分のランダムな訓練データを作成する。</span>
+from random import random, seed
+from math import sqrt
+<span class=comment># つねに乱数値を一定にする。</span>
+seed(0)
+data = []
+for i in range(100):
+    x = [ random(), random(), random() ]                  <span class=comment># 入力</span>
+    y0 = [ sqrt((x[0]*x[0] + x[1]*x[1] + x[2]*x[2])/3) ]  <span class=comment># 正解</span>
+    data.append((x, y0))
+</pre></blockquote>
+<p>
+次に、2つのレイヤーを使った学習プログラムを考える:
+<blockquote><pre>
+layer1 = Layer(3, 3)
+layer2 = Layer(3, 1)
+<span class=comment># 1000回繰り返す。</span>
+for i in range(1000):
+    for (x,y0) in data:
+        <span class=comment># 入力に対する出力を計算する。</span>
+        y = layer1.forward(x)
+        y = layer2.forward(y)
+        <span class=comment># 損失を計算する。</span>
+        delta = layer2.mse_loss(y0)
+        <span class=comment># 勾配を計算する。</span>
+        delta = layer2.backward(delta)
+        delta = layer1.backward(delta)
+    <span class=comment># 現在の損失を表示する。</span>
+    print(layer2.loss)
+    <span class=comment># 重み・バイアスを学習率 0.1 で変化させる。</span>
+    layer1.update(0.1)
+    layer2.update(0.1)
+</pre></blockquote>
+<ol type=a>
+<li> 上のコードを実行し、最終的な損失がいくつになるか調べよ。
+<li> 繰り返し回数を 5000回にすると損失はどれだけ下がるか?
+<li> <code>layer1</code> と <code>layer2</code> の間に、
+  3つのノードを含むレイヤーをもう1つ追加し、
+  繰り返し回数を 5000回として、
+  最終的な損失がどのように変化するか調べよ。
+</ol>
+</div>
+<p>
+以上で見てきたように、ニューラルネットワークは
+入力と出力が 0〜1 の範囲に収まるような任意の関数を学習することができる。
+また、ノードの個数・レイヤーを増やすことでより
+<u>ニューラルネットワークの能力</u> (capacity) が上がり、
+より複雑な学習ができるようになるが、
+より訓練にも時間がかかるようになる
+(<u>勾配消失問題</u>)。
+
+<div class=exercise id="ex3-adv">
+<div class=header>発展課題. 別のプログラミング言語で実装</div>
+<p>
+上にあげた Layerクラスと、それを使ったピタゴラスの定理の学習を
+Python以外のプログラミング言語 (C, Java など) で書いてみよう。
+</div>
+
+<h3 id="learn-why">3.4. なぜ層を増やすと学習性能が上がるのか?</h3>
+<p>
+上で見たように、ニューラルネットワークでは、レイヤーを追加すると
+より複雑なモデルを学習できるようになることが知られている。
+この理由はまだ数学的に完全に解明されているわけではないが、
+おおまかに次のように考えられている。
+<p>
+以下の 2つの層をもつネットワークでは
+中間にあるノード A と B が入力に対してなんらかの特徴を学習する。
+A と B の重み・バイアスはランダムに初期化されているので、
+通常これらのノードはそれぞれ異なった特徴を学習するはずである。
+そして最後のノードが、A と B の出力を利用して正しい答えを導きだす
+方法を学習する。つまり最後のノードにとってノード A と B は
+「部下」のような役割を果たす。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="320" height="120">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="80" cy="20" r="15" />
+  <circle cx="80" cy="60" r="15" />
+  <circle cx="80" cy="100" r="15" />
+  <circle cx="140" cy="40" r="15" fill="#f8f" />
+  <circle cx="140" cy="80" r="15" fill="#8f8" />
+  <circle cx="200" cy="60" r="15" fill="#ff8" />
+  <g marker-end="url(#arrow)">
+    <line x1="45" x2="60" y1="20" y2="20" />
+    <line x1="45" x2="60" y1="60" y2="60" />
+    <line x1="45" x2="60" y1="100" y2="100" />
+    <line x1="215" x2="230" y1="60" y2="60" />
+    <line x1="95" x2="125" y1="20" y2="30" />
+    <line x1="95" x2="125" y1="20" y2="70" />
+    <line x1="95" x2="125" y1="60" y2="40" />
+    <line x1="95" x2="125" y1="60" y2="75" />
+    <line x1="95" x2="125" y1="100" y2="45" />
+    <line x1="95" x2="125" y1="100" y2="80" />
+    <line x1="155" x2="185" y1="40" y2="55" />
+    <line x1="155" x2="185" y1="80" y2="60" />
+  </g>
+</g>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="150" y1="15" x2="145" y2="30" />
+  <line x1="150" y1="105" x2="145" y2="90" />
+  <line x1="210" y1="30" x2="200" y2="50" />
+</g>
+<g text-anchor="middle">
+  <text x="140" y="40" dy="0.4em">A</text>
+  <text x="140" y="80" dy="0.4em">B</text>
+  <g style="font-size:75%;">
+    <text x="150" y="10" dy="0.4em">ある特徴を学習</text>
+    <text x="150" y="110" dy="0.4em">別の特徴を学習</text>
+    <text x="210" y="20" dy="0.4em" text-anchor="start">A,Bの成果を使って</text>
+    <text x="210" y="35" dy="0.4em" text-anchor="start">さらに学習</text>
+  </g>
+</g>
+</svg>
+</div>
+
+
+<h2 id="summary">4. まとめ</h2>
+<ul>
+<li> <u>ニューラルネットワーク</u>は、入力の重み付け和と<nobr><span class=bl>活性化</span></nobr>関数を使った
+  教師つき機械学習の方法である。
+<li> ニューラルネットワークの学習は、<nobr><span class=bl>損失</span></nobr>を最小にするような
+  「重み・バイアス」を見つける<u>最適化問題</u>として扱われる。
+<li> 学習は<u>勾配降下法</u>を使っておこなう。
+  そのために損失関数は<nobr><span class=bl>微分</span></nobr>可能である必要がある。
+<li> ニューラルネットワークの実装は、複数の<nobr><span class=bl>レイヤー</span></nobr>を重ねることによりおこなう。
+<li> 学習時は<u>誤差逆伝播法</u>によって、最後のレイヤーから始めて逆順に
+  前のレイヤーに対して<nobr><span class=bl>勾配</span></nobr>を計算していく。
+<li> 勾配を計算したあと、各レイヤーの重み・バイアスを<strong>ちょっと</strong>ずつ変化させる。
+  このときの係数として<nobr><span class=bl>学習率</span></nobr>が使われる。
+<li> <u>反復回数</u>を増やすと損失は下がる。
+  学習率や反復回数のような値は、学習に関する<nobr><span class=bl>ハイパー</span></nobr>パラメータと呼ばれる。
+</ul>
+
+
+<hr>
+<div class=license>
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="クリエイティブ・コモンズ・ライセンス" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />この作品は、<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">クリエイティブ・コモンズ 表示 - 継承 4.0 国際 ライセンス</a>の下に提供されています。
+</div>
+<address>Yusuke Shinyama</address>

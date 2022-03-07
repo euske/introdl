@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="../common.css" />
+<title>第5回 画像処理に適したニューラルネットワークとは?
+/ 真面目なプログラマのためのディープラーニング入門</title>
+<style><!--
+.example { outline: 1px solid black; }
+.bc { color: blue; font-weight: bold; }
+.ew { color: red; font-weight: bold; }
+.prev { color: gray; }
+.kernel { background: #ddd; font-size: 75%; }
+.c1 { background: #ffc; }
+.c2 { background: #fcf; }
+.c3 { background: #cff; }
+.c4 { background: #ccc; }
+--></style>
+<body>
+<div class=nav>
+<a href="../index.html">&lt; もどる</a>
+</div>
+
+<h1>第5回 画像処理に適したニューラルネットワークとは?</h1>
+
+<ol>
+<li> <a href="#conv-what">畳み込みニューラルネットワークとは</a>
+  <ul>
+  <li class=ex> <a href="#ex5-1">演習5-1. 畳み込みを計算する</a>
+  <li> <a href="#conv-image">画像処理における畳み込み</a>
+  <li class=ex> <a href="#ex5-2">演習5-2. 画像の畳み込みを計算する</a>
+  <li> <a href="#conv-net">ニューラルネットワークにおける畳み込み</a>
+  </ul>
+<li> <a href="#conv-impl">畳み込みニューラルネットワークの実装</a>
+  <ul>
+  <li class=ex> <a href="#ex5-3">演習5-3. 畳み込みニューラルネットワークを実行する</a>
+  <li> <a href="#conv-pooling">Pooling とは</a>
+  <li class=ex> <a href="#ex5-4">演習5-4. max pooling を使う</a>
+  <li> <a href="#conv-relu">活性化関数 ReLU</a>
+  <li class=ex> <a href="#ex5-5">演習5-5. 活性化関数として ReLU を使う</a>
+  </ul>
+<li> <a href="#cifar-10">CIFAR-10 (画像認識) とは</a>
+  <ul>
+  <li class=ex> <a href="#ex5-6">演習5-6. CIFAR-10 の学習</a>
+  </ul>
+<li> <a href="#summary">まとめ</a>
+</ol>
+
+
+<h2 id="conv-what">1. 畳み込みニューラルネットワークとは</h2>
+<p>
+さて、これまでは各レイヤーの各ノードが個別の入力を受けとる
+「普通の」ニューラルネットワークを扱ってきた。
+しかし、こと画像処理の分野では、同一のノードが異なる複数の入力を
+処理する <u>畳み込みニューラルネットワーク</u> (convolutional neural network, <u>CNN</u>)
+と呼ばれる方式が一般的である。
+<p>
+まず最初に「<u>畳み込み</u> (convolution)」とは何かを説明しよう。
+数学的には、関数の畳み込みとは
+2つの関数 f(x) と g(x) を以下のやりかたで合成することである:
+<div class=formula>
+(f*g)(x) = <span class=sym>&Sigma;</span> f(x)&middot;g(t-x)
+</div>
+<p>
+本来、畳み込みは無限和 (積分) として定義されるが、
+コンピュータで扱う場合は関数 f、g ともに有限の範囲でのみ定義され、
+それ以外の値はすべて 0 と仮定される。そのため、数値計算における畳み込みは
+多くの場合「ある関数 f(x) の各部分を、一定のやり方で足し合わせた新しい関数を作る」
+という処理であるといってよい。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="290" height="80">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="3" marker-end="url(#arrow)">
+  <path d="M30,20 l20,30" />
+  <path d="M60,20 l0,30" />
+  <path d="M90,20 l-20,30" />
+  <path d="M130,20 l20,30" />
+  <path d="M160,20 l0,30" />
+  <path d="M190,20 l-20,30" />
+</g>
+<g fill="none" stroke="black" stroke-width="2">
+  <line x1="30" y1="60" x2="260" y2="60" />
+  <line x1="10" y1="60" x2="30" y2="60" stroke-dasharray="2,2" />
+  <line x1="260" y1="60" x2="280" y2="60" stroke-dasharray="2,2" />
+  <circle cx="30" cy="20" r="5" fill="white" />
+  <circle cx="60" cy="20" r="5" fill="white" />
+  <circle cx="90" cy="20" r="5" fill="white" />
+  <circle cx="130" cy="20" r="5" fill="white" />
+  <circle cx="160" cy="20" r="5" fill="white" />
+  <circle cx="190" cy="20" r="5" fill="white" />
+  <circle cx="60" cy="60" r="5" fill="white" />
+  <circle cx="160" cy="60" r="5" fill="white" />
+  <circle cx="250" cy="60" r="5" fill="white" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="30" y="5" dy="0.5em">f(x-1)</text>
+  <text x="60" y="5" dy="0.5em">f(x)</text>
+  <text x="90" y="5" dy="0.5em">f(x+1)</text>
+  <text x="130" y="5" dy="0.5em">f(x)</text>
+  <text x="160" y="5" dy="0.5em">f(x+1)</text>
+  <text x="190" y="5" dy="0.5em">f(x+2)</text>
+  <text x="60" y="70" dy="0.5em">(f*g)(x)</text>
+  <text x="160" y="70" dy="0.5em">(f*g)(x+1)</text>
+  <text x="250" y="70" dy="0.5em">(f*g)(x+2)</text>
+</g>
+</svg><br>
+関数 f と g の畳み込み<br>
+(ここでの関数 g は -1, 0, +1 でのみ定義されている)
+</div>
+<p>
+たとえば関数 g が以下のように定義されているとして:
+<ul>
+<li> g(-1) = 2
+<li> g(0) = 1
+<li> g(+1) = -1
+<li> それ以外は 0
+</ul>
+<p>
+与えられた関数 <code>f(x)</code> と g との畳み込みを計算する
+Python 関数は以下のようになる:
+<blockquote><pre>
+def conv_g(f, x):
+    return f(x-1)*<mark>2</mark> + f(x)*<mark>1</mark> + f(x+1)*<mark>(-1)</mark>
+</pre></blockquote>
+
+<div class=exercise id="ex5-1">
+<div class=header>演習5-1. 畳み込みを計算する</div>
+<p>
+関数 <code>f</code> が以下のように定義されるとして、
+上の関数 <code>conv_g()</code> を使って畳み込みを計算せよ:
+<pre>
+f(0) = 5
+f(1) = 9
+f(2) = 4
+f(3) = 0
+f(4) = 7
+f(5) = 3
+</pre>
+</div>
+
+<h3 id="conv-image">1.1. 画像処理における畳み込み</h3>
+<p>
+画像処理の文脈では、畳み込みは 2次元でおこなわれる。
+画像における畳み込みとは
+「画像の各ピクセルに対して、近隣のピクセル (3×3 あるいは 5×5 など)
+に特定の係数をかけて合計する」処理をいう。
+ここで使われる係数の表ことを <u>カーネル</u> (kernel) と呼ぶ。
+カーネルは2次元配列 (行列) で表される。
+画像の畳み込みは、さしずめカーネルという「特殊レンズ」を使って
+画像を投影したものと考えることができる。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="150" height="200">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <path d="M100,40 l40,40 l0,80 l-40,-40 l0,-80" />
+  <path d="M110,50 l0,80 M120,60 l0,80 M130,70 l0,80" />
+  <path d="M100,60 l40,40 M100,80 l40,40 M100,100 l40,40" />
+  <path d="M110,70 l10,10 l0,20 l-10,-10 l0,-20" stroke-width="3" />
+</g>
+<g fill="none" stroke="black" stroke-width="3" marker-end="url(#arrow)">
+  <path d="M25,55 L110,80 M35,65 L110,80 M45,75 L110,80" />
+  <path d="M25,75 L110,85 M35,85 L110,85 M45,95 L110,85" />
+  <path d="M25,95 L112,90 M35,105 L112,90 M45,115 L112,90" />
+</g>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="70" y1="30" x2="80" y2="70" />
+  <path d="M10,10 l60,60 l0,120 l-60,-60 l0,-120" fill="rgba(255,255,255,0.5)" />
+  <path d="M20,20 l0,120 M30,30 l0,120 M40,40 l0,120 M50,50 l0,120 M60,60 l0,120" />
+  <path d="M10,30 l60,60 M10,50 l60,60 M10,70 l60,60 M10,90 l60,60 M10,110 l60,60" />
+  <path d="M20,40 l30,30 l0,60 l-30,-30 l0,-60" stroke-width="3" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="70" y="20" dy="0.5em">カーネル</text>
+  <text x="30" y="180" dy="0.5em">入力画像</text>
+  <text x="120" y="170" dy="0.5em">出力画像</text>
+</g>
+</svg><br>
+画像における畳み込み (3×3 のカーネルを使った場合)
+</div>
+<p>
+Python で模式的に書くと、以下のような処理になる:
+<blockquote><pre>
+<span class=comment># K: 近隣の各ピクセルにかけるカーネル (2次元配列)</span>
+K = [[0,0,0], [0,1,0], [0,0,0]]
+<span class=comment># input: 入力画像 (2次元配列)</span>
+input = [ ... ]
+<span class=comment># output: 出力画像 (2次元配列) - 入力画像よりもカーネルの分だけ小さい。</span>
+output = [ ... ]
+<span class=comment># 画像の各ピクセルに対して処理をおこなう。</span>
+for y in range(height-2):
+    for x in range(width-2):
+        <span class=comment># 近隣のピクセル値を合計する。</span>
+        v = 0
+        for dy in range(3):
+            for dx in range(3):
+               v += K[dy,dx] * input[y+dy,x+dx]
+        output[y,x] = v
+</pre></blockquote>
+<p>
+NumPy を使うと、<code>for</code>ループの中は次のように簡単化できる:
+<blockquote><pre>
+for y in range(height-2):
+    for x in range(width-2):
+        <span class=comment># 近隣のピクセル値を合計する。</span>
+        output[y,x] = <mark>np.sum(K * input[y:y+3, x:x+3])</mark>
+</pre></blockquote>
+<p>
+異なるカーネルを使うと、各部分における異なった特徴を抽出できる。
+画像にいろいろなカーネルを適用してみた例を以下に示す:
+<table border align=center><tr>
+<th>説明</th><th>カーネル</th><th>結果</th>
+</tr><tr>
+<td>変化なし<br>(元の画像)</td>
+<td><table border class=kernel>
+<tr><td align=right>0</td><td align=right>0</td><td align=right>0</td></tr>
+<tr><td align=right>0</td><td align=right>1</td><td align=right>0</td></tr>
+<tr><td align=right>0</td><td align=right>0</td><td align=right>0</td></tr>
+</table></td>
+<td><img width="64" height="80" src="original.png"></td>
+</tr><tr>
+<td>平均化</td>
+<td><table border class=kernel>
+<tr><td align=right>1</td><td align=right>1</td><td align=right>1</td></tr>
+<tr><td align=right>1</td><td align=right>1</td><td align=right>1</td></tr>
+<tr><td align=right>1</td><td align=right>1</td><td align=right>1</td></tr>
+</table></td>
+<td><img width="64" height="80" src="kern1.png"></td>
+</tr><tr>
+<td>横線を強調</td>
+<td><table border class=kernel>
+<tr><td align=right>-1</td><td align=right>-1</td><td align=right>-1</td></tr>
+<tr><td align=right>0</td><td align=right>0</td><td align=right>0</td></tr>
+<tr><td align=right>1</td><td align=right>1</td><td align=right>1</td></tr>
+</table></td>
+<td><img width="64" height="80" src="kern2.png"></td>
+</tr><tr>
+<td>縦線を強調</td>
+<td><table border class=kernel>
+<tr><td align=right>-1</td><td align=right>0</td><td align=right>1</td></tr>
+<tr><td align=right>-1</td><td align=right>0</td><td align=right>1</td></tr>
+<tr><td align=right>-1</td><td align=right>0</td><td align=right>1</td></tr>
+</table></td>
+<td><img width="64" height="80" src="kern3.png"></td>
+</tr></table>
+
+<div class=exercise id="ex5-2">
+<div class=header>演習5-2. 画像の畳み込みを計算する</div>
+<p>
+以下のような 4×4 の入力画像に対して、3×3 のカーネルを適用することを考える:
+<pre>
+[1 0 0 0]
+[0 2 1 1]
+[0 0 2 0]
+[0 1 2 0]
+</pre>
+<p>
+適用するカーネル:
+<pre class=kernel>
+[ 0 -1  0]
+[-1  4 -1]
+[ 0 -1  0]
+</pre>
+<p>
+出力画像はカーネルの幅だけ小さくなり 2×2 で表される。
+この各ピクセル値を求めよ。
+<pre>
+[<nobr><span class=bl> 7</span></nobr> <nobr><span class=bl>-1</span></nobr>]
+[<nobr><span class=bl>-5</span></nobr> <nobr><span class=bl> 5</span></nobr>]
+</pre>
+</div>
+
+<div class=figure>
+<img width="132" height="230" src="colonel.png">
+</div>
+
+<h3 id="conv-net">1.2. ニューラルネットワークにおける畳み込み</h3>
+<p>
+従来のニューラルネットワークでは、各ピクセル間の直接的な関係を学習していた。
+これに対して畳み込みニューラルネットワークでは、各ピクセルを区別しない。
+かわりに、<strong>全ピクセルに対して等しく適用される
+カーネルを学習する</strong>のである。
+画像に対する「変換」を学習するといってもよい。
+たとえばカーネルの大きさが 3×3 の場合、
+学習するのは以下のような 9個の入力をもつネットワークである:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="220" height="140">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="white" stroke="black" stroke-width="2">
+  <circle cx="160" cy="70" r="15" />
+</g>
+<g fill="none" stroke="black" stroke-width="3" marker-end="url(#arrow)">
+  <line x1="50" y1="20" x2="150" y2="60" />
+  <line x1="70" y1="30" x2="152" y2="62" />
+  <line x1="90" y1="40" x2="154" y2="64" />
+  <line x1="50" y1="60" x2="150" y2="66" />
+  <line x1="70" y1="70" x2="152" y2="68" />
+  <line x1="90" y1="80" x2="154" y2="70" />
+  <line x1="50" y1="95" x2="150" y2="72" />
+  <line x1="70" y1="105" x2="152" y2="74" />
+  <line x1="90" y1="115" x2="154" y2="76" />
+</g>
+<g fill="white" stroke="black" stroke-width="2">
+  <circle cx="50" cy="100" r="15" />
+  <circle cx="70" cy="110" r="15" />
+  <circle cx="90" cy="120" r="15" />
+</g>
+<g fill="white" stroke="black" stroke-width="2">
+  <circle cx="50" cy="20" r="15" />
+  <circle cx="70" cy="30" r="15" />
+  <circle cx="90" cy="40" r="15" />
+  <circle cx="50" cy="60" r="15" />
+  <circle cx="70" cy="70" r="15" />
+  <circle cx="90" cy="80" r="15" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="20" y="70" dy="0.5em">入力</text>
+  <text x="190" y="70" dy="0.5em">出力</text>
+</g>
+</svg><br>
+3×3 のカーネルを表すニューラルネットワーク
+</div>
+
+<p>
+畳み込みニューラルネットワークの利点として、以下のようなものがある:
+<ul>
+  <li> 学習するパラメータ (重み+バイアスの数) が少ないため、より安定した学習ができる。
+  <li> 各ピクセルの位置は無視するため、多少画像が (上下左右に) ずれても適応できる。
+  <li> Max Pooling (後述) により、出力画像を効率的に間引くことができる。
+</ul>
+<p>
+実際には、畳み込みニューラルネットワークではひとつの入力画像に対して
+<strong>複数のカーネルを学習する</strong>。
+画像の各ピクセルに含まれる独立した成分のことを<u>チャンネル</u> (channel)
+と呼ぶが (たとえば、カラー画像は R, G, B の 3つのチャンネルからなる画像である)、
+畳み込みニューラルネットワークでは 1チャンネルからなる入力画像に対して、
+複数の並列なチャンネルからなる出力画像を生成するのである。
+個々のカーネルはランダムに初期化されるため、ここでは別々のカーネルが
+それぞれ異なった重みを学習し、異なった特徴量が各チャンネルに抽出されることが期待される。
+従来のニューラルネットワークと同様に、この構造はレイヤーの一種であり、
+<u>畳み込みレイヤー</u> (convolutional layer) と呼ばれる。
+(いっぽう従来のレイヤーは、
+<u>線型レイヤー</u> (linear layer) や
+<u>全接続レイヤー</u> (fully connected layer)、あるいは
+アフィンレイヤー (affine layer) などとも呼ばれる。)
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="230" height="150">
+<g fill="white" stroke="black" stroke-width="2">
+  <rect x="120" y="10" width="60" height="60" />
+  <rect x="125" y="20" width="60" height="60" />
+  <rect x="130" y="30" width="60" height="60" />
+  <rect x="145" y="60" width="60" height="60" />
+  <rect x="150" y="70" width="60" height="60" />
+</g>
+<g fill="none" stroke="black" stroke-width="4">
+  <line x1="50" y1="60" x2="120" y2="30" />
+  <line x1="50" y1="65" x2="125" y2="40" />
+  <line x1="50" y1="70" x2="130" y2="50" />
+  <line x1="50" y1="80" x2="145" y2="100" />
+  <line x1="50" y1="85" x2="150" y2="110" />
+</g>
+<g fill="white" stroke="black" stroke-width="2">
+  <rect x="10" y="40" width="60" height="60" />
+</g>
+<path d="M100,70 l5,10 M145,45 l5,10"
+      stroke="black" stroke-width="2" stroke-dasharray="2,2" />
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="80" y1="25" x2="90" y2="40" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="40" y="110" dy="0.5em">入力画像</text>
+  <text x="180" y="140" dy="0.5em">出力画像</text>
+  <text x="80" y="15" dy="0.5em">カーネル</text>
+</g>
+</svg><br>
+畳み込みレイヤーの構造
+</div>
+<p>
+さらに、複数の畳み込みニューラルネットワークを重ねる場合、
+畳み込みレイヤーでは、個々の出力チャンネルが、すべての入力チャンネルの値を合計する。
+つまり、ひとつの畳み込みレイヤーが
+ (入力チャンネル数 × 出力チャンネル数) 個のカーネルをもち、
+各入力チャンネルと出力チャンネルが全結合された状態になるのである。
+この構造は、従来のニューラルネットワークと似ている。
+ただ各ノードがひとつの値をとるのではなく、
+1枚 (1チャンネル) の画像をとると考えればよい:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="380" height="210">
+<g fill="white" stroke="black" stroke-width="2">
+  <rect x="260" y="30" width="60" height="60" />
+  <rect x="270" y="50" width="60" height="60" />
+  <rect x="280" y="70" width="60" height="60" />
+  <rect x="290" y="90" width="60" height="60" />
+</g>
+<g fill="none" stroke="black" stroke-width="4">
+  <line x1="150" y1="40" x2="260" y2="50" />
+  <line x1="150" y1="40" x2="270" y2="70" />
+  <line x1="150" y1="40" x2="280" y2="90" />
+  <line x1="150" y1="40" x2="290" y2="110" />
+  <line x1="160" y1="70" x2="260" y2="55" />
+  <line x1="160" y1="70" x2="270" y2="75" />
+  <line x1="160" y1="70" x2="280" y2="95" />
+  <line x1="160" y1="70" x2="290" y2="115" />
+  <line x1="170" y1="100" x2="260" y2="60" />
+  <line x1="170" y1="100" x2="270" y2="80" />
+  <line x1="170" y1="100" x2="280" y2="100" />
+  <line x1="170" y1="100" x2="290" y2="120" />
+  <line x1="180" y1="130" x2="260" y2="65" />
+  <line x1="180" y1="130" x2="270" y2="85" />
+  <line x1="180" y1="130" x2="280" y2="105" />
+  <line x1="180" y1="130" x2="290" y2="125" />
+</g>
+<g fill="white" stroke="black" stroke-width="2">
+  <rect x="120" y="30" width="60" height="60" />
+  <rect x="130" y="50" width="60" height="60" />
+  <rect x="140" y="70" width="60" height="60" />
+  <rect x="150" y="90" width="60" height="60" />
+</g>
+<g fill="none" stroke="black" stroke-width="4">
+  <line x1="50" y1="80" x2="120" y2="50" />
+  <line x1="50" y1="85" x2="130" y2="70" />
+  <line x1="50" y1="90" x2="140" y2="100" />
+  <line x1="50" y1="95" x2="150" y2="120" />
+</g>
+<g fill="white" stroke="black" stroke-width="2">
+  <rect x="10" y="55" width="60" height="60" />
+</g>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="80" y1="30" x2="90" y2="60" />
+  <line x1="210" y1="30" x2="220" y2="50" />
+  <path d="M40,190 l0,10 l30,0 m75,0 l30,0 l0,-10" />
+  <path d="M180,190 l0,10 l30,0 m80,0 l30,0 l0,-10" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="40" y="130" dy="0.5em">入力</text>
+  <text x="40" y="145" dy="0.5em">(1チャンネル)</text>
+  <text x="180" y="160" dy="0.5em">出力/入力</text>
+  <text x="180" y="175" dy="0.5em">(4チャンネル)</text>
+  <text x="320" y="160" dy="0.5em">出力</text>
+  <text x="320" y="175" dy="0.5em">(4チャンネル)</text>
+  <text x="80" y="20" dy="0.5em">カーネル</text>
+  <text x="210" y="20" dy="0.5em">カーネル</text>
+  <text x="105" y="200" dy="0.5em">レイヤー1</text>
+  <text x="250" y="200" dy="0.5em">レイヤー2</text>
+</g>
+</svg><br>
+複数の畳み込みレイヤーの接続
+</div>
+<p>
+さて、こうして入力画像に何層もの畳み込みレイヤーを適用していったとして、
+文字認識のようなタスクの場合、ニューラルネットワークは最終的にどこかで
+「判定処理」をおこなう必要がある。このような場合は、畳み込みレイヤーの
+出力チャンネルのピクセル値をフラットな1次元配列に変換し、
+そこに従来型の全接続レイヤーをつけ加えることによって判定する。
+この段階までに、すでに畳み込みレイヤーが画像から特徴量を抽出しており、
+認識しやすくなっていることが期待されている:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="300" height="210">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="white" stroke="black" stroke-width="2">
+  <circle cx="140" cy="20" r="10" />
+  <circle cx="145" cy="30" r="10" />
+  <circle cx="150" cy="40" r="10" />
+  <circle cx="165" cy="65" r="10" />
+  <circle cx="170" cy="75" r="10" />
+  <circle cx="175" cy="85" r="10" />
+  <circle cx="190" cy="110" r="10" />
+  <circle cx="195" cy="120" r="10" />
+  <circle cx="200" cy="130" r="10" />
+  <circle cx="215" cy="155" r="10" />
+  <circle cx="220" cy="165" r="10" />
+  <circle cx="225" cy="175" r="10" />
+</g>
+<g fill="none" stroke="black" stroke-width="3" marker-end="url(#arrow)">
+  <line x1="20" y1="70" x2="130" y2="25" />
+  <line x1="40" y1="70" x2="135" y2="35" />
+  <line x1="60" y1="70" x2="140" y2="45" />
+  <line x1="35" y1="100" x2="155" y2="65" />
+  <line x1="55" y1="100" x2="160" y2="75" />
+  <line x1="75" y1="100" x2="165" y2="85" />
+  <line x1="50" y1="115" x2="180" y2="110" />
+  <line x1="70" y1="120" x2="185" y2="120" />
+  <line x1="90" y1="125" x2="190" y2="130" />
+  <line x1="80" y1="150" x2="205" y2="155" />
+  <line x1="80" y1="160" x2="210" y2="165" />
+  <line x1="80" y1="170" x2="215" y2="175" />
+</g>
+<g fill="white" stroke="black" stroke-width="2">
+  <rect x="10" y="40" width="60" height="60" />
+  <rect x="25" y="70" width="60" height="60" />
+  <rect x="40" y="100" width="60" height="60" />
+  <rect x="55" y="130" width="60" height="60" />
+</g>
+<g stroke="black" stroke-width="2" stroke-dasharray="2,2">
+  <path d="M150,40 l7,14"/> <path d="M125,55 l5,10"/>
+  <path d="M175,85 l7,14"/> <path d="M145,95 l5,10"/>
+  <path d="M200,130 l7,14"/> <path d="M165,135 l5,10"/>
+  <path d="M225,175 l7,14"/> <path d="M185,180 l5,10"/>
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="30" y="10" dy="0.5em">畳み込み</text>
+  <text x="30" y="25" dy="0.5em">レイヤー</text>
+  <text x="60" y="200" dy="0.5em">(4チャンネル)</text>
+  <text x="190" y="10" dy="0.5em">全接続</text>
+  <text x="190" y="25" dy="0.5em">レイヤー</text>
+  <text x="220" y="200" dy="0.5em">(4×ピクセル数)個のノード</text>
+</g>
+</svg><br>
+畳み込みレイヤーの出力を全接続レイヤーの入力に変換する
+</div>
+<p>
+重要なこと:
+<strong>畳み込みニューラルネットワークにおいても微分可能性は保たれている</strong>。
+ここでは各ピクセルを全接続レイヤーに変換したものも微分可能であり、
+したがって全接続レイヤーからさかのぼって、
+各畳み込みレイヤーに対して誤差逆伝播法を使うことができるわけである。
+<p>
+なお、畳み込みレイヤーおける誤差の逆伝播はやや直感的に
+想像しづらいかもしれないが、仕組みは従来の誤差逆伝播法とまったく同じである。
+ここではひとつの出力ピクセルに対して、それに対応するカーネルの範囲にある
+複数の入力ピクセルが誤差を蓄積すると考える。
+最終的な入力ピクセルの誤差は、これらを重ね合わせたものになる:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="180" height="200">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="3" marker-end="url(#arrow)">
+  <path d="M180,85 l-60,0" />
+  <path d="M180,145 l-40,0" />
+</g>
+<g fill="none" stroke="black" stroke-width="1">
+  <path d="M100,40 l40,40 l0,80 l-40,-40 l0,-80" fill="rgba(255,255,255,0.5)" />
+  <path d="M110,50 l0,80 M120,60 l0,80 M130,70 l0,80" />
+  <path d="M100,60 l40,40 M100,80 l40,40 M100,100 l40,40" />
+  <path d="M110,70 l10,10 l0,20 l-10,-10 l0,-20" stroke-width="3" />
+  <path d="M130,130 l10,10 l0,20 l-10,-10 l0,-20" stroke-width="3" />
+</g>
+<g fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)">
+  <path d="M115,85 L25,55" />
+  <path d="M115,85 L35,65" />
+  <path d="M115,85 L45,75" />
+  <path d="M115,85 L25,75" />
+  <path d="M115,85 L35,85" />
+  <path d="M115,85 L45,95" />
+  <path d="M115,85 L25,95" />
+  <path d="M115,85 L35,105" />
+  <path d="M115,85 L45,115" />
+
+  <path d="M135,145 L45,115" />
+  <path d="M135,145 L55,125" />
+  <path d="M135,145 L65,135" />
+  <path d="M135,145 L45,135" />
+  <path d="M135,145 L55,145" />
+  <path d="M135,145 L65,155" />
+  <path d="M135,145 L45,155" />
+  <path d="M135,145 L55,165" />
+  <path d="M135,145 L65,175" />
+</g>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="70" y1="30" x2="80" y2="70" />
+  <path d="M10,10 l60,60 l0,120 l-60,-60 l0,-120" fill="rgba(255,255,255,0.5)" />
+  <path d="M20,20 l0,120 M30,30 l0,120 M40,40 l0,120 M50,50 l0,120 M60,60 l0,120" />
+  <path d="M10,30 l60,60 M10,50 l60,60 M10,70 l60,60 M10,90 l60,60 M10,110 l60,60" />
+  <path d="M20,40 l30,30 l0,60 l-30,-30 l0,-60" stroke-width="3" />
+  <path d="M40,100 l30,30 l0,60 l-30,-30 l0,-60" stroke-width="3" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="70" y="20" dy="0.5em">カーネル</text>
+</g>
+</svg><br>
+畳み込みにおける誤差の逆伝播
+</div>
+
+<h2 id="conv-impl">2. 畳み込みニューラルネットワークの実装</h2>
+<p>
+では実際に、畳み込みレイヤーを表す <code>ConvolutionalLayer</code> を実装してみよう。
+畳み込みニューラルネットワークは、2次元の画像を入力するものであった。
+1枚の画像は2次元配列で表せるが、実際の畳み込みレイヤーは複数のチャンネルを扱うので、
+入力と出力はそれぞれ (チャンネル数 × 高さ × 幅) の
+<strong>3次元配列で表される</strong>ことになる。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="400" height="135">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="white" stroke="black" stroke-width="2">
+  <rect x="100" y="10" width="60" height="60" />
+  <rect x="105" y="20" width="60" height="60" />
+  <rect x="110" y="30" width="60" height="60" />
+  <rect x="125" y="60" width="60" height="60" />
+  <rect x="200" y="10" width="60" height="60" />
+  <rect x="205" y="20" width="60" height="60" />
+  <rect x="210" y="30" width="60" height="60" />
+  <rect x="225" y="70" width="60" height="60" />
+</g>
+<g stroke="black" stroke-width="2" stroke-dasharray="2,2">
+  <path d="M120,45 l5,10"/>
+  <path d="M220,45 l10,20"/>
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="70" y="85" dy="0.5em">入力</text>
+  <text x="70" y="100" dy="0.5em">(ninチャンネル)</text>
+  <text x="340" y="80" dy="0.5em">出力</text>
+  <text x="340" y="95" dy="0.5em">(noutチャンネル)</text>
+</g>
+</svg><br>
+畳み込みレイヤーの入力と出力
+</div>
+<p>
+さらに、各カーネルは 3×3 などの大きさをもつ正方形の2次元配列であるが、
+これが (入力チャンネル × 出力チャンネル) 個だけ存在するので、
+重みの総数は (入力チャンネル数 × 出力チャンネル数 × カーネル幅 × カーネル幅)
+の大きさをもつ 4次元配列で表現できる。すると
+<code>ConvolutionalLayer</code> クラスの初期化は以下のようになる:
+<blockquote><pre>
+<span class=comment># 入力 ninチャンネル、出力 noutチャンネルで (ksize×ksize) のカーネルを使った</span>
+<span class=comment># 畳み込みレイヤーを定義する。</span>
+class ConvolutionalLayer:
+
+    def __init__(self, nin, nout, ksize):
+        self.nin = nin
+        self.nout = nout
+        self.ksize = ksize
+        <span class=comment># 重み・バイアスを初期化する。</span>
+        self.w = np.random.random((self.nout, self.nin, self.ksize, self.ksize))-.5
+        self.b = np.random.random((self.nout, self.nin))-.5
+        <span class=comment># 計算用の変数を初期化する。</span>
+        self.x = self.y = None
+        self.dw = np.zeros((self.nout, self.nin, self.ksize, self.ksize))
+        self.db = np.zeros((self.nout, self.nin))
+        return
+</pre></blockquote>
+<p>
+残念ながら、NumPy には2次元配列の畳み込み演算を簡単におこなう方法はないため、
+画像の各チャンネルを 1ピクセルずつ処理しなければならない。
+そのために四重の <code>for</code> ループ
+(出力チャンネル × 入力チャンネル × 高さ × 幅) が必要になるが、
+ここではコードの見やすさのため、簡単なユーティリティ関数
+<code>enumerate2d()</code> を定義しておく。
+これは Python組み込みの <code>enumerate()</code> 関数の
+2次元版のようなもので、ksize×ksize のカーネルが動ける範囲で
+与えられた2次元配列 m の部分を列挙する。
+<p>
+(<strong>注意:</strong>
+畳み込みレイヤーの出力画像は、入力画像よりも <code>(ksize-1)</code> だけ小さくなっている。
+これは入力画像中のカーネルが動ける範囲がそれだけ狭くなっているためである。
+出力画像の大きさを変えないよう、入力画像の周囲に <code>0</code> を補完する場合もある。
+これは <u>パディング</u> (padding) と呼ばれるが、詳細は後述する。)
+<blockquote><div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="230" height="190">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <rect x="20" y="20" width="200" height="160" />
+  <path d="M20,10 l0,-5 l80,0 m40,0 l80,0 l0,5" />
+  <path d="M10,20 l-5,0 l0,60 m0,40 l0,60 l5,0" />
+</g>
+<g fill="none" stroke="black" stroke-width="3">
+  <rect x="25" y="25" width="50" height="50" />
+  <rect x="165" y="125" width="50" height="50" />
+  <path d="M90,50 l110,0" marker-end="url(#arrow)" />
+  <path d="M40,100 l160,0" marker-end="url(#arrow)" />
+  <path d="M40,150 l110,0" marker-end="url(#arrow)" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="5" y="100" dy="0.5em">h</text>
+  <text x="120" y="5" dy="0.5em">w</text>
+  <text x="50" y="28" dy="0.5em">ksize</text>
+  <text x="55" y="50" dy="0.5em">(i, j)</text>
+  <text transform="translate(28,50) rotate(90)">ksize</text>
+</g>
+</svg><br>
+<code>enumerate2d()</code> 関数の動き
+</div>
+<pre>
+<span class=comment># ksize×ksize のカーネルに対応する2次元配列 m の各部分を返す。</span>
+def enumerate2d(ksize, m):
+    <span class=comment># カーネルの幅だけ小さくしたサイズを計算する。</span>
+    (h, w) = m.shape
+    h -= ksize-1
+    w -= ksize-1
+    for i in range(0, h):
+        for j in range(0, w):
+            <span class=comment># 配列 m から、位置 (i,j) 大きさ ksize×ksize の部分を2次元で切り出す。</span>
+            yield (i, j, m[i:i+ksize, j:j+ksize])
+    return
+</pre></blockquote>
+
+<p>
+この関数を使って <code>forward()</code> メソッドと
+<code>backward()</code> メソッドを書くと、次のようになる。
+どちらも二重の <code>for</code> ループ (nout × nin) を使って、
+各チャンネルの各ピクセルごとに処理している。
+今回は一気に計算できないので、まず一時的な配列 (ゼロ初期化されている) を用意し、
+そこに各ピクセルごとの値を足していく方法をとっている:
+<blockquote><pre>
+    def forward(self, x):
+        <span class=comment># xは (ninチャンネル×高さ×幅) の要素をもつ3次元配列。</span>
+        self.x = x
+        <span class=comment># 出力画像の大きさを計算する。これは入力画像よりカーネルの幅だけ小さい。</span>
+        (_,h,w) = x.shape
+        h -= self.ksize-1
+        w -= self.ksize-1
+        <span class=comment># yは (noutチャンネル×高さ×幅) の要素をもつ3次元配列。</span>
+        self.y = np.zeros((self.nout, h, w))
+        <span class=comment># 各チャンネルの出力を計算する。</span>
+        for i in range(self.nout):
+            for j in range(self.nin):
+                <span class=comment># j番目のチャンネルの各ピクセルに対して、畳み込みを計算する。</span>
+                w = self.w[i,j]
+                for (p,q,z) in enumerate2d(self.ksize, x[j]):
+                    <span class=comment># p,q は出力画像の位置、z は入力画像の一部。</span>
+                    self.y[i,p,q] += np.sum(w * z)
+        <span class=comment># 各要素にシグモイド関数を適用する。</span>
+        self.y = sigmoid(self.y)
+        return self.y
+</blockquote></pre>
+<p>
+<code>backward()</code> では (nout × nin)個のカーネルそれぞれに対して
+偏微分を計算したあとに、誤差をあらわす一時的な二次元配列
+<code>dx</code> を用意している。
+その後、各出力ピクセルに対応する (dx内の) 入力ピクセルの領域に値を足している。
+ここでやや注意が必要なのは、<code>enumerate2d()</code> の返り値が
+「もとの配列とメモリを共有する部分列」になっているということである。
+これは Python のリスト参照と同様に、部分列を変更すれば元の配列も変更される。
+<blockquote><pre>
+    def backward(self, delta):
+        <span class=comment># deltaは (noutチャンネル×高さ×幅) の要素をもつ3次元配列。</span>
+        <span class=comment># self.y が計算されたときのシグモイド関数の微分を求める。</span>
+        ds = d_sigmoid(self.y)
+        <span class=comment># 各偏微分を計算する。</span>
+        <span class=prev># self.dw += delta * ds * self.x</span>
+        <span class=prev># self.db += delta * ds</span>
+        for i in range(self.nout):
+            for j in range(self.nin):
+                dw = self.dw[i,j]
+                db = self.db[i,j]
+                for (p,q,z) in enumerate2d(self.ksize, self.x[j]):
+                    <span class=comment># p,q は出力画像の位置、z は入力画像の一部。</span>
+                    d = delta[i,p,q] * ds[i,p,q]
+                    dw += d * z
+                    db += d
+        <span class=comment># 各入力値の微分を求める。</span>
+        <span class=comment># dxは (ninチャンネル×高さ×幅) の要素をもつ3次元配列。</span>
+        <span class=prev># dx = np.dot(delta * ds, self.w)</span>
+        dx = np.zeros(self.x.shape)
+        for i in range(self.nout):
+            for j in range(self.nin):
+                w = self.w[i,j]
+                for (p,q,z) in enumerate2d(self.ksize, dx[j]):
+                    <span class=comment># z はカーネルに対応する入力ピクセルの一部分。</span>
+                    <span class=comment># z は dx の一部を共有しているため、z を変化させることで dx の一部も変化する。</span>
+                    z += delta[i,p,q] * ds[i,p,q] * w
+        return dx
+</pre></blockquote>
+<p>
+いっさいがっさいをまとめると次のようになる。
+ここでは出力5チャンネルをもつ畳み込みレイヤー <code>conv1</code> を作成し、
+その後に通常の Softmaxつき全接続レイヤー <code>fc1</code> を接続している。
+カーネルの大きさは 3×3 なので、畳み込みレイヤー (1×28×28) の出力範囲はすこし狭くなって
+5×26×26 の3次元配列になる。これを <code>reshape()</code> でフラットな配列に変換し、
+<code>backward()</code> 時にまたもとに戻している。
+<div class=file>
+mnist_cnn.py
+<pre>
+<span class=comment># 入力1チャンネル、出力5チャンネル、カーネル3×3 の畳み込みレイヤーを使う。</span>
+conv1 = ConvolutionalLayer(1, 5, 3)
+fc1 = SoftmaxLayer(<mark>5*26*26</mark>, 10)
+n = 0
+for i in range(1):
+    for (image,label) in zip(train_images, train_labels):
+        <span class=comment># 28×28の画像を 1チャンネル×28×28 の3次元配列に変換。</span>
+        x = (image/255)<mark>.reshape(1, 28, 28)</mark>
+        <span class=comment># 正解部分だけが 1 になっている 10要素の配列を作成。</span>
+        ya = np.zeros(10)
+        ya[label] = 1
+        <span class=comment># 損失・勾配を計算。</span>
+        y = conv1.forward(x)
+        <mark>y = y.reshape(5*26*26)</mark> <span class=comment># 3次元配列 → 1次元配列。</span>
+        y = fc1.forward(y)
+        delta = fc1.cross_entropy_loss_backward(ya)
+        <mark>delta = delta.reshape(5, 26, 26)</mark> <span class=comment># 1次元配列 → 3次元配列に戻す。</span>
+        delta = conv1.backward(delta)
+        n += 1
+        if (n % 50 == 0):
+            print(n, fc1.loss)
+            conv1.update(0.01)
+            fc1.update(0.01)
+</pre>
+</div>
+
+<div class=exercise id="ex5-3">
+<div class=header>演習5-3. 畳み込みニューラルネットワークを実行する</div>
+<p>
+上のプログラム <code>mnist_cnn.py</code> を完成させ、
+実際に実行して認識精度を確認せよ。
+</div>
+
+<p>
+上のプログラムを実行すると、学習が非常に遅い (1時間程度) うえに
+精度も向上していない (むしろ低下している) ことがわかる。
+これは畳み込みレイヤーを 1層しか使っていないことが原因だが、
+レイヤーを増やすとさらに計算時間が増加してしまう。
+これを緩和する方法を次に説明する。
+
+<h3 id="conv-pooling">2.1. Pooling とは</h3>
+<p>
+畳み込みニューラルネットワークの特徴のひとつは、
+入力ピクセルと出力ピクセルの位置関係が保たれていることである。
+カーネルによる畳み込み操作はすべてのピクセルに対して均等に行われるため、
+入力画像で同じ位置関係にあった 2つの特徴量は、
+出力画像でも同じ位置関係にある。この性質を利用すると、
+ちょうど画像を縮小するのと同じように、特徴量を「間引く」ことができる。
+これが<u>プーリング</u> (pooling) である。
+これは「複数のピクセルにある情報を、ひとつのピクセルにためる (プールする)」
+ことからこう呼ばれる。
+なお、プーリングが使えるのは、
+畳み込みニューラルネットワークの出力だけである。
+いっぽう通常の (畳み込みでない) ニューラルネットワークでは、
+各ノードの値がどんな役割をもっているかは不明なので、
+値を勝手に捨てることはできない。
+<p>
+プーリングにはいくつかやり方が存在するが、
+もっとも一般的に使われているのは以下の 2つである:
+<ol type=a>
+<li> ピクセルの最大値 (max) を利用する (<u>max pooling</u>)
+<li> ピクセルの平均値 (avg) を利用する (<u>avg pooling</u>)
+</ol>
+ここでは max pooling (正確には「ストライド2 の max pooling」) について紹介する。
+これは畳み込みレイヤーの (各チャンネルの) 出力ピクセルを 1/2 に縮小するもので、
+「隣接する 2×2 ピクセルのもっとも大きい値 (max) を利用する」ことにより
+画像を縮小する:
+<div class=figure>
+<table align=center>
+<tr><td>
+<table border>
+<tr><td class=c1>5</td><td class=c1><strong>9</strong></td><td class=c2>4</td><td class=c2>0</td></tr>
+<tr><td class=c1>7</td><td class=c1>3</td><td class=c2>1</td><td class=c2><strong>8</strong></td></tr>
+<tr><td class=c3><strong>6</strong></td><td class=c3>5</td><td class=c4>0</td><td class=c4>0</td></tr>
+<tr><td class=c3>0</td><td class=c3>2</td><td class=c4>0</td><td class=c4><strong>1</strong></td></tr>
+</table>
+</td><td>→</td><td>
+<table border>
+<tr><td class=c1><strong>9</strong></td><td class=c2><strong>8</strong></td></tr>
+<tr><td class=c3><strong>6</strong></td><td class=c4><strong>1</strong></td></tr>
+</table>
+</td></tr>
+</table>
+Max pooling を使って、4×4 の特徴量を 2×2 に縮小する例
+</div>
+
+<p>
+Max pooling は通常、畳み込みレイヤーの (活性化関数を計算したあと)
+最後のステップとしておこなう。ニューラルネットワークの他のすべての計算と同じように
+max pooling も <strong>微分可能</strong>な演算でなければならない。
+「最大値をとる操作の微分」というと想像しにくいかもしれないが、
+関数 max() は入力された値の線形和として考えることができる。
+<p>
+たとえば x<sub>1</sub>, x<sub>2</sub>, ..., x<sub>n</sub> の
+最大値が <strong>x<sub>m</sub></strong> であるとき:
+<div class=formula>
+max(x<sub>1</sub>, x<sub>2</sub>, ..., x<sub>n</sub>)
+ = <strong>x<sub>m</sub></strong>
+ = 0&middot;x<sub>1</sub> + 0&middot;x<sub>2</sub> + ... + <strong>1&middot;x<sub>m</sub></strong> + ... + 0&middot;x<sub>n</sub>
+</div>
+<p>
+したがって、各変数による微分は以下のようになる:
+<ul>
+<li> <span class=sym>&part;</span>max/<span class=sym>&part;</span>x<sub>i</sub> = 1 (i = m の場合)<br>
+<li> <span class=sym>&part;</span>max/<span class=sym>&part;</span>x<sub>i</sub> = 0 (それ以外)
+</ul>
+
+<p>
+これはつまり「もともと値が最大だった要素の微分が 1 になる」ということである。
+実際の誤差逆伝播法では、これは「受けとった誤差の各要素を、
+もともと最大値だった要素に再配置する」処理と考えることができる。
+結局のところ、Python では以下の 2つの関数を実装すればよい:
+<div class=figure>
+<table align=center>
+<tr><td>
+<table border>
+<tr><td class=c1>5</td><td class=c1><strong>9</strong></td><td class=c2>4</td><td class=c2>0</td></tr>
+<tr><td class=c1>7</td><td class=c1>3</td><td class=c2>1</td><td class=c2><strong>8</strong></td></tr>
+<tr><td class=c3><strong>6</strong></td><td class=c3>5</td><td class=c4>0</td><td class=c4>0</td></tr>
+<tr><td class=c3>0</td><td class=c3>2</td><td class=c4>0</td><td class=c4><strong>1</strong></td></tr>
+</table>
+</td><td>→</td><td>
+<table border>
+<tr><td class=c1><strong>9</strong></td><td class=c2><strong>8</strong></td></tr>
+<tr><td class=c3><strong>6</strong></td><td class=c4><strong>1</strong></td></tr>
+</table>
+</td><td>, <code>[1, 3, 0, 3]</code></td></tr>
+</table>
+<code>maxpool2d()</code> 関数による処理
+<p>
+<table align=center>
+<tr><td>
+<table border>
+<tr><td class=c1>0</td><td class=c1><strong>-1</strong></td><td class=c2>0</td><td class=c2>0</td></tr>
+<tr><td class=c1>0</td><td class=c1>0</td><td class=c2>0</td><td class=c2><strong>1</strong></td></tr>
+<tr><td class=c3><strong>2</strong></td><td class=c3>0</td><td class=c4>0</td><td class=c4>0</td></tr>
+<tr><td class=c3>0</td><td class=c3>0</td><td class=c4>0</td><td class=c4><strong>0</strong></td></tr>
+</table>
+</td><td>←</td><td>
+<table border>
+<tr><td class=c1><strong>-1</strong></td><td class=c2><strong>1</strong></td></tr>
+<tr><td class=c3><strong>2</strong></td><td class=c4><strong>0</strong></td></tr>
+</table>
+</td><td>, <code>[1, 3, 0, 3]</code></td></tr>
+</table>
+<code>rev_maxpool2d()</code> 関数による処理
+</div>
+<p>
+ここでは「最大だった位置」を取得するのに
+NumPy の <code>np.argmax()</code> 関数を利用する。
+2次元配列に対して <code>np.argmax()</code> を使うと、
+最初の要素を 0 とした位置を返すので、この値を記録しておく。
+<blockquote><pre>
+&gt;&gt;&gt; <strong>np.argmax(np.array([[1,2,3], [4,5,6]]))</strong>
+5
+&gt;&gt;&gt; <strong>np.argmax(np.array([[6,5,4], [3,2,1]]))</strong>
+0
+</pre></blockquote>
+
+<p>
+Python での実装は、以下のようになる:
+<blockquote><pre>
+<span class=comment># Max pooling を適用した3次元配列と、最大値をとる各要素の位置を返す。</span>
+def maxpool2d(stride, m):
+    (nc, h1, w1) = m.shape
+    <span class=comment># 配列サイズをstrideで割る。このとき端数は切り上げる。</span>
+    (h2, w2) = ((h1+stride-1)//stride, (w1+stride-1)//stride)
+    <span class=comment># プーリング結果と、各要素の位置を入れる配列。</span>
+    p = np.zeros((nc, h2, w2))
+    s = np.zeros((nc, h2, w2))
+    for c in range(nc):
+        <span class=comment># 各チャンネルごとに処理。</span>
+        for i in range(0, h2):
+            for j in range(0, w2):
+                <span class=comment># 部分列を取り出し、最大値を求める。</span>
+                i0 = i*stride
+                j0 = j*stride
+                z = m[c, i0:i0+stride, j0:j0+stride]
+                p[c,i,j] = np.max(z)
+                <span class=comment># 最大値をとった要素の添字を記録する。</span>
+                s[c,i,j] = np.argmax(z)
+    return (p, s)
+</pre></blockquote>
+
+<blockquote><pre>
+<span class=comment># 与えられた配列を、元の配列に配置しなおす。</span>
+def rev_maxpool2d(stride, p, s):
+    (nc, h1, w1) = p.shape
+    (h2, w2) = (h1*stride, w1*stride)
+    <span class=comment># 元の大きさをもつ配列。</span>
+    m = np.zeros((nc, h1*stride, w1*stride))
+    for c in range(nc):
+        <span class=comment># 各チャンネルごとに処理。</span>
+        for i in range(0, h1):
+            for j in range(0, w1):
+                <span class=comment># 添字から元の要素の位置を復元する。</span>
+                i0 = i*stride
+                j0 = j*stride
+                k = int(s[c,i,j])
+                <span class=comment># 元の要素は、(i0,j0) より (k//stride, k%stride) だけずれた位置にある。</span>
+                m[c, i0+k//stride, j0+k%stride] = p[c,i,j]
+    return m
+</pre></blockquote>
+
+<p>
+以上の関数を使って max pooling つきの畳み込みレイヤーである
+<code>ConvolutionalLayerWithMaxPooling</code> クラスを実装する。
+実際に <code>ConvolutionalLayer</code> から追加する部分はわずかである:
+<blockquote><pre>
+<span class=comment># Max pooling つきの畳み込みレイヤー。</span>
+class ConvolutionalLayerWithMaxPooling:
+
+    def __init__(self, nin, nout, ksize, <mark>stride</mark>):
+        self.nin = nin
+        self.nout = nout
+        self.ksize = ksize
+        <mark>self.stride = stride</mark>
+        <span class=comment># 重み・バイアスを初期化する。</span>
+        self.w = np.random.random((self.nout, self.nin, self.ksize, self.ksize))-.5
+        self.b = np.random.random((self.nout, self.nin))-.5
+        <span class=comment># 計算用の変数を初期化する。</span>
+        self.x = self.y = <mark>self.sp</mark> = None
+        self.dw = np.zeros((self.nout, self.nin, self.ksize, self.ksize))
+        self.db = np.zeros((self.nout, self.nin))
+        return
+</pre></blockquote>
+
+<blockquote><pre>
+    def forward(self, x):
+        ...
+        <span class=comment># 各要素にシグモイド関数を適用する。</span>
+        self.y = sigmoid(self.y)
+        <span class=comment># Max poolingを適用する。このとき最大値をとった要素の位置も保存しておく。</span>
+        <mark>(y, self.sp) = maxpool2d(self.stride, self.y)</mark>
+        return <mark>y</mark>
+</pre></blockquote>
+
+<blockquote><pre>
+    def backward(self, delta):
+        <span class=comment># Max poolingされたものを復元する。</span>
+        <mark>delta = rev_maxpool2d(self.stride, delta, self.sp)</mark>
+        <span class=comment># self.y が計算されたときのシグモイド関数の微分を求める。</span>
+        ds = d_sigmoid(self.y)
+        ...
+</pre></blockquote>
+
+<p>
+では実際にこのクラスを使って、畳み込みレイヤーを 2つ使った
+ニューラルネットワークを動かしてみよう。
+最初のレイヤーでは 1×28×28 の元画像を受けとり、5チャンネルの画像を返す。
+これは本来 (カーネル分だけ小さい) 26×26 の画像を出力するはずだが、
+stride=2 で max pooling をおこなうので、実際に出力される画像は
+それを半分にした 13×13 になる。
+次のレイヤーでは 5×13×13 の画像を入力し (出力は 11×11)、
+それをさらに半分にするので、出力は 6×6 となる (端数は切り上げられる)。
+ただしチャンネル数は倍の 10 としている。
+このように畳み込みレイヤーを重ねる場合は、レイヤーが下がるにしたがって
+チャンネル数を倍々に増やしていくのが一般的である。
+最後にこれを1次元配列に変換し Softmax つき全接続レイヤーに入力する:
+<div class=file>
+mnist_cnn_maxpool.py
+<pre>
+<span class=comment># レイヤーを 3つ作成する。</span>
+conv1 = ConvolutionalLayerWithMaxPooling(1, 5, 3, 2)  <span class=comment># 1×28×28 → 5×13×13</span>
+conv2 = ConvolutionalLayerWithMaxPooling(5, 10, 3, 2) <span class=comment># 5×13×13 → 10×6×6</span>
+fc1 = SoftmaxLayer(10*6*6, 10)
+</pre>
+</div>
+
+<p>
+以下の図は各レイヤーにおける入力を図式的に表現したものである
+(この図は、
+<a target="_blank" href="https://alexlenail.me/NN-SVG/AlexNet.html">NN-SVG のサイト</a>
+を使って描画した)。
+各畳み込みレイヤーにおける入力は「チャンネル数 × 高さ × 幅 の体積をもつ直方体」として
+表現できる (全接続レイヤーは 1次元の柱で表現するものとする)。
+このような図は、畳み込みニューラルネットワークの構造を説明するために
+よく用いられる。
+<div class=figure>
+<img src="mnist_cnn.svg">
+</div>
+
+<div class=exercise id="ex5-4">
+<div class=header>演習5-4. max pooling を使う</div>
+<p>
+上のプログラム <code>mnist_cnn_maxpool.py</code> を完成させ、実際に実行せよ。
+(<code>mnist_cnn.py</code> のさらに2倍以上の時間がかかるため注意)
+</div>
+
+<h3 id="conv-relu">2.2. 活性化関数 ReLU</h3>
+<p>
+畳み込みニューラルネットワークの学習をもう少し効率化する手段として、
+畳み込みレイヤーではシグモイド関数の代わりに、
+<u>ReLU</u> (Rectified Linear Unit) と呼ばれる活性化関数を使う方法がある。
+ReLU はシグモイド関数と同様に微分可能だが、
+以下のような違いがある:
+<div class=figure>
+<table align=center><tr><td style="padding-right:1em;">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="100">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="100" y1="100" x2="100" y2="1" marker-end="url(#arrow)" />
+  <line x1="0" y1="95" x2="199" y2="95" marker-end="url(#arrow)" />
+  <line x1="0" y1="5" x2="200" y2="5" stroke-dasharray="3,3" />
+  <path d="M0,95 c150,0,50,-90,200,-90" stroke-width="2" />
+</g>
+<g style="font-size:75%;">
+<text x="105" y="10" dy="0.5em">+1</text>
+<text x="105" y="85" dy="0.5em">0</text>
+<text x="195" y="85" dy="0.5em" text-anchor="end">x</text>
+</g>
+</svg>
+</td><td>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="100">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="100" y1="100" x2="100" y2="1" marker-end="url(#arrow)" />
+  <line x1="0" y1="95" x2="199" y2="95" marker-end="url(#arrow)" />
+  <line x1="0" y1="5" x2="200" y2="5" stroke-dasharray="3,3" />
+  <path d="M0,95 l100,0 l100,-100" stroke-width="2" />
+</g>
+<g style="font-size:75%;">
+<text x="105" y="10" dy="0.5em">+1</text>
+<text x="105" y="85" dy="0.5em">0</text>
+<text x="195" y="85" dy="0.5em" text-anchor="end">x</text>
+</g>
+</svg>
+</td></tr>
+<tr><td>シグモイド関数</td><td>ReLU</td></tr>
+</table>
+</div>
+<p>
+シグモイド関数の勾配は 0 &lt; x を超えるとなめらかに減少していく
+(平坦になる) のに対して、ReLU の勾配はつねに 1 で変わらない。
+このため、ReLU は勾配が大きい分だけ、重み・バイアスが早く収束する
+(つまり、効率的に学習できる) のではないかと期待できる。
+<p>
+<strong>注意: </strong>
+活性化関数として ReLU を使うのは、
+<strong>普通は畳み込みレイヤーだけ</strong>である。
+ReLU の出力は 0〜1 の範囲を超えてしまうため、最後の
+(畳み込みでない) レイヤーの出力には通常のシグモイド関数か、
+Softmax 関数が使われる。
+<p>
+ReLU (とその微分) の実装は、シグモイド関数よりさらに簡単である。
+NumPy では、これは以下のように実装する:
+<blockquote><pre>
+<span class=comment># 与えられた配列の各要素に対して ReLUを計算する。</span>
+def relu(x):
+    return np.maximum(0, x)
+
+<span class=comment># relu の微分を計算する。</span>
+def d_relu(x):
+    return (0 &lt; x) * 1
+</pre></blockquote>
+<p>
+上の関数 <code>d_relu()</code> で使っている記法は、
+NumPy においては条件式も演算の一種とみなされる性質を利用している。
+つまり <code>0 &lt; x</code> のような式は、1つの要素が
+配列中のすべての要素と比較される (<span class=bc>broadcast</span>)。
+さらに Python では <code>True</code> と <code>False</code> は
+それぞれ整数 1 と 0 とみなされるので、これに 1 をかけて
+強制的に数値に変換している:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>1 &lt; np.array([1,2,3])</strong>
+array([ False, True,  True])
+&gt;&gt;&gt; <strong>(1 &lt; np.array([1,2,3])) * 1</strong>
+array([0, 1, 1])
+</pre>
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="300" height="40">
+<defs>
+  <marker id="barrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="blue" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="blue" stroke-width="2">
+  <rect x="5" y="15" width="20" height="20" />
+  <rect x="175" y="15" width="20" height="20" />
+  <rect x="210" y="15" width="20" height="20" />
+  <rect x="245" y="15" width="20" height="20" />
+  <path d="M25,15 c50,-10,100,-10,145,-2" marker-end="url(#barrow)" />
+  <path d="M25,15 c60,-12,120,-12,180,-2" marker-end="url(#barrow)" />
+  <path d="M25,15 c70,-15,140,-15,215,-2" marker-end="url(#barrow)" />
+</g>
+<g style="font-family: courier; font-size: 20px;">
+  <text x="10" y="30">1 &lt; np.array([1, 2, 3])</text>
+</g>
+</svg><br>
+左辺の 1 が <code>ndarray</code> 中の各要素と比較される。
+</div></blockquote>
+<p>
+シグモイド関数と ReLU の他によく使われる活性化関数としては tanh
+(Hyperbolic Tangent、双曲線正接) 関数があるが、本講座では扱わない。
+
+<div class=exercise id="ex5-5">
+<div class=header>演習5-5. 活性化関数として ReLU を使う</div>
+<p>
+上のプログラム <code>mnist_cnn_maxpool.py</code> の
+シグモイド関数を ReLU に変更し実行せよ。
+</div>
+
+
+<h2 id="cifar-10">3. CIFAR-10 (画像認識) とは</h2>
+<p>
+<a target="_blank" href="https://www.cs.toronto.edu/~kriz/cifar.html">CIFAR-10 データセット</a> は
+画像認識のためのデータセットで、MNIST と並んで
+ディープラーニングの入門書でよく使われる。
+これはカラー画像に写っている物体を、以下の 10種類のうちから判定するものである:
+<strong>飛行機</strong> (0)、<strong>自動車</strong> (1)、<strong>鳥</strong> (2)、
+<strong>ネコ</strong> (3)、<strong>シカ</strong> (4)、<strong>イヌ</strong> (5)、
+<strong>カエル</strong> (6)、<strong>ウマ</strong> (7)、<strong>船舶</strong> (8)、
+<strong>トラック</strong> (9)。
+画像の中の物体はひとつだけであり、必ずこのどれかの種類に属する
+(どちらとも判定可能なものは含まれていない)。
+100種類の物体を判定する CIFAR-100 というタスクもあるが、
+ここでは単純なほうをおこなう。
+<p>
+CIFAR-10 における入力と出力は、以下のように定義される:
+<ul>
+<li> 入力:  32×32 (=1024) ピクセルからなる RGB画像
+<li> 出力: <code>0</code> から <code>9</code> までの「ラベル」
+</ul>
+
+<div class=example>
+<ul>
+<li> 入力: <img src="car1.png">
+<li> 出力: <code>[0 1 0 0 0 0 0 0 0 0]</code> (自動車)
+</ul>
+<ul>
+<li> 入力: <img src="horse7.png">
+<li> 出力: <code>[0 0 0 0 0 0 0 1 0 0]</code> (ウマ)
+</ul>
+</div>
+
+<p>
+CIFAR-10 は MNIST と非常によく似た問題なので、上で説明した
+<code>ConvolutionalLayerWithMaxPooling</code> クラスと
+<code>SoftmaxLayer</code> クラスをそのまま使って学習が可能である。
+MNIST との違いは、画像サイズが若干大きい (32×32) のと、
+カラー画像なので入力が R, G, Bの 3チャンネル (3×32×32) に
+なっているということである。
+
+<p>
+<a target="_blank" href="https://www.cs.toronto.edu/~kriz/cifar.html">CIFAR-10 データセット</a> のページから
+"<strong>CIFAR-10 python version</strong>" をダウンロードして展開すると、
+以下のファイルが含まれている
+(ちなみに、Windows で tar.gz 形式を展開するには
+<a target="_blank" href="https://sevenzip.osdn.jp/">7-Zip</a> をインストールするか、
+コマンドプロンプトから
+<kbd>tar zxf cifar-10-python.tar.gz</kbd>
+を実行する)。
+訓練データが合計50,000個、テストデータが 10,000個ある:
+<ul>
+<li> <code>data_batch_1</code> (訓練データ 10,000個)
+<li> <code>data_batch_2</code> (訓練データ 10,000個)
+<li> <code>data_batch_3</code> (訓練データ 10,000個)
+<li> <code>data_batch_4</code> (訓練データ 10,000個)
+<li> <code>data_batch_5</code> (訓練データ 10,000個)
+<li> <code>test_batch</code> (テストデータ 10,000個)
+</ul>
+
+<p>
+上のファイルを <a href="cifar10.py">cifar10.py</a> ファイルで定義された
+<code>load_cifar()</code> 関数を使って読み込む。
+2つの畳み込みレイヤー (それぞれチャンネル数は 5 と 10、
+カーネルの大きさは 3) を使ったプログラムは、
+以下のようになる:
+<div class=file>
+cifar10_cnn.py
+<pre>
+<span class=comment># レイヤーを 3つ作成。</span>
+conv1 = ConvolutionalLayerWithMaxPooling(3, 5, 3, 2)  <span class=comment># 3×32×32 → 5×15×15</span>
+conv2 = ConvolutionalLayerWithMaxPooling(5, 10, 3, 2) <span class=comment># 5×15×15 → 10×7×7</span>
+fc1 = SoftmaxLayer(10*7*7, 10)
+n = 0
+for i in range(1):
+    <span class=comment># 各ファイルに対して処理をおこなう。</span>
+    for name in ['data_batch_1', 'data_batch_2']:
+        <span class=comment># 訓練データの画像・ラベルを読み込む (パス名は適宜変更)。</span>
+        (train_images, train_labels) = load_cifar('/home/euske/data/CIFAR/cifar-10-batches-py/'+name)
+        for (image,label) in zip(train_images, train_labels):
+            x = (image/255)
+            <span class=comment># 正解部分だけが 1 になっている 10要素の配列を作成。</span>
+            ya = np.zeros(10)
+            ya[label] = 1
+            <span class=comment># 学習させる。</span>
+            y = conv1.forward(x)
+            y = conv2.forward(y)
+            y = y.reshape(10*7*7)
+            y = fc1.forward(y)
+            delta = fc1.cross_entropy_loss_backward(ya)
+            delta = delta.reshape(10, 7, 7)
+            delta = conv2.backward(delta)
+            delta = conv1.backward(delta)
+            n += 1
+            if (n % 50 == 0):
+                print(n, fc1.loss)
+                conv1.update(0.01)
+                conv2.update(0.01)
+                fc1.update(0.01)
+<span class=comment># テストデータの画像・ラベルを読み込む (パス名は適宜変更)。</span>
+(test_images, test_labels) = load_cifar('test_batch')
+correct = 0
+for (image,label) in zip(test_images, test_labels):
+    x = (image/255)
+    y = conv1.forward(x)
+    y = conv2.forward(y)
+    y = y.reshape(10*7*7)
+    y = fc1.forward(y)
+    i = np.argmax(y)
+    if i == label:
+        correct += 1
+print(correct, len(test_images))
+</pre>
+</div>
+
+<div class=exercise id="ex5-6">
+<div class=header>演習5-6. CIFAR-10 の学習</div>
+<ul>
+<li> <a target="_blank" href="https://alexlenail.me/NN-SVG/AlexNet.html">NN-SVG のサイト</a>
+  を使って、上のプログラム <code>cifar10_cnn.py</code> で定義されている
+  畳み込みニューラルネットワークを図示せよ。
+<li> このプログラムを完成させ、実際に CIFAR-10 のデータを使って実行せよ。
+</ul>
+</div>
+
+<p>
+本来ならばチャンネル数を増やしたほうが性能は上がるのだが、
+計算に非常に時間がかかってしまう。
+また上のプログラムでは実際に 50,000個与えられている訓練データのうち
+20,000個しか使っていないため、認識精度はよくない。
+次章では PyTorch を使って、これを高速化する方法を説明する。
+
+
+<h2 id="summary">4. まとめ</h2>
+<ul>
+<li> <u>畳み込みニューラルネットワーク</u>は、2次元の画像を
+そのまま入力できる<nobr><span class=bl>畳み込み</span></nobr>レイヤーを持ったニューラルネットワークである。
+<li> 画像の<u>畳み込み</u>とは、一定の大きさをもった二次元の
+  <nobr><span class=bl>カーネル</span></nobr>を各ピクセルに適用した結果である。
+<li> 畳み込みレイヤーが学習するのは各ピクセル間そのものの関係ではなく、
+畳み込み用の<nobr><span class=bl>カーネル</span></nobr>である。
+<li> 畳み込みニューラルネットワークも依然として<nobr><span class=bl>微分</span></nobr>可能である。
+<li> 畳み込みニューラルネットワークの訓練には多くの計算が必要である。
+これを削減するため、<nobr><span class=bl>max pooling</span></nobr>を使ってピクセルを間引くことがよく行われる。
+<li> 畳み込みレイヤーでは活性化関数として<nobr><span class=bl>ReLU</span></nobr>を使うことが多い。
+</ul>
+
+
+<hr>
+<div class=license>
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="クリエイティブ・コモンズ・ライセンス" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />この作品は、<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">クリエイティブ・コモンズ 表示 - 継承 4.0 国際 ライセンス</a>の下に提供されています。
+</div>
+<address>Yusuke Shinyama</address>

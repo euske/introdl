@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="../common.css" />
+<title>第2回 機械が「学習する」とはどういうことか?
+/ 真面目なプログラマのためのディープラーニング入門</title>
+<style><!--
+.bigscore { font-size: 200%; font-weight: bold; }
+.month { text-align: right; }
+.ndays { text-align: right; background: yellow; }
+.model { outline: 1px solid black; padding: 8px; margin: 1em;}
+--></style>
+<body>
+<div class=nav>
+<a href="../index.html">&lt; もどる</a>
+</div>
+
+<h1>第2回 機械が「学習する」とはどういうことか?</h1>
+
+<ol>
+<li> <a href="#ai-what">人工知能 (AI) と機械学習 (ML)</a>
+<ul>
+  <li> <a href="#ai-principles">人工知能の原理</a>
+  <li class=ex> <a href="#ex2-1">演習2-1. 探索問題をさがせ</a>
+  <li> <a href="#ai-ml">機械学習とは何か?</a>
+  <li class=ex> <a href="#ex2-2">演習2-2. 必要なデータを考える</a>
+  <li> <a href="#ai-dtree">決定木とは</a>
+  <li class=ex> <a href="#ex2-3">演習2-3. 決定木の性能を測定する</a>
+  <li class=ex> <a href="#ex2-4">演習2-4. 決定木の性能を測定する (本番)</a>
+</ul>
+<li> <a href="#dtree-python">Python による決定木の学習</a>
+<ul>
+  <li class=ex> <a href="#ex2-5">演習2-5. 決定木を学習する</a>
+  <li> <a href="#dtree-training">実際のデータを使った機械学習</a>
+  <li> <a href="#dtree-training-f1">ひとつの特徴量を使った決定木の学習</a>
+  <li class=ex> <a href="#ex2-6">演習2-6. キノコの特徴量を使った決定木の学習</a>
+  <li> <a href="#dtree-training-f2">ふたつの特徴量を使った決定木の学習</a>
+  <li class=ex> <a href="#ex2-7">演習2-7. ふたつの特徴量を使った決定木の学習</a>
+</ul>
+<li> <a href="#summary">まとめ</a>
+</ol>
+
+<h2 id="ai-what">1. 人工知能 (AI) と機械学習 (ML)</h2>
+<p>
+そもそも「人工知能」とは一体何なのか?
+<p>
+歴史的には、1956年の
+<a target="_blank" href="https://ja.wikipedia.org/wiki/%E3%83%80%E3%83%BC%E3%83%88%E3%83%9E%E3%82%B9%E4%BC%9A%E8%AD%B0">ダートマス会議</a>
+で
+<a target="_blank" href="https://ja.wikipedia.org/wiki/%E3%82%B8%E3%83%A7%E3%83%B3%E3%83%BB%E3%83%9E%E3%83%83%E3%82%AB%E3%83%BC%E3%82%B7%E3%83%BC">ジョン・マッカーシー</a>
+が初めて "<u>人工知能</u> (Artificial Intelligence, AI)" なる用語を定義したとされる。
+これは人間や動物などがもつ「自然知能 (Natural Intelligence)」に
+対して、人工的につくられた (artificial) 知能という意味であった。
+しかし、現在では人工知能という用語は一般に
+「コンピュータが行う、なにか賢そうな処理」という程度の意味で使われている。
+(ちなみに
+「<a target="_blank" href="https://www.google.co.jp/search?q=%E4%BA%BA%E5%8F%A3%E7%9F%A5%E8%83%BD+-%E4%BA%BA%E5%B7%A5%E7%9F%A5%E8%83%BD">人口知能</a>」という誤った漢字を書いている人も多数おり、
+人々が単語の意味を本当に理解しているかどうかはあやしい。)
+<p>
+人工知能と機械学習、ニューラルネットワークの関係は
+以下のようになっている:
+<div class=figure>
+  <svg xmlns="http://www.w3.org/2000/svg"
+       xmlns:xlink="http://www.w3.org/1999/xlink"
+       version="1.1" width="300" height="200">
+    <g stroke-width="2" stroke="black" fill="none">
+      <rect x="5" y="5" width="290" height="190" />
+      <ellipse cx="150" cy="100" rx="140" ry="90" />
+      <ellipse cx="160" cy="110" rx="120" ry="75" />
+      <ellipse cx="165" cy="120" rx="110" ry="60" />
+      <ellipse cx="195" cy="130" rx="70" ry="40" />
+    </g>
+    <g text-anchor="middle" style="font-size: 75%;">
+      <text x="40" y="15" dy="0.5em">IT技術全般</text>
+      <text x="125" y="25" dy="0.5em">人工知能 (AI)</text>
+      <text x="150" y="50" dy="0.5em">機械学習 (ML)</text>
+      <text x="110" y="85" dy="0.5em">ニューラル</text>
+      <text x="110" y="85" dy="1.5em">ネットワーク</text>
+      <text x="110" y="85" dy="2.5em">(NN)</text>
+      <text x="195" y="100" dy="0.5em">ディープ</text>
+      <text x="195" y="100" dy="1.5em">ニューラル</text>
+      <text x="195" y="100" dy="2.5em">ネットワーク (DNN) =</text>
+      <text x="195" y="140" dy="0.5em">ディープ</text>
+      <text x="195" y="140" dy="1.5em">ラーニング (DL)</text>
+    </g>
+  </svg>
+</div>
+
+<h3 id="ai-principles">1.1. 人工知能の原理</h3>
+<p>
+通常のコンピュータの処理は、あらかじめ定められた手順に従って
+答えを計算する。ところが、このような一般的な処理とは違って、
+人工知能の多くの問題は、正しい答えを計算するめの手順が不明だったり、
+そもそも「正しい答え」が厳密に定義されていない (定義できない) ことが多い。
+そのため、ほとんどの人工知能の問題は<u>探索問題</u>として定式化される。
+つまり、多くの解の可能性の中から「一番よさそうな解」を探し出す、
+という処理なのである。
+(エキスパートシステムや記号算術など、
+探索問題でないものも AI と呼ばれているが、
+これらはどちらかといえば例外的である。)
+<p>
+探索問題としての AI の例は:
+<ul>
+<li> <strong>物体認識</strong>:
+  画像をすべての物体の画像と比較し、もっとも近そうなものを返す。
+<li> <strong>将棋・チェス・囲碁</strong>:
+  可能なすべての手を調べ、もっとも良さそうな手を返す。
+<li> <strong>英日翻訳</strong>:
+  すべての単語の並び方を比較し、もっとも「日本語らしい」翻訳を返す。
+<li> ...
+</ul>
+
+<p>
+これをPythonプログラム風に書くと、以下のようになる:
+<blockquote><pre>
+a = [すべての可能性]
+best = None  <span class=comment># 現在のベストな回答</span>
+for x in a:
+    <span class=comment># best と x の「良さそう度」を比較する</span>
+    if E(best) &lt; E(x):
+        best = x
+print(best)
+</pre></blockquote>
+
+<p>
+この処理を非常に大規模かつ高速にやると、人間にとっては
+「賢そう」に見えるわけである。
+人工知能の原理は、人間の脳の原理とはまったく違っていてもかまわない。
+(自動車の原理は、人間が走る原理とはまったく違っている。)
+<p>
+問題は「すべての可能性」を現実的にどうやって調べるか?
+ということである。普通にやると無限に時間がかかってしまうので、
+何らかの方法でサバを読む必要がある。
+また「良さそう度」を判定する関数 <code>E()</code> をどう書くのか、
+という問題もある。
+現在のほとんどの人工知能研究は、
+このような問題に対する解決策の研究である。
+
+<div class=exercise id="ex2-1">
+<div class=header>演習2-1. 探索問題をさがせ</div>
+<p>
+次のうち「探索問題」として定義可能なものはどれか、すべて挙げよ。
+<ol>
+<li> 行列の積を計算する。
+<li> 迷路の解法を発見する。
+<li> 売れる小説を書く。
+<li> 予定表をカレンダーで管理する。
+</ol>
+</div>
+
+<h3 id="ai-ml">1.2. 機械学習とは何か?</h3>
+<p>
+では次に「機械学習」について説明しよう。
+たとえば、以下のような処理を考える。
+100×100ピクセルの画像 (Python でいう、リストのリスト) が与えられたとき、
+それが「どれくらい人間の顔らしいか」を判定する
+関数 <code>faceness()</code> を作りたいとする:
+<blockquote><pre>
+def faceness(image):
+    ...
+    return x
+</pre></blockquote>
+<div class=figure>
+<table align=center border>
+<tr><th>画像</th><th>顔らしさ</th></tr>
+<tr><td>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     version="1.1" width="100" height="100">
+  <g fill="none" stroke="black" stroke-width="2">
+    <circle cx="50" cy="50" r="40" />
+    <circle cx="30" cy="40" r="5" />
+    <circle cx="60" cy="40" r="5" />
+    <line x1="40" y1="70" x2="60" y2="70" />
+  </g>
+</svg>
+</td><td class=bigscore>0.95</td></tr>
+<tr><td>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     version="1.1" width="100" height="100">
+  <g fill="none" stroke="black" stroke-width="2">
+    <ellipse cx="50" cy="50" rx="40" ry="30" />
+    <line x1="30" y1="45" x2="50" y2="40" />
+    <line x1="60" y1="40" x2="80" y2="45" />
+    <line x1="40" y1="65" x2="60" y2="70" />
+    <polyline points="20,30 30,10 40,20" />
+    <polyline points="80,30 70,15 60,20" />
+  </g>
+</svg>
+</td><td class=bigscore>0.87</td></tr>
+<tr><td>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     version="1.1" width="100" height="100">
+  <g fill="none" stroke="black" stroke-width="2">
+    <circle cx="40" cy="60" r="30" />
+    <rect x="10" y="10" width="30" height="35" fill="white" />
+    <polygon points="80,80 60,50 20,70" fill="white" />
+  </g>
+</svg>
+</td><td class=bigscore>0.02</td></tr>
+</table>
+</div>
+<p>
+このような関数は頑張れば人間にも作れるかもしれないが、非常に難しい。
+判定に使う変数が極端に多い (100×100個) うえに「何が顔らしいのか」を
+論理的に規定するのが難しいからである。そこで、
+あらかじめ「顔らしい画像」と「顔らしくない画像」を大量に用意しておき、
+コンピュータを使ってこのような関数を自動的に発見させよう、
+というアイデアが浮かぶ。
+これが<u>機械学習</u> (Machine Learning, ML) である。
+つまり機械学習とは
+「プログラムを自動的に作成するプログラム」ということになる。
+上で見たように、機械学習は「規則できっちり規定できない処理」に
+対して使われることが多い。
+規則できっちり規定できる処理 (たとえば確定申告の計算など) は、
+計算手順を人間がプログラムしたほうがはるかに確実だからである。
+<p>
+機械学習もまた探索問題として定義されている。
+またもPython風に書くと、以下のようになる:
+<blockquote><pre>
+a = [存在しうるすべてのPython関数]
+best = None  <span class=comment># 現在のベストな関数</span>
+for x in a:
+    <span class=comment># best と x の「良さそう度」を比較する</span>
+    if E(best) &lt; E(x):
+        best = x
+print(best)
+</pre></blockquote>
+<p>
+機械学習では、関数の「良さそう度」は比較的簡単に定義できる。
+たとえば上の顔認識の例では、すでに「顔らしい画像」と「顔らしくない画像」が
+与えられていると仮定しよう。すると、ある関数 <code>f</code> が「顔らしい画像」を顔と判定し、
+「顔らしくない画像」を顔でないと判定すれば、
+その関数は「よい」ということになる:
+<blockquote><pre>
+<span class=comment># 顔判定プログラム p の「良さそう度」を計算</span>
+face = [すべての顔らしい画像]
+noface = [すべての顔らしくない画像]
+def E(f):
+    score = 0
+    <span class=comment># 顔を顔として判定したら得点。</span>
+    for image in face:
+        if f(image) == 顔:
+            score = score + 1
+    <span class=comment># 顔でないものを顔でないととして判定したら得点。</span>
+    for image in noface:
+        if f(image) != 顔:
+            score = score + 1
+    return score
+</pre></blockquote>
+
+<p>
+ここでの問題は、「すべての関数」がこれまた無限に存在することである。
+したがって、機械学習で生成する (探索する) プログラムは
+通常の Python の関数などではなく、非常に限定された形の
+「プログラムもどき」であることが多い。
+機械学習の分野では、これは「<u>分類器</u> (classifier)」や
+「<u>モデル</u> (model)」などと呼ばれている。
+分類器やモデルの形式を研究することが、
+現在の機械学習のおもな研究内容である。
+
+<p>
+<strong>注意:</strong>
+機械学習における「学習」は、通常の日本語の「学習」とは若干意味が異なっている。
+たとえば日本語では「私は海水が塩辛いということを学習した」などというが、
+機械学習における学習とは「ひとつの事実」を学ぶことではなく、
+「方法」を学ぶことなのである。
+
+<p>
+<strong>注意:</strong>
+機械学習における「プログラムの生成」自体は探索処理であるが、
+実際に (探索の結果) 得られたプログラム自体は、ほとんどの場合、探索処理では<strong>ない</strong>。
+つまり、機械学習を使って得られた画像認識プログラムはほぼ一瞬で実行できるものが多い。
+これは、人間がひとたび顔を学習してしまえば、一瞬で顔を認識できるのと似ている。
+
+<p>
+なお、上に示した顔認識の例は
+機械学習の中で「教師つき学習」と呼ばれる形式である。
+機械学習には、大きく分けて 3種類の形式が存在する:
+<ol type=a>
+<li> <u>教師つき学習</u> (supervised learning):
+  あらかじめ人が集めた正解データと不正解データをもとに学習する。
+<li> <u>教師なし学習</u> (unsupervised learning):
+  正解・不正解がわからない生のデータのみから学習する。
+<li> <u>強化学習</u> (reinforcement learning):
+  データがほとんどない状態から開始し、データを集めながら学習する。
+</ol>
+
+<div class=exercise id="ex2-2">
+<div class=header>演習2-2. 必要なデータを考える</div>
+<p>
+教師つき学習で以下のタスク (問題) を扱うとする。
+何が学習用のデータとして必要か?
+<ol>
+<li> 画像にネコが写っているかどうか判定するタスク。
+<li> ある地点の24時間後の天気・気温を、過去の気象記録のみから推測するタスク。
+<li> ある人の年齢・性別・出身学校から、年収を予想するタスク。
+</ol>
+</div>
+
+<h4>ニューラルネットワークとは何か?</h4>
+<p>
+<u>ニューラルネットワーク</u> (Neural Network, NN) は
+教師つき学習の方式のひとつで、以下のような人間の神経回路を模した
+<u>ニューロン</u> (neuron) という架空の装置を「プログラムもどき」として
+使ったものである。さらに
+<u>ディープニューラルネットワーク</u> (Deep Neural Network, DNN) とは、
+この装置を多段階 (数十〜数百) に接続したものである。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="300" height="190">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="80" cy="20" r="15" />
+  <circle cx="80" cy="60" r="15" />
+  <circle cx="80" cy="100" r="15" />
+  <circle cx="80" cy="140" r="15" />
+  <circle cx="140" cy="40" r="15" />
+  <circle cx="140" cy="80" r="15" />
+  <circle cx="140" cy="120" r="15" />
+  <circle cx="200" cy="60" r="15" />
+  <circle cx="200" cy="100" r="15" />
+  <g marker-end="url(#arrow)">
+    <line x1="45" x2="60" y1="20" y2="20" />
+    <line x1="45" x2="60" y1="60" y2="60" />
+    <line x1="45" x2="60" y1="100" y2="100" />
+    <line x1="45" x2="60" y1="140" y2="140" />
+    <line x1="215" x2="230" y1="60" y2="60" />
+    <line x1="215" x2="230" y1="100" y2="100" />
+    <line x1="95" x2="125" y1="20" y2="30" />
+    <line x1="95" x2="125" y1="20" y2="65" />
+    <line x1="95" x2="125" y1="20" y2="105" />
+    <line x1="95" x2="125" y1="60" y2="40" />
+    <line x1="95" x2="125" y1="60" y2="75" />
+    <line x1="95" x2="125" y1="60" y2="110" />
+    <line x1="95" x2="125" y1="100" y2="45" />
+    <line x1="95" x2="125" y1="100" y2="80" />
+    <line x1="95" x2="125" y1="100" y2="115" />
+    <line x1="95" x2="125" y1="140" y2="55" />
+    <line x1="95" x2="125" y1="140" y2="85" />
+    <line x1="95" x2="125" y1="140" y2="120" />
+    <line x1="155" x2="185" y1="40" y2="55" />
+    <line x1="155" x2="185" y1="40" y2="90" />
+    <line x1="155" x2="185" y1="80" y2="60" />
+    <line x1="155" x2="185" y1="80" y2="95" />
+    <line x1="155" x2="185" y1="120" y2="65" />
+    <line x1="155" x2="185" y1="120" y2="100" />
+  </g>
+</g>
+<g text-anchor="middle">
+<text x="140" y="180">ニューロン (ノード)</text>
+<text x="40" y="20" dy="0.4em" text-anchor="end">入力1</text>
+<text x="40" y="60" dy="0.4em" text-anchor="end">入力2</text>
+<text x="40" y="100" dy="0.4em" text-anchor="end">入力3</text>
+<text x="40" y="140" dy="0.4em" text-anchor="end">入力4</text>
+<text x="260" y="60" dy="0.4em">出力1</text>
+<text x="260" y="100" dy="0.4em">出力2</text>
+</g>
+</svg>
+</div>
+<p>
+ニューラルネットワークや DNN でなぜ学習ができるのかという
+説明は後にまわすとして、まず機械学習の概念をよりよく理解するために、
+もっと簡単な (ニューラルネットワークではない) 教師つき学習方式である
+<u>決定木</u>を見てみよう。
+
+<h3 id="ai-dtree">1.3. 決定木とは</h3>
+<p>
+<u>決定木</u> (decision tree) とは、以下のような
+<code>if〜elif〜else</code>文だけからなるプログラムである。
+要するに「このときはこれ」という規則の集合にすぎない。
+(正確には、ここで紹介しているものは決定木の簡易版である
+decision stump と言われるもので、本物の決定木は<code>if</code>文が何重にも
+ネストしたものである。)
+<blockquote><pre>
+def f(変数1, 変数2, ...):
+    if 変数 == 値1:
+        return 答えA
+    elif 変数 == 値2:
+        return 答えB
+    elif
+        ...
+</pre></blockquote>
+<p>
+たとえば「ある年のある月が全部で何日間あるか?」を推定する決定木を考えてみる。
+もちろん、人間は完全な規則を知っているが、
+ここでは以下の16件の「与えられた観測結果だけ」をもとに推測させることを考える:
+<div class=figure>
+<table align=center border>
+<caption>訓練データ</caption>
+<tr><th>年 (<code>y</code>)</th><th>月 (<code>m</code>)</th><th class=ndays>日数 (<code>n</code>)</th></tr>
+<tr><td>2016</td><td class=month> 1</td><td class=ndays>31</td></tr>
+<tr><td>2016</td><td class=month> 2</td><td class=ndays>29</td></tr>
+<tr><td>2016</td><td class=month> 4</td><td class=ndays>30</td></tr>
+<tr><td>2016</td><td class=month> 7</td><td class=ndays>31</td></tr>
+<tr><td>2016</td><td class=month> 8</td><td class=ndays>31</td></tr>
+<tr><td>2017</td><td class=month> 2</td><td class=ndays>28</td></tr>
+<tr><td>2017</td><td class=month> 4</td><td class=ndays>30</td></tr>
+<tr><td>2017</td><td class=month> 6</td><td class=ndays>30</td></tr>
+<tr><td>2017</td><td class=month> 9</td><td class=ndays>30</td></tr>
+<tr><td>2017</td><td class=month>11</td><td class=ndays>30</td></tr>
+<tr><td>2018</td><td class=month> 1</td><td class=ndays>31</td></tr>
+<tr><td>2018</td><td class=month> 2</td><td class=ndays>28</td></tr>
+<tr><td>2018</td><td class=month> 3</td><td class=ndays>31</td></tr>
+<tr><td>2018</td><td class=month>10</td><td class=ndays>31</td></tr>
+<tr><td>2020</td><td class=month> 5</td><td class=ndays>31</td></tr>
+<tr><td>2020</td><td class=month>12</td><td class=ndays>31</td></tr>
+</table>
+</div>
+<p>
+ここで、まず重要な仮定を置かねばならない。それは
+<div class=formula>
+「日数 <code>n</code> は、与えられた変数 <code>y</code> と <code>m</code> だけから推測可能である」
+</div>
+ということである。この仮定が成り立たなければ、そもそも学習は不可能である。
+<p>
+このように、推測のヒントとなる <code>y</code> や <code>m</code> のような変数を
+<u>特徴量</u> または <u>素性</u> (feature) とよぶ。
+統計学の世界では、これらは <u>説明変数</u> (explanatory variable) とも呼ばれる。
+これらの特徴量を使って、たとえば以下の2通りの決定木を作ることができる:
+<ul>
+<li class=model>
+<strong>決定木A (特徴量yを使う)</strong>
+<ul>
+<li> <code>y</code> が 2017 の場合は、30 を返す。
+<li> <code>y</code> が 2016、2018、2020 の場合は、31 を返す。
+</ul>
+<li class=model>
+<strong>決定木B (特徴量mを使う)</strong>
+<ul>
+<li> <code>m</code> が 2 の場合は、28 を返す。
+<li> <code>m</code> が 4、6、9、11 の場合は、30 を返す。
+<li> <code>m</code> が 1、3、5、7、8、10、12 の場合は、31 を返す。
+</ul>
+</ul>
+
+<div class=exercise id="ex2-3">
+<div class=header>演習2-3. 決定木の性能を測定する</div>
+<p>
+上記の 16件のデータに対して、決定木 A と 決定木 B の精度を測定したい。
+以下の空欄に、決定木 A、B それぞれを使った答えを埋め、正答数を求めよ。
+<table align=center border>
+<tr><th>年 (<code>y</code>)</th><th>月 (<code>m</code>)</th><th></th>
+<th>決定木A</th><th>決定木B</th><th></th><th class=ndays>日数 (<code>n</code>)</th></tr>
+<tr><td>2016</td><td class=month> 1</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2016</td><td class=month> 2</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>29</td></tr>
+<tr><td>2016</td><td class=month> 4</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>30</td></tr>
+<tr><td>2016</td><td class=month> 7</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2016</td><td class=month> 8</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2017</td><td class=month> 2</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>28</td></tr>
+<tr><td>2017</td><td class=month> 4</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>30</td></tr>
+<tr><td>2017</td><td class=month> 6</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>30</td></tr>
+<tr><td>2017</td><td class=month> 9</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>30</td></tr>
+<tr><td>2017</td><td class=month>11</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>30</td></tr>
+<tr><td>2018</td><td class=month> 1</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2018</td><td class=month> 2</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>28</td></tr>
+<tr><td>2018</td><td class=month> 3</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2018</td><td class=month>10</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2020</td><td class=month> 5</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2020</td><td class=month>12</td><td></td><td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+</table>
+</div>
+<p>
+決定木 A を使った場合は 12件が正しく (正答率 75%) 、
+決定木 B を使った場合は 15件が正しい答えを推測する (正答率 94%)。
+どちらの決定木も完璧には正しくないが、これは分類器を単純な規則のみに限定したためで、
+決定木を使った機械学習の限界である。
+
+<h4>訓練フェーズと推論フェーズ</h4>
+<p>
+さて、上で求めた決定木 A と B のどちらがよりよいのか?
+これは、上の結果を見ただけでは判断できない。
+なぜなら機械学習の性能は、すでに結果がわかっている
+データをどれくらい覚えられるかではなく
+「<strong>未知のデータ</strong>をどれくらい正確に推測できるか
+(<u>汎化</u>, generalization)」にかかっているからである。
+(記憶と学習は違う - 過去問をすべて暗記したからといって、本番で満点がとれるとは限らない。)
+<p>
+決定木を含む、すべての教師つき機械学習では
+<u>訓練</u> (training) と <u>推論</u> (inference) の2つの段階が存在する。
+<ul>
+<li> 訓練フェーズ … まず、データからモデル (決定木) を作成 (学習) する。
+<li> 推論フェーズ … できたモデル (決定木) を実際に使う。ようするに本番。
+</ul>
+
+<div class=exercise id="ex2-4">
+<div class=header>演習2-4. 決定木の性能を測定する (本番)</div>
+<p>
+では「本番の試験」として、決定木 A および 決定木 B を推論フェーズで使うことを考える。
+以下の新しい 8件のデータを使ったときの正答数を答えよ。
+<table align=center border>
+<caption>テストデータ</caption>
+<tr><th>年 (<code>y</code>)</th><th>月 (<code>m</code>)</th><th></th><th>決定木A</th><th>決定木B</th><th></th><th class=ndays>日数 (<code>n</code>)</th></tr>
+<tr><td>2016</td><td class=month> 5</td><td></td>
+<td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2016</td><td class=month> 9</td><td></td>
+<td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>30</td></tr>
+<tr><td>2017</td><td class=month> 1</td><td></td>
+<td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2017</td><td class=month>12</td><td></td>
+<td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+<tr><td>2018</td><td class=month> 4</td><td></td>
+<td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>30</td></tr>
+<tr><td>2018</td><td class=month> 6</td><td></td>
+<td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>30</td></tr>
+<tr><td>2020</td><td class=month> 2</td><td></td>
+<td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>29</td></tr>
+<tr><td>2020</td><td class=month>10</td><td></td>
+<td><input size="3em"></td><td><input size="3em"></td><td></td><td class=ndays>31</td></tr>
+</table>
+</div>
+<p>
+上記の 8件の新たなデータに対して、
+決定木 A を使った場合は 2件が正しく (正答率 25%)、
+決定木 B を使った場合は 7件が正しい推測結果を返す (正答率 88%)。
+したがって、この場合は「決定木 B のほうがよい」といえる。
+<p>
+このように、教師つき機械学習では、学習用に必ず2種類の異なるデータを使用する。
+最初に決定木 A, B を作成 (探索) するときに使ったデータを
+<u>訓練データ</u> (training data) とよび、
+決定木の実際の性能を測定するときに使ったデータを
+<u>テストデータ</u> (test data) とよぶ。
+ようするに訓練データとは「過去問」であり、
+テストデータが「本番の試験」である。
+教師つき学習では、訓練時にはテストデータは<strong>絶対に</strong>見てはいけない。
+なぜならそうすると客観的な性能を測定できないからである。
+<p>
+実際には、上の訓練データはわざと決定木 A に有利にできており、
+テストデータは決定木 B に有利にできているように見えるかもしれない。
+この例からわかるように、<strong>機械学習の「賢さ」は与えるデータによって決まる</strong>。
+偏ったデータを与えれば、機械学習は偏った規則を学習してしまう。
+また、実際の<a target="_blank" href="https://ja.wikipedia.org/wiki/%E3%82%B0%E3%83%AC%E3%82%B4%E3%83%AA%E3%82%AA%E6%9A%A6">グレゴリオ暦</a>の規則
+(4で割り切れる年はうるう年だが、100で割り切れる場合はうるう年ではなく、
+ただし400で割り切れる場合はやはりうるう年である) のようなものを
+決定木で学習するためには、400年分以上のデータが必要である。
+精度を上げるには、なるべく偏りの少ない多くの訓練データを用意したほうがよい。
+
+<div class=figure>
+<img width="268" height="130" src="mushrooms.png">
+</div>
+
+
+<h2 id="dtree-python">2. Python による決定木の学習</h2>
+<p>
+さて、すべての可能な分類器 (決定木) を Python で実際にしらみつぶしに探索するには
+どうすればよいだろうか? ここでは、ひとつの決定木を Python の辞書として
+表すことを考える。たとえば、上の決定木 A は以下のような規則として表せる:
+<blockquote><pre>
+<span class=comment># 決定木A</span>
+rule = { "2016":"31", "2017":"30", "2018":"31", "2020":"31" }
+</pre></blockquote>
+<p>
+もっとも単純な決定木では一度に 1つの特徴量しか見ないので、
+ここではあらかじめ調べる特徴量 (ここでは変数 <code>y</code>) を決めておき、
+「特徴量の値 → その回答」をそれぞれ辞書のキー・バリューとしている。
+また、ここでは各特徴量の値は「等しいかどうか」を調べるだけで
+大小関係を考慮しないので、すべての値を文字列型として扱っている。
+(こうしておくとあとで便利。)
+<p>
+次に訓練データ、テストデータをそれぞれリストのリストとして定義する。
+(ここでは便宜上、順番を変えて、各行の最初の要素を回答にしている。)
+<blockquote><pre>
+<span class=comment># 訓練データ</span>
+train = [
+    <span class=comment>#  n   特徴量y  特徴量m</span>
+    ["31", "2016",  "1"],
+<details><summary>...</summary>    ["29", "2016",  "2"],
+    ["30", "2016",  "4"],
+    ["31", "2016",  "7"],
+    ["31", "2016",  "8"],
+    ["28", "2017",  "2"],
+    ["30", "2017",  "4"],
+    ["30", "2017",  "6"],
+    ["30", "2017",  "9"],
+    ["30", "2017", "11"],
+    ["31", "2018",  "1"],
+    ["28", "2018",  "2"],
+    ["31", "2018",  "3"],
+    ["31", "2018", "10"],
+    ["31", "2020",  "5"],
+</details>    ["31", "2020", "12"],
+]
+<span class=comment># テストデータ</span>
+test = [
+    <span class=comment>#  n   特徴量y  特徴量m</span>
+    ["31", "2016",  "5"],
+<details><summary>...</summary>    ["30", "2016",  "9"],
+    ["31", "2017",  "1"],
+    ["31", "2017", "12"],
+    ["30", "2018",  "4"],
+    ["30", "2018",  "6"],
+    ["29", "2020",  "2"],
+</details>    ["31", "2020", "10"],
+]
+</pre></blockquote>
+<p>
+上の学習用データ <code>train</code> と <code>test</code> から
+決定木を訓練 (学習) するには、以下のようにする。
+<ol>
+<li> まず、使用する特徴量を決める。ここでは特徴量 <code>y</code> としよう。
+訓練データ <code>train</code>中で、それぞれの <code>y</code> の値に対して現れる回答を集計する:
+<blockquote><pre>
+<span class=comment># 1番目の特徴量yを使った決定木を作成。</span>
+feats = {}
+for row in train:
+    answer = row[0]  <span class=comment># 回答</span>
+    f = row[1]       <span class=comment># 特徴量y</span>
+    if not (f in feats):
+        <span class=comment># キーが存在しないとき、空のリストから始める。</span>
+        feats[f] = []
+    feats[f].append(answer)
+</pre></blockquote>
+<p>
+これを実行すると、最終的に以下のような辞書ができる。
+特徴量 y の値に対して、複数の回答がリストとして格納されている:
+<blockquote><pre style="outline:0px; background: none;">
+feats = {
+    "2016": ["31", "29", "30", "31", "31"],
+    "2017": ["28", "30", "30", "30", "30"],
+    "2018": ["31", "28", "31", "31"],
+    "2020": ["31", "31"],
+}
+</pre></blockquote>
+
+<li> それぞれの特徴量 (辞書 <code>feats</code> のキー) に対応づけられた複数の回答のうち、
+一番よく出てきたものを多数決で「正式な回答」として選ぶようにする:
+<blockquote><pre>
+rule = {}
+for f in feats.keys():
+    <span class=comment># ある特徴量に対して、もっとも頻出した答えを正式な回答とする。</span>
+    rule[f] = findbest(feats[f])
+</pre></blockquote>
+ここで、関数 <code>findbest()</code> は
+「与えられたリストの中で、もっとも多く現れた要素を返す」関数である。
+<blockquote><pre>
+def findbest(a):
+    <span class=comment># 同一の要素の数を数える。</span>
+    c = {}
+    for x in a:
+        if x in c:
+            c[x] += 1
+        else:
+            c[x] = 1
+    <span class=comment># 最大値を決定する。</span>
+    best = a[0]
+    for x in c.keys():
+        if c[best] &lt; c[x]:
+           best = x
+    return best
+
+<span class=comment># findbest(['a','a','b','c','c','c','d']) == 'c'</span>
+</pre></blockquote>
+すると、以下のような規則ができあがる:
+<blockquote><pre style="outline:0px; background: none;">
+rule = {
+    "2016": "31",
+    "2017": "30",
+    "2018": "31",
+    "2020": "31",
+}
+</pre></blockquote>
+<p>
+この辞書 <code>rule</code> が機械学習によって得られた「決定木」である。
+これを使うには、単に特徴量 <code>y</code> の値をキーとして
+<code>rule</code> を検索すればよい。
+<blockquote><pre>
+print(rule["2017"])  <span class=comment># y=2017 であれば "30"</span>
+</pre></blockquote>
+
+<li> 最後に、できた規則を決定木として使い、
+どれくらい正しい結果を返すのかを測定する。
+これにはテストデータ <code>test</code> を使う:
+<blockquote><pre>
+<span class=comment># できた決定木の正しさを測定する。</span>
+score = 0
+for row in test:
+    answer = row[0]  <span class=comment># 回答</span>
+    f = row[1]       <span class=comment># 特徴量yの値</span>
+    if (f in rule) and (rule[f] == answer):
+        <span class=comment># 規則を使った結果、正しい回答を出せれば得点。</span>
+        score = score + 1
+print(score)
+</pre></blockquote>
+
+<li> 以上 1. 〜 4. を、すべての特徴量
+(この場合は <code>y</code> と <code>m</code>) に対してくりかえす。
+もっとも得点が高かった決定木を学習結果とすればよい。
+
+</ol>
+
+<div class=exercise id="ex2-5">
+<div class=header>演習2-5. 決定木を学習する</div>
+<p>
+上で説明した学習アルゴリズムを実際に実行してみよう。
+解説したコードを 2回分つなげればよいが、
+2回目だけは別の特徴量を使うように一部変更する必要がある。
+<div class=file>
+learn.py
+<pre>
+<span class=comment># 訓練データ</span>
+(上記訓練データの部分)
+<span class=comment># テストデータ</span>
+(上記テストデータの部分)
+
+<span class=comment># 1番目の特徴量yを使った決定木を作成。</span>
+(上記 1, 2 のコード)
+<span class=comment># できた決定木の正しさを測定する。</span>
+(上記 3 のコード)
+
+<span class=comment># 2番目の特徴量mを使った決定木を作成。</span>
+(上記 1, 2 のコードを<mark>一部変更</mark>)
+<span class=comment># できた決定木の正しさを測定する。</span>
+(上記 3 のコード)
+</pre></div>
+</div>
+
+<h3 id="dtree-training">2.1. 実際のデータを使った機械学習</h3>
+<p>
+上の例では特徴量が 2つしかなかったので決定木も 2種類しかできなかった。
+次にもうすこし本格的なケースを扱う。
+<p>
+<a target="_blank" href="https://archive.ics.uci.edu/ml/index.html">UCI Machine Learning Repository</a> は
+機械学習の実験に使うさまざまなデータを集めたサイトである。
+この中にある
+<a target="_blank" href="https://archive.ics.uci.edu/ml/datasets/Mushroom">キノコのデータベース</a>
+から毒キノコを見分ける規則を学習したい。
+
+<ul>
+<li> まず <a target="_blank" href="https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data">agaricus-lepiota.data</a> をダウンロードする。
+</ul>
+<p>
+これは 8124件のデータが入った CSVファイルである。
+各行には 23個の値が入っており、最初の値は正解
+(毒ならば <code>p</code>、食用ならば <code>e</code>) が書かれている。
+あとの 22個はキノコを見分けるためのさまざまな特徴である。
+ここでの目的は、あるキノコが食用かどうかを
+22個の特徴量のうちどれかを使って判定することである。
+
+<div class=notice>
+<strong>注意:</strong>
+このデータが本当に正しい保証はない。
+これを使って、実際に生育しているキノコを判定しないこと。
+</div>
+
+<table border align=center>
+<caption>キノコの特徴量一覧</caption>
+<tr><th>番号</th><th>説明</th></tr>
+<tr><td>0</td><td>正解 (<code>e</code>:食用, <code>p</code>:毒)</td></tr>
+<tr><td>1</td><td>かさの形状 (<code>b</code>:ベル状, <code>c</code>:円錐, <code>x</code>:凸型, <code>f</code>:平面, <code>k</code>:こぶ状, <code>s</code>:凹型)</td></tr>
+<tr><td>2</td><td>かさの表面 (<code>f</code>:繊維質, <code>g</code>:みぞ状, <code>y</code>:うろこ状, <code>s</code>:つるつる)</td></tr>
+<tr><td>3</td><td>かさの色 (<code>n</code>:茶色, <code>b</code>:黄褐色, <code>c</code>:肉桂色, <code>g</code>:灰色, <code>r</code>:緑色, <code>p</code>:ピンク, <code>u</code>:紫色, <code>e</code>:赤色, <code>w</code>:白色, <code>y</code>:黄色)</td></tr>
+<tr><td>4</td><td>傷の有無 (<code>t</code>:あり, <code>f</code>:なし)</td></tr>
+<tr><td>5</td><td>におい (<code>a</code>:アーモンド, <code>l</code>:アニス, <code>c</code>:クレソート, <code>y</code>:生臭い, <code>f</code>:腐敗臭, <code>m</code>:カビ臭い, <code>n</code>:無臭, <code>p</code>:刺激臭, <code>s</code>:スパイシー)</td></tr>
+<tr><td>6</td><td>ひだの付き方 (<code>a</code>:密着, <code>d</code>:下がっている, <code>f</code>:フリー, <code>n</code>:刻み目)</td></tr>
+<tr><td>7</td><td>ひだの間隔 (<code>c</code>:近い, <code>w</code>:密集, <code>d</code>:離れている)</td></tr>
+<tr><td>8</td><td>ひだの大きさ (<code>b</code>:広い, <code>n</code>:狭い)</td></tr>
+<tr><td>9</td><td>ひだの色 (<code>k</code>:黒色, <code>n</code>:茶色, <code>b</code>:黄褐色, <code>h</code>:チョコレート色, <code>g</code>:灰色, <code>r</code>:緑色, <code>o</code>:オレンジ, <code>p</code>:ピンク, <code>u</code>:紫色, <code>e</code>:赤色, <code>w</code>:白色, <code>y</code>:黄色)</td></tr>
+<tr><td>10</td><td>柄の形状 (<code>e</code>:広がっている, <code>t</code>:狭まっている)</td></tr>
+<tr><td>11</td><td>柄の先端 (<code>b</code>:球状, <code>c</code>:棒状, <code>u</code>:カップ, <code>e</code>:等幅, <code>z</code>:枝状, <code>r</code>:根っこ状, ?:欠けている)</td></tr>
+<tr><td>12</td><td>柄の表面(リングの上) (<code>f</code>:繊維質, <code>y</code>:うろこ状, <code>k</code>:すべすべ, <code>s</code>:つるつる)</td></tr>
+<tr><td>13</td><td>柄の表面(リングの下) (<code>f</code>:繊維質, <code>y</code>:うろこ状, <code>k</code>:すべすべ, <code>s</code>:つるつる)</td></tr>
+<tr><td>14</td><td>柄の色(リングの上) (<code>n</code>:茶色, <code>b</code>:黄褐色, <code>c</code>:肉桂色, <code>g</code>:灰色, <code>o</code>:オレンジ, <code>p</code>:ピンク, <code>e</code>:赤色, <code>w</code>:白色, <code>y</code>:黄色)</td></tr>
+<tr><td>15</td><td>柄の色(リングの下) (<code>n</code>:茶色, <code>b</code>:黄褐色, <code>c</code>:肉桂色, <code>g</code>:灰色, <code>o</code>:オレンジ, <code>p</code>:ピンク, <code>e</code>:赤色, <code>w</code>:白色, <code>y</code>:黄色)</td></tr>
+<tr><td>16</td><td>覆いの形状 (<code>p</code>:部分, <code>u</code>:全体)</td></tr>
+<tr><td>17</td><td>覆いの色 (<code>n</code>:茶色, <code>o</code>:オレンジ, <code>w</code>:白色, <code>y</code>:黄色)</td></tr>
+<tr><td>18</td><td>リングの数 (<code>n</code>:なし, <code>o</code>:ひとつ, <code>t</code>:ふたつ)</td></tr>
+<tr><td>19</td><td>リングの形状 (<code>c</code>:網状, <code>e</code>:減衰, <code>f</code>:派手, <code>l</code>:大型, <code>n</code>:なし, <code>p</code>:垂下, <code>s</code>:ぴったり, <code>z</code>:帯状)</td></tr>
+<tr><td>20</td><td>胞子の色 (<code>k</code>:黒色, <code>n</code>:茶色, <code>b</code>:黄褐色, <code>h</code>:チョコレート色, <code>r</code>:緑色, <code>o</code>:オレンジ, <code>u</code>:紫色, <code>w</code>:白色, <code>y</code>:黄色)</td></tr>
+<tr><td>21</td><td>個体数 (<code>a</code>:豊富, <code>c</code>:群生, <code>n</code>:おびただしい, <code>s</code>:ところどころに, <code>v</code>:数本, <code>y</code>:孤立)</td></tr>
+<tr><td>22</td><td>生育地 (<code>g</code>:芝生, <code>l</code>:葉っぱ, <code>m</code>:牧草地, <code>p</code>:道端, <code>u</code>:都市, <code>w</code>:汚物, <code>d</code>:樹木)</td></tr>
+</table>
+
+<h3 id="dtree-training-f1">2.2. ひとつの特徴量を使った決定木の学習</h3>
+<p>
+この例では特徴量が 22個あるが、やることは <a href="#ex2-5">演習2-5</a> の例とほとんど同じである。
+<p>
+まず、訓練データとテストデータを CSV ファイルから読み込む。
+ここでは 8124件のデータうち、最初の 7000件を訓練データとして、
+残りをテストデータとして使うことにする:
+<div class=file>
+mushroom.py
+<pre>
+<span class=comment># CSVファイルを読み込む。</span>
+import csv
+with open("agaricus-lepiota.data") as fp:
+    table = list(csv.reader(fp))
+
+<span class=comment># 最初の7000件を訓練データとして使う。</span>
+train = table[:7000]
+<span class=comment># 残りをテストデータとして使う。</span>
+test = table[7000:]
+</pre>
+</div>
+
+<p>
+次に <code>for</code>文を使って、22個の特徴量それぞれに対し
+決定木を作成しては、その精度を測定する。
+これは<a href="#ex2-5">演習2-5</a> のコードを変更して、 1番目ではなく
+<em>i+1</em>番目の特徴量を使うようにすればよい:
+
+<div class=file>
+mushroom.py (つづき)
+<pre>
+for i in range(22):
+    <span class=comment># (i+1)番目の特徴量を使った決定木を作成。</span>
+    feats = {}
+    for row in train:
+        answer = row[0]  <span class=comment># 回答</span>
+        f = row[<mark>i+1</mark>]  <span class=comment># (i+1)番目の特徴量</span>
+        ...
+    <span class=comment># できた決定木の正しさを測定する。</span>
+    score = 0
+    for row in test:
+        ...
+    <span class=comment># 使った特徴量と規則、スコアを表示する。</span>
+    print(f"使った特徴量:{i+1}")
+    print(f"規則:{rule}")
+    print(f"スコア:{score}")
+</pre>
+</div>
+
+<p>
+もっとも高いスコアを表示した決定木がここでの最終的な学習結果ということになる。
+
+<h4>学習に使うデータをシャッフルする</h4>
+<p>
+じつは <code>agaricus-lepiota.data</code> に一覧されているキノコの順序は
+<strong>大幅に偏っている</strong>。そこで、7000件以降のデータを
+テストデータとして使うと、偏った結果を学習してしまう。これを避けるために、
+<code>random.shuffle()</code> 関数を使って、
+リスト<code>table</code> をまずシャッフルしてから使うことにする。
+
+<div class=exercise id="ex2-6">
+<div class=header>演習2-6. キノコの特徴量を使った決定木の学習</div>
+<ol type=a>
+<li> 上のプログラム <code>mushroom.py</code> を完成させ、実際に実行せよ。
+<li> <code>mushroom.py</code> の適当な位置に
+<code>random.shuffle(table)</code>
+を加え、結果がどう変わるか確認せよ。
+</ol>
+</div>
+
+<h3 id="dtree-training-f2">2.3. ふたつの特徴量を使った決定木の学習</h3>
+<p>
+さて、ひとつの特徴量だけを使った決定木では正確さに限界があった。
+ここではさらに拡張して、ふたつの特徴量を使った決定木を作成してみる。
+これは以下のように、やや複雑な <code>if</code>文からなる規則を作成する。
+<blockquote><pre>
+def f(変数1, 変数2):
+    if 変数1 == 値1 and 変数2 == 値2:
+        return 答えA
+    elif 変数1 == 値3 and 変数2 == 値4:
+        return 答えB
+    elif
+        ...
+</pre></blockquote>
+<p>
+特徴量を文字列として <code>+</code> で連結すれば、
+2つの特徴量が等しいかを同時に判断できる。
+したがって、やり方は特徴量が 1つのときとかなり似ている:
+<blockquote><pre>
+def f(変数1, 変数2):
+    if (変数1+","+変数2) == (値1+","+値2):
+        return 答えA
+    elif (変数1+","+変数2) == (値3+","+値4):
+        return 答えB
+    elif
+        ...
+</pre></blockquote>
+<p>
+実際のプログラムは以下のようになる。
+<code>for</code>文を2重にして (<em>i</em>, <em>j</em>) の
+組み合せをすべて試している。
+<div class=file>
+mushroom2.py
+<pre>
+...
+<span class=comment># 2種類の特徴量の組み合わせをすべて試す。</span>
+for i in range(22):
+    for j in range(22):
+        <span class=comment># (i,j) と (j,i) を2度やらないように、i &lt; j のケースだけ考える。</span>
+        if i &lt; j:
+            <span class=comment># (i+1)番目と(j+1)番目の特徴量を使った決定木を作成。</span>
+            feats = {}
+            for row in train:
+                answer = row[0]  <span class=comment># 回答</span>
+                f1 = row[<mark>i+1</mark>]  <span class=comment># (i+1)番目の特徴量</span>
+                f2 = row[<mark>j+1</mark>]  <span class=comment># (j+1)番目の特徴量</span>
+                <mark>f = f1+","+f2</mark>  <span class=comment># 連結した特徴量</span>
+                ...
+            <span class=comment># できた決定木の正しさを測定する。</span>
+            score = 0
+            ...
+            <span class=comment># 使った特徴量と規則、スコアを表示する。</span>
+            print(f"使った特徴量:{i+1},{j+1}")
+            print(f"規則:{rule}")
+            print(f"スコア:{score}")
+</pre>
+</div>
+
+<div class=exercise id="ex2-7">
+<div class=header>演習2-7. ふたつの特徴量を使った決定木の学習</div>
+<ol type=i>
+<li> 上のプログラム <code>mushroom2.py</code> を実際に完成させ、実行せよ。
+<li> このプログラムは 22×21 = 462通りの特徴量の組み合せを全部試す。
+  そのため、決定木も 462種類できる。これだけ多いと目で見て比較するのが大変なため、
+  各決定木のスコアを自動的に比較し、もっとも性能のよい学習結果だけを
+  表示するような処理を追加せよ。
+</ol>
+</div>
+
+
+<h2 id="summary">3. まとめ</h2>
+<ul>
+<li> <u>人工知能</u>技術の多くは、<nobr><span class=bl>探索</span></nobr>問題である。
+<li> <u>機械学習</u>は「与えられたデータをもとに<nobr><span class=bl>プログラム</span></nobr>を探索する」人工知能の一種である。
+<li> 機械学習において、正解を予測するために使う情報を<nobr><span class=bl>特徴</span></nobr>量とよぶ。
+<li> <u>教師つき学習</u>では、<nobr><span class=bl>訓練</span></nobr>データを使って学習し、<nobr><span class=bl>テスト</span></nobr>データを使ってその性能を測定する。
+<li> 機械学習の賢さは与える<nobr><span class=bl>データ</span></nobr>によって決まる。
+<li> <nobr><span class=bl>決定木</span></nobr>は教師つき学習の一種であり、if-then-else文を組み合わせたプログラムを生成する。
+</ul>
+
+
+<hr>
+<div class=license>
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="クリエイティブ・コモンズ・ライセンス" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />この作品は、<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">クリエイティブ・コモンズ 表示 - 継承 4.0 国際 ライセンス</a>の下に提供されています。
+</div>
+<address>Yusuke Shinyama</address>

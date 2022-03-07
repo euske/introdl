@@ -1,0 +1,3303 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="../common.css" />
+<title>第1回 プログラマのためのPython入門
+/ 真面目なプログラマのためのディープラーニング入門</title>
+<style><!--
+dt { margin-top: 1em; }
+.err { font-weight: bold; color: red; }
+.info { font-size: 75%; color: #444; }
+.langnotice { background: #fcf; outline: 2px solid black; padding: 1em; margin-top: 1em; margin-bottom: 1em; }
+--></style>
+<body>
+<div class=nav>
+<a href="../index.html">&lt; もどる</a>
+</div>
+<h1>第1回 プログラマのためのPython入門</h1>
+
+<p>
+ここでは本講座のコードを読むために必要な Python の基礎知識と
+有用な tips をいくつか紹介する。
+Python は動的な型付けをもつスクリプト言語であり、
+JavaScript や Ruby に似ている部分が多いが、いくつか重要な違いがある。
+<p>
+<strong>このページの使い方:</strong>
+ここに書かれている内容をすべて覚える必要はない。
+各セクションはすぐに読める程度の長さになっているので、
+特定の箇所だけをつまみ読みすることを想定している。
+<div class=langnotice>
+他言語に慣れている人への注意は、このような囲みで示した。
+</div>
+
+<ol>
+<li> <a href="#setup">はじめて Python を使う</a>
+<ul>
+  <li> <a href="#setup-python">Pythonのインストール</a>
+  <li> <a href="#setup-vscode">テキストエディタ (VS Code) のインストール</a>
+  <li> <a href="#setup-run">Pythonプログラムの実行</a>
+  <li> <a href="#setup-help">ヘルプと文書</a>
+  <li> <a href="#setup-pip">Python拡張機能のインストール</a>
+</ul>
+<li> <a href="#basics">Python の基本</a>
+<ul>
+  <li> <a href="#basic-statements">文・変数・関数・コメント</a>
+  <li class=ex> <a href="#ex1-1">演習 1-1. 最初の Python プログラム</a>
+  <li> <a href="#basic-datatypes">基本データ型</a>
+  <li class=ex> <a href="#ex1-2">演習 1-2. 基本的な計算</a>
+  <li> <a href="#basic-controls">条件式と制御文</a>
+  <li class=ex> <a href="#ex1-3">演習 1-3. 数列の計算</a>
+  <li> <a href="#basic-lists">リストとタプル</a>
+  <li> <a href="#basic-dicts">辞書と集合</a>
+  <li class=ex> <a href="#ex1-4">演習 1-4. 投票プログラム</a>
+  <li> <a href="#basic-functions">関数</a>
+  <li class=ex> <a href="#ex1-5">演習 1-5. 二次元リストの操作</a>
+  <li> <a href="#basic-exceptions">エラーと例外</a>
+  <li> <a href="#basic-iters">イテレータ</a>
+  <li> <a href="#basic-classes">クラスとインスタンス</a>
+  <li class=ex> <a href="#ex1-6">演習 1-6. 状態遷移器を使った文字列の解析</a>
+  <li> <a href="#basic-ios">ファイル入出力</a>
+</ul>
+<li> <a href="#modules">Python の拡張機能</a>
+<ul>
+  <li> <a href="#module-user">モジュールの定義と使用</a>
+  <li> <a href="#module-stdlib">Python の標準ライブラリ</a>
+  <li> <a href="#module-sys">コマンドライン引数を取得する</a>
+  <li> <a href="#module-csv">CSVファイルの読み書き</a>
+  <li> <a href="#module-json">JSONファイルの読み書き</a>
+  <li> <a href="#module-zip">ZIPファイルの読み書き</a>
+  <li> <a href="#module-xml">XMLファイルを読み書き</a>
+  <li> <a href="#module-pillow">画像ファイルの読み書き</a>
+</ul>
+</ol>
+
+<h2 id="setup">1. はじめて Python を使う</h2>
+
+<h3 id="setup-python">1.1. Pythonのインストール</h3>
+<p>
+以下に Python をインストール・実行する代表的な 3つの方法を挙げる:
+<ol type=a>
+<li> <a target="_blank" href="https://www.python.org/">Python 本家</a>で配布されているバージョンを使う方法
+<ul>
+<li> 長所: もっとも単純な仕組みであり、原理がわかりやすい。
+  PCの操作に慣れている人には、この方法がおすすめ。
+<li> 短所: 作業がやや煩雑。
+<li> 手順:
+<a target="_blank" href="https://www.python.org/downloads/">https://www.python.org/downloads/</a> に
+アクセスし、Python 3.9.x をダウンロードする。(最後の x の部分は何でもよい)<br>
+<strong>注意:</strong> 2022年1月現在、Python の最新バージョンは 3.10.1 だが、
+<strong>つねに最新バージョンを使うのは危険である。</strong>
+機械学習関係のライブラリ (PyTorch) がまだ対応していない場合があるためである。</strong>
+
+<div class=figure>
+<img width="605" height="434" src="python-web.png">
+</div>
+<p>
+Mac の場合はインストーラを開き、普通にインストールを完了させる。<br>
+Windows の場合は、インストール時のウィンドウに表示される
+<kbd>Add Python 3.9 to PATH</kbd> の部分をチェックすること:
+<div class=figure>
+<img width="666" height="410" src="python-installer-win.png"></a>
+</div>
+</ul>
+</ul>
+<li> <a target="_blank" href="https://www.anaconda.com/">Anaconda</a> から配布されている Jupyter Notebook を使う方法
+<ul>
+<li> 長所: 最初から多くの機能が使える。
+<li> 短所: 巨大かつ複雑なシステムであり、
+  内部で何が起きているのかが見えにくい。
+<li> 手順:
+  <a target="_blank" href="https://www.anaconda.com/products/individual">Anaconda システム</a>
+  をダウンロードし、インストールする。
+ (10GB程度のディスク空き容量が必要)。
+</ul>
+<li> <a target="_blank" href="https://colab.research.google.com/">Google Colaboratory</a> を使う方法
+<ul>
+<li> 長所: PCの知識があまりなくても使える。インストールは必要ない。
+<li> 短所: Googleアカウントが必要。ブラックボックスな部分が多い。
+<li> 手順: Google アカウントを作成し、
+  <a target="_blank" href="https://colab.research.google.com/">Colaboratory にログイン</a> する。
+</ul>
+</ol>
+<p>
+本講座では、おもに Windows で上記 a. のケースを想定して説明しているが、
+b. および c. の環境を使っていても支障はない。
+
+<h3 id="setup-vscode">1.2. テキストエディタ (VS Code) のインストール</h3>
+<p>
+上記 a. の方法で Python のみをインストールした場合、
+簡単なテキストエディタをインストールしておくことが望ましい。
+Visual Studio Code (以下 VS Code) は高機能なテキストエディタで、
+Python のプログラムを書いたり実行したりするのにおすすめである:
+<ol>
+<li> まず
+<a target="_blank" href="https://code.visualstudio.com/">https://code.visualstudio.com/</a> に
+アクセスし、VS Code をダウンロードする。
+<li> macOS の場合:
+「アプリケーション」フォルダにアイコンをドラッグ・ドロップし、
+起動後に <kbd>Install 'code' command in PATH</kbd> を実行する。
+<a target="_blank" href="https://code.visualstudio.com/docs/setup/mac">詳細</a>。
+<li> Windows の場合:
+<kbd>PATHへの追加</kbd> をチェックしておく。
+<a target="_blank" href="https://code.visualstudio.com/docs/setup/windows">詳細</a>。
+<div class=figure><img width="598" height="464" src="vscode-installer-win.png"></div>
+</ol>
+<p>
+VS Code が正しくインストールされると、
+コマンド プロンプト上で <code>code</code> コマンドを
+使ってエディタを起動することができる:
+<pre>
+C:\Users\euske&gt; <strong>code hello.py</strong>
+</pre>
+<p>
+インストールが終わったら、左下の歯車アイコンをクリックして
+<kbd>Extensions (拡張機能)</kbd> を選ぶ。
+<div class=figure><img width="870" height="560" src="vscode.png"></div>
+<p>
+ここでさらに <kbd>Python</kbd> を選択し、インストールする。
+<div class=figure><img width="870" height="560" src="vscode-ext.png"></div>
+
+<h3 id="setup-run">1.3. Pythonプログラムの実行</h3>
+
+<dl>
+<dt> スタンドアロンの Python を使う場合
+<dd>
+Pythonプログラムを実行するには、適当なテキストエディタで
+スクリプトを作成後、シェル (コマンドプロンプト) から以下のように入力する:
+<ul>
+<li> Windowsの場合:
+<pre>
+C:\Users\euske&gt; <strong>python hello.py</strong>
+</pre>
+<li> Macの場合:<br>
+(2021年8月現在、macOS にはまだ旧バージョンの Python2 がインストールされているため、
+現行バージョンの Python3 を使うには、以下のようにする)
+<pre>
+(×) euske@macbook ~ % <strong>python hello.py</strong>
+(○) euske@macbook ~ % <strong>python<mark>3</mark> hello.py</strong>
+</pre>
+</ul>
+
+<p>
+スクリプト名を省略して、ただ "python" とだけ実行すると、
+対話モードで使うことができる。
+これはちょっとした計算や実験をしたいときに便利である:
+<blockquote><pre>
+C:\Users\euske&gt; <strong>python</strong>
+Python 3.9.9 (tags/v3.9.9:ccb0e6a, Nov 15 2021, 18:08:50) [MSC v.1929 64 bit (AMD64)] on win32
+Type "help", "copyright", "credits" or "license" for more information.
+&gt;&gt;&gt; <strong>print("hello, world!")</strong>
+hello, world!
+&gt;&gt;&gt; <strong>2+3</strong>
+5
+</pre></blockquote>
+
+<p>
+<strong>注意:</strong>
+プログラムがループで止まらない場合は、
+<kbd>Control</kbd> + <kbd>C</kbd> を押して止める。
+こうするとインタプリタ内部で <code>KeyboardInterrupt</code> 例外が発生し、
+Python は終了する。
+
+<dt> VS Code 上で Python を実行する
+<dd>
+VS Code に Python 機能拡張をインストールすると、
+編集中の Python プログラムをじかに実行できる。
+右上の <kbd>再生</kbd> ボタンをクリックすればよい。
+<div class=figure><img width="870" height="560" src="vscode-python.png"></div>
+
+<dt> Jupyter Notebook を使う場合
+<dd>
+<ol>
+  <li> スタートメニューから <kbd>Jupyter Notebook</kbd> を起動する。
+  <li> <kbd>New Notebook (Python3)</kbd> を選ぶ。
+  <li> 以下のような画面が出る。この枠内にコードを書き、
+    <kbd>Run</kbd> ボタンを押す。
+    (あるいは <kbd>Control</kbd> + <kbd>Enter</kbd> でもよい。)
+    <div class=figure><img width="810" height="265" src="jupyter.png"></div>
+</ol>
+
+<dt> Google Colaboratory を使う場合
+<dd>
+<ol>
+  <li> <a target="_blank" href="https://colab.research.google.com/">Google Colaboratory</a> にログインする。
+  <li> <kbd>File</kbd> メニューから <kbd>New Notebook</kbd> を選ぶ。
+  <li> 以下のような画面が出る。この枠内にコードを書き、
+    左側の「再生」ボタンを押す。
+    (あるいは <kbd>Control</kbd> + <kbd>Enter</kbd> でもよい。)
+    <div class=figure><img width="791" height="361" src="colab.png"></div>
+</ol>
+
+</dl>
+
+<h3 id="setup-help">1.4. ヘルプと文書</h3>
+<p>
+Python には簡単なオンラインヘルプがあり、
+<code>help()</code> 関数を実行すると、特定の関数やモジュールの仕様を確認できる。
+<blockquote><pre>
+&gt;&gt;&gt; <strong>help(print)</strong>
+Help on built-in function print in module builtins:
+
+print(...)
+    print(value, ..., sep=' ', end='\n', file=sys.stdout, flush=False)
+
+    Prints the values to a stream, or to sys.stdout by default.
+    Optional keyword arguments:
+    ...
+</pre></blockquote>
+<p>
+<code>help()</code> で表示される内容はやや上級者向けなので、
+通常は Web上のドキュメントを参照するほうがよい:
+<ul>
+  <li> <a target="_blank" href="https://docs.python.org/3/">Python 3 文書一覧</a>
+  <ul>
+    <li> <a target="_blank" href="https://docs.python.org/3/library/index.html">Python 標準ライブラリリファレンス</a>
+      … おそらくもっともよく利用する文書。
+      100以上ある Python の全標準モジュールについて解説している。
+    <li> <a target="_blank" href="https://docs.python.org/3/reference/index.html">Python 言語仕様</a>
+      … 細かな言語仕様を確認したい場合に参照する (利用頻度は少ない)。
+  </ul>
+</ul>
+
+<h3 id="setup-pip">1.5. Python 拡張機能のインストール</h3>
+<p>
+Python には非常に多くの拡張機能が用意されている。
+これらは <a target="_blank" href="https://pypi.org/">Python Package Index</a> というサイトで
+一元的に集約されており、<code>pip</code> コマンドで自動的にダウンロード・インストールできる:
+<blockquote><pre>
+C:\Users\euske&gt; <strong>pip install numpy</strong>
+Collecting numpy
+  Downloading numpy-1.22.1-cp39-cp39-win_amd64.whl (14.7 MB)
+     |████████████████████████████████| 14.7 MB 364 kB/s
+Installing collected packages: numpy
+Successfully installed numpy-1.22.1
+</pre></blockquote>
+<p>
+pip コマンドの代表的な用法は以下のとおり:
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code>pip install <em>name</em></code></td>
+<td>拡張機能 <em>name</em> (およびその依存パッケージ) をダウンロードし、インストールする。</td>
+<td><code>pip install <strong>numpy</strong></code></td>
+</tr><tr>
+<td><code>pip uninstall <em>name</em></code></td>
+<td>インストールされた拡張機能 <em>name</em> を削除する。</td>
+<td><code>pip uninstall <strong>torch</strong></code></td>
+</tr><tr>
+<td><code>pip list</code></td>
+<td>インストールされた拡張機能の一覧を表示する。</td>
+<td><code>pip list</code></td>
+</tr></table>
+
+<p>
+pip コマンドでインストールされたファイルは、
+Windows の場合は
+<code>C:\Users\<em>ユーザ名</em>\AppData\Local\Programs\Python3.9\Lib\site-packages</code>
+以下に、macOS/Linux の場合は (通常)
+<code>/usr/lib/python3.9/site-packages</code> 以下に格納される。
+
+<p>
+Anaconda をインストールしている場合、
+<code>conda</code>コマンドで
+<a target="_blank" href="https://repo.anaconda.com/">Anaconda Repository</a>
+以下のパッケージもインストールできる。
+
+
+<h2 id="basics">2. Python の基本</h2>
+<p>
+Python は言語自体の機能は比較的小さく、
+多くの機能はライブラリによって提供されている。
+
+<h3 id="basic-statements">2.1. 文・変数・関数・コメント</h3>
+<p>
+以下は基本的な Python のプログラムである。
+プログラム中の各行を、それぞれ <u>文</u> (statement) とよぶ。
+Python はスクリプト言語であり、
+各文はインタプリタによって逐次実行される:
+<div class=file>
+hello.py
+<pre>
+<span class=comment># 名前を尋く。</span>
+print("What is your name?")
+x = input("name:")  <span class=comment># 入力された文字列を変数 x に格納。</span>
+<span class=comment># 挨拶を表示。</span>
+print(<strong>f</strong>"Hello, {x}!")
+</pre>
+</div>
+<ul>
+<li> <code>#</code> 以降は、<u>コメント</u>とみなされ、無視される。
+<li> 各文における <code>print(...)</code>、<code>input(...)</code> のような部分を
+<u>関数</u> (function) とよぶ。
+<ul>
+<li> <code>print(…)</code> 関数は、文字列を標準出力に表示する。
+<li> <code>input(…)</code> 関数は、プロンプトを表示して標準入力から文字列を入力させる。
+</ul>
+<li> <code>x</code> のような部分を<u>変数</u> (variable) とよぶ。
+  <code>x = input("name:")</code> は<u>代入文</u> (assignment) である。
+<li> <code><strong>f</strong>"〜"</code> のような文字列は <u>f-string</u> と呼ばれ、
+文字列中の <code>{…}</code> で囲まれた部分が式として評価され埋め込まれる。
+この例では、変数 <code>x</code> の値が展開される。
+</ul>
+
+<div class=exercise id="ex1-1">
+<div class=header>演習 1-1. 最初の Python プログラム</div>
+<ul>
+<li> 上のプログラム <code>hello.py</code> を入力し、実行せよ。
+<li> 上のプログラムを変更し、2人ぶんの名前
+(<code>name1:</code> および <code>name2:</code>) を
+それぞれ変数 <code>x</code> と <code>y</code> に入力させ、
+以下のように表示させるよう変更せよ。
+<pre>
+C:\Users\euske&gt; <strong>python hello.py</strong>
+What is your name?
+name1: john
+name2: mary
+Hello, john and mary!
+</pre>
+</ul>
+</div>
+
+<h4 id="basic-encoding">ソースコードのエンコーディング指定</h4>
+<p>
+Python の文字列は、すべて Unicode 文字列である。
+デフォルトでは、Python のソースコードは <u>UTF-8</u> テキストとみなされる。
+改行コードは DOS / Unix どちらでもよい。
+それ以外の文字コードを明示的に指定したい場合、
+ソースコード先頭に <code>coding:</code> で始まるコメントを入れる。
+たとえばソースコードが Shift_JIS で書かれている場合は、
+ファイル先頭に以下のように書く:
+<blockquote><pre>
+<span class=comment># -*- coding: shift_jis -*-</span>
+print("こんにちわ。")
+</pre></blockquote>
+
+<h3 id="basic-datatypes">2.2. 基本データ型</h3>
+<p>
+Python はいわゆる<u>動的型付け</u>言語であり、
+各変数にはあらゆる型の値を格納することができる。
+
+<dl>
+<dt> <code>int</code>型
+<dd> 整数型。<code>0x</code>表記をつけると16進数として解釈される。
+<pre>
+1729
+-3
+0x270f
+</pre>
+<div class=langnotice>
+Python の int型には値の上限・下限が存在せず、
+メモリの許す限りの桁数が扱える。
+</div>
+int型に対しては以下の演算が使える。
+除算 (<code>/</code>) を除いて、<code>int</code>どうしの演算は
+つねに <code>int</code>になる。
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>a</em> + <em>b</em></code></td>
+<td><em>a</em> と <em>b</em> を足した値。</td>
+<td><code><strong>2</strong> + <strong>3</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> - <em>b</em></code></td>
+<td><em>a</em> から <em>b</em> を引いた値。</td>
+<td><code><strong>y</strong> - <strong>1</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> * <em>b</em></code></td>
+<td><em>a</em> と <em>b</em> を掛けた値。</td>
+<td><code><strong>x</strong> * <strong>(n+1)</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> // <em>b</em></code></td>
+<td><em>a</em> を <em>b</em> で割った商。</td>
+<td><code><strong>h</strong> // <strong>2</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> % <em>b</em></code></td>
+<td><em>a</em> を <em>b</em> で割った余り。</td>
+<td><code><strong>(n+1)</strong> % <strong>10</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> / <em>b</em></code></td>
+<td><em>a</em> を <em>b</em> で割った値 (結果は<code>float</code>)。</td>
+<td><code><strong>total</strong> / <strong>n</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> ** <em>b</em></code></td>
+<td><em>a</em> の <em>b</em> 乗 (<em>a</em><sup><em>b</em></sup>)。</td>
+<td><code><strong>2</strong> ** <strong>n</strong></code></td>
+</tr><tr>
+<td></td><td></td><td></td>
+</tr><tr>
+<td><code><em>a</em> &amp; <em>b</em></code></td>
+<td><em>a</em> と <em>b</em> のビットごとAND。</td>
+<td><code><strong>flag</strong> &amp; <strong>63</strong></td>
+</tr><tr>
+<td><code><em>a</em> | <em>b</em></code></td>
+<td><em>a</em> と <em>b</em> のビットごとOR。</td>
+<td><code><strong>p</strong> | <strong>4096</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> ^ <em>b</em></code></td>
+<td><em>a</em> と <em>b</em> のビットごとXOR。</td>
+<td><code><strong>q</strong> ^ <strong>1</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> &lt;&lt; <em>n</em></code></td>
+<td><em>a</em> を <em>n</em> ビット左シフト。</td>
+<td><code><strong>1</strong> &lt;&lt; <strong>k</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> &gt;&gt; <em>n</em></code></td>
+<td><em>a</em> を <em>n</em> ビット右シフト。</td>
+<td><code><strong>(x|m)</strong> &gt;&gt; <strong>3</strong></code></td>
+</tr></table>
+<p>
+Python は、代入演算子もサポートしている:
+<code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>,
+<code>%=</code>, <code>//=</code>, <code>**=</code>,
+<code>&=</code>, <code>|=</code>, <code>^=</code>,
+<code>&lt;&lt;=</code>, <code>&gt;&gt;=</code>
+<div class=langnotice>
+Python には <code>++</code> および <code>--</code> 演算子は存在しない。
+</div>
+
+<dt> <code>float</code>型
+<dd> 浮動小数点型。
+JavaScript における数値型、C や Java でいう double型に相当する。
+表示したときに「<code>.</code>」が含まれるかどうかで int型と区別する。
+<pre>
+-3.14
+1.4551915228366852e-11
+5.
+</pre>
+使用可能な演算子は int型と同じだが、
+<code>float</code>と<code>int</code>の演算はつねに <code>float</code>になる。
+<pre>
+&gt;&gt;&gt; <strong>3.14 * 2</strong>
+6.28
+&gt;&gt;&gt; <strong>0.5 + 0.5</strong>
+1.0
+&gt;&gt;&gt; <strong>3 / 4</strong>  <span class=comment># 除算はつねに float型。</span>
+0.75
+</pre>
+
+<dt> <code>str</code>型
+<dd> いわゆる文字列型。
+文字列定数は <code>"〜”</code> あるいは <code>'〜'</code> で表す。
+Unicode文字は <code>\uXXXX</code> のように表すことも可能。
+Python3 では、ひとつの文字は 1つの Unicodeコードポイントに相当する。
+改行を入れたい場合は <code>\n</code> を使う。
+<div class=langnotice>
+Python は「文字」と「文字列」を区別しない。
+char型は存在せず、文字を表現したい場合は、
+長さ 1の str型を使う。
+</div>
+<pre>
+"foo bar"
+'foo "bar" baz'             <span class=comment># ダブルクォートが入った文字列</span>
+'これは\'パイプ\'ではない'  <span class=comment># \ でエスケープしたもの</span>
+"I\u2665NY"                 <span class=comment># Unicode(&#x2665;)が入った文字列</span>
+</pre>
+<p>
+Python における文字列は<u>変更不能</u> (immutable) で、
+基本的にはひとつの値のように扱われる。
+また、Python の文字列は f-string と呼ばれる方法で作成することもできる。
+<code><strong>f</strong>"…{<em>式</em>}…"</code>
+あるいは <code><strong>f</strong>'…{<em>式</em>}…'</code>
+のように書くと、<em>式</em>の部分が評価され文字列として埋め込まれる
+(<em>式</em>はいくつあってもよい)。
+<pre>
+x = 2
+y = 3
+s = <strong>f</strong>"{x} plus {y} is {x+y}"  <span class=comment># "2 plus 3 is 5"</span>
+</pre>
+<p>
+文字列に対しては以下の演算が可能である:
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>s</em>[<em>i</em>]</code></td>
+<td>文字列<em>s</em> の i番目の文字を返す。</td>
+<td><code>name[<strong>i</strong>]</code></td>
+</tr><tr>
+<td><code><em>s</em>[<em>i</em>:<em>j</em>]</code></td>
+<td>文字列<em>s</em> の i〜j番目の部分文字列 (<u>スライス</u>) を返す。</td>
+<td><code>path[<strong>8</strong>:<strong>11</strong>]</code></td>
+</tr><tr>
+<td><code><em>s</em> + <em>t</em></code></td>
+<td>文字列<em>s</em> と文字列<em>t</em> を連結。</td>
+<td><code><strong>"Good "</strong> + <strong>"Morning"</strong></code></td>
+</tr><tr>
+<td><code><em>s</em> * <em>n</em></code></td>
+<td>文字列<em>s</em> の <em>n</em>回繰り返し (<em>n</em>は整数)。</td>
+<td><code><strong>"choo"</strong> * <strong>5</strong></code></td>
+</tr><tr>
+<td><code>len(<em>s</em>)</code></td>
+<td>文字列<em>s</em> の長さを返す。</td>
+<td><code>len(<strong>name</strong>)</code></td>
+</tr><tr>
+<td><code><em>s</em>.find(<em>t</em>)</code></td>
+<td>文字列<em>s</em> に含まれる文字列 <em>t</em> の位置を返す
+(含まれない場合は <code>-1</code>)。
+<td><code><strong>path</strong>.find(<strong>'/'</strong>)</code></td>
+</tr><tr>
+<td><code><em>s</em>.strip()</code></td>
+<td>文字列<em>s</em> の先頭および末尾の空白・改行を切り取る。
+(JavaScript では <code><em>s</em>.trim()</code>)</td>
+<td><code><strong>line</strong>.strip()</code></td>
+</tr><tr>
+<td><code><em>s</em>.split([<em>delim</em>])</code></td>
+<td>文字列<em>s</em> を指定した区切り文字で分割したリストを返す。</td>
+<td><code><strong>buf</strong>.split(<strong>','</strong>)</code></td>
+</tr></table>
+<p>
+文字列の部分列は<u>スライス</u>と呼ぶ。
+Python では、負のインデックスは<strong>末尾から数えた位置</strong>を表すため、
+たとえば以下のような文字列があるとして、
+<pre>
+s = "HEADACHE"
+</pre>
+この場合の <code>s</code>の各部分は、以下のようになる:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     version="1.1" width="350" height="260">
+  <g fill="none" stroke="black" stroke-width="2">
+    <rect x="10" y="10" width="40" height="40" />
+    <rect x="50" y="10" width="40" height="40" />
+    <rect x="90" y="10" width="40" height="40" />
+    <rect x="130" y="10" width="40" height="40" />
+    <rect x="170" y="10" width="40" height="40" />
+    <rect x="210" y="10" width="40" height="40" />
+    <rect x="250" y="10" width="40" height="40" />
+    <rect x="290" y="10" width="40" height="40" />
+  </g>
+  <g fill="#88ff88" stroke="black">
+    <rect x="10" y="80" width="40" height="25" />
+    <rect x="290" y="80" width="40" height="25" />
+    <rect x="90" y="110" width="80" height="25" />
+    <rect x="130" y="140" width="120" height="25" />
+    <rect x="10" y="170" width="80" height="25" />
+    <rect x="210" y="200" width="120" height="25" />
+    <rect x="250" y="230" width="80" height="25" />
+  </g>
+  <g text-anchor="middle">
+    <g style="font-size:120%; font-weight:bold;">
+    <text x="30" y="35">H</text>
+    <text x="70" y="35">E</text>
+    <text x="110" y="35">A</text>
+    <text x="150" y="35">D</text>
+    <text x="190" y="35">A</text>
+    <text x="230" y="35">C</text>
+    <text x="270" y="35">H</text>
+    <text x="310" y="35">E</text>
+    </g>
+    <text x="10" y="70">0</text>
+    <text x="50" y="70">1</text>
+    <text x="90" y="70">2</text>
+    <text x="130" y="70">3</text>
+    <text x="170" y="70">4</text>
+    <text x="210" y="70">5</text>
+    <text x="250" y="70">6</text>
+    <text x="290" y="70">7</text>
+    <text x="330" y="70">8</text>
+    <g style="font-family: monospace;">
+      <text x="30" y="100">s[0]</text>
+      <text x="310" y="100">s[-1]</text>
+      <text x="130" y="130">s[2:4]</text>
+      <text x="190" y="160">s[3:-2]</text>
+      <text x="50" y="190">s[:2]</text>
+      <text x="270" y="220">s[5:]</text>
+      <text x="290" y="250">s[-2:]</text>
+    </g>
+  </g>
+</svg>
+</div>
+
+<dt> <code>bool</code>型
+<dd> いわゆる真理値型。値は <code>True</code> と <code>False</code> の2つしかない。
+Bool型の具体的な使い方は、<a href="#basic-controls">条件式と条件式</a> の節で述べる。
+<pre>
+True
+False
+</pre>
+
+<dt> <code>None</code>型
+<dd> 「値がない」ときに使われる、
+いわゆる null と同じような役割をもつ型。
+値は <code>None</code> だけである。
+<pre>
+None
+</pre>
+
+<dt> 型の変換
+<dd>
+Python では、データ型は (<code>int</code> → <code>float</code>への昇華を除いて)
+自動的には型変換されない。
+たとえば <code>123 + "abc"</code> という演算は
+<code>TypeError</code> を発生する。
+<p>
+データ型の変換は、以下の関数を使って明示的におこなう:
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code>int(<em>x</em>)</code></td>
+<td>文字列を整数として解釈。<br>あるいは、<code>float</code>を整数に変換。</td>
+<td><code>int(<strong>'123'</strong>)</code><br><code>int(<strong>3.14</strong>)</code></td>
+</tr><tr>
+<td><code>int(<em>x</em>, <em>n</em>)</code></td>
+<td>文字列を<em>n</em>進数の整数として解釈。</td>
+<td><code>int(<strong>'6c1', 16</strong>)</code></td>
+</tr><tr>
+<td><code>float(<em>x</em>)</code></td>
+<td>文字列を小数として解釈。<br>あるいは、<code>int</code>を小数に変換。</td>
+<td><code>float(<strong>'3.14'</strong>)</code><br><code>float(<strong>123</strong>)</code></td>
+</tr><tr>
+<td><code>str(<em>x</em>)</code></td>
+<td>数値 (<code>int</code>または<code>float</code>) を文字列として表現。</td>
+<td><code>str(<strong>-2.3</strong>)</code></td>
+</tr><tr>
+<td><code>ord(<em>x</em>)</code></td>
+<td>1文字の Unicodeコードポイントを返す。</td>
+<td><code>ord(<strong>'あ'</strong>)</code></td>
+</tr><tr>
+<td><code>chr(<em>x</em>)</code></td>
+<td>Unicodeコードポイントを長さ1の文字列に変換。</td>
+<td><code>chr(<strong>65</strong>)</code></td>
+</tr><tr>
+<td><code>repr(<em>x</em>)</code></td>
+<td>任意のPythonオブジェクト(値)を、正式な文字表現に変換する。<br>
+たとえば文字列 <code>abc</code> の文字表現は、
+クォートを含む <code>'abc'</code> である。</td>
+<td><code>repr(<strong>'abc'</strong>)</code></td>
+</tr></table>
+
+</dl>
+
+<div class=exercise id="ex1-2">
+<div class=header>演習 1-2. 基本的な計算</div>
+<p>
+以下のプログラムが何をするか、実行する前に推測し、
+実際に実行して確認せよ。
+<ol type=a>
+<li> <pre>
+w = int(input("w:"))
+h = int(input("h:"))
+area = w*h / 2
+print(f"w={w}, h={h}, area={area}")
+</pre>
+<li> <pre>
+c = input("character:")
+c1 = chr(ord(c)+1)
+c2 = chr(ord(c)+2)
+print(f"{c} {c1} {c2}")
+</pre>
+<li> <pre>
+s = input("path:")
+i = s.find("/")
+dirname = s[:i]
+basename = s[i+1:]
+</ol>
+</div>
+
+<h3 id="basic-controls">2.3. 条件式と制御文</h3>
+<p>
+Python の制御文は、基本的には 3つしかない。
+<code>if</code>文、<code>while</code>文 および <code>for</code>文である。
+(Python 3.10 では <code>match</code>文が導入されたが、本講座では扱わない。)
+<code>if</code>文と <code>while</code>文では、条件式を使う。
+
+<p>
+Python の比較演算子には、次のようなものがある
+(比較の結果はつねに <code>True</code> か <code>False</code> のどちらかとなる):
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>a</em> &lt; <em>b</em></code></td>
+<td><em>a</em> が <em>b</em> より小さい。</td>
+<td><code><strong>y</strong> &lt; <strong>height</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> &gt; <em>b</em></code></td>
+<td><em>a</em> が <em>b</em> より大きい。</td>
+<td><code><strong>(s+t)</strong> &gt; <strong>m</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> == <em>b</em></code></td>
+<td><em>a</em> と <em>b</em> が等しい。</td>
+<td><code><strong>key</strong> == <strong>32</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> != <em>b</em></code></td>
+<td><em>a</em> と <em>b</em> が等しくない。</td>
+<td><code><strong>status</strong> != <strong>0</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> &lt;= <em>b</em></code></td>
+<td><em>a</em> が <em>b</em> 以下。</td>
+<td><code><strong>t</strong> &lt;= <strong>threshold</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> &gt;= <em>b</em></code></td>
+<td><em>a</em> が <em>b</em> 以上。</td>
+<td><code><strong>(i+1)</strong> &gt;= <strong>n</strong></code></td>
+</tr><tr>
+</tr></table>
+<p>
+リストおよびタプルに対しては、以下の比較演算子が利用可能である:
+<table border><tr>
+<td><code><em>x</em> in <em>a</em></code></td>
+<td>要素 <em>x</em> が <em>a</em> 中に含まれている。
+<td><code><strong>z</strong> in <strong>[1,3,5,7]</strong></code></td>
+</tr><tr>
+<td><code><em>x</em> not in <em>a</em></code></td>
+<td>要素 <em>x</em> が <em>a</em> 中に含まれていない。
+<td><code><strong>z</strong> not in <strong>[1,3,5,7]</strong></code></td>
+</tr></table>
+<div class=langnotice>
+Python では (<code>int</code> と <code>float</code> を除いて)
+異なる型どうしの大小比較はできない。
+たとえば <code>"abc" &lt; 123</code> は <code>TypeError</code> を発生する。
+</div>
+<p>
+Python における等号 <code>==</code> は、
+<strong>内容の比較</strong> (Java でいう <code>.equals()</code>) である。
+例えば、異なるリストどうしを比較した場合、
+すべての要素が一致するかどうかチェックされる。
+いっぽうで、参照が等しいかどうかをチェックするには
+<code>is</code> 演算子を使う。
+これは JavaScript における <code>===</code> 演算子に似ている:
+<table border><tr>
+<td><code><em>a</em> is <em>b</em></code></td>
+<td>参照 <em>a</em> と <em>b</em> が等しい。
+<td><code><strong>p[0]</strong> is <strong>q</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> is not <em>b</em></code></td>
+<td>参照 <em>a</em> と <em>b</em> が等しくない。
+<td><code><strong>x</strong> is not <strong>None</strong></code></td>
+</tr></table>
+<p>
+論理演算子には、次のようなものがある:
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>a</em> and <em>b</em></code></td>
+<td><em>a</em> および <em>b</em> の両方が真。</td>
+<td><code><strong>2 &lt;= x</strong> and <strong>x &lt;= 5</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> or <em>b</em></code></td>
+<td><em>a</em> または <em>b</em> のどちらか1つ以上は真。</td>
+<td><code><strong>x == 0</strong> or <strong>y == 0</strong></code></td>
+</tr><tr>
+<td><code>not <em>a</em></code></td>
+<td><em>a</em> が真でない。</td>
+<td><code>not <strong>(x != 3)</strong></code></td>
+</tr></table>
+
+<div class=langnotice>
+論理演算子として <code>&amp;&amp;</code> や <code>||</code> は使えない。
+</div>
+
+<p>
+いわゆる三項演算子 (<code>? :</code>) は、Python では次のように書く:
+<pre>
+(<em>a</em> if <em>c</em> else <em>b</em>)  <span class=comment># c が真ならば a、さもなくば b を返す。</span>
+</pre>
+
+<h4 id="basic-indentation">Pythonでインデントする際の注意</h4>
+<p>
+多くの言語で <code>{…}</code> のように表現されるブロックは、
+Python では一定幅の <u>インデント</u> (indentation、字下げ) により表現される。
+正しく字下げがないソースコードは <code>SyntaxError</code> が発生し、
+(部分的にすら) 実行されない。
+<blockquote class=file>
+動かない例 (インデントがない):
+<pre>
+s = input("password:")
+if s == "sesame":
+print("Correct.")
+else:
+print("Wrong.")
+</pre>
+</blockquote>
+<p>
+インデントの幅は (一貫しているかぎり) 何文字でもよいが、
+一般的な慣例では <strong>半角スペース4個</strong>
+(<code>&nbsp;&nbsp;&nbsp;&nbsp;</code>) を使う。
+半角スペース以外の文字を使うと動かない。
+たとえば以下の例は正しく見えるが、実際にはエラーとなる:
+
+<blockquote class=file>
+動かない例 (全角スペースが入っている):
+<pre>
+s = input("password:")
+if s == "sesame":
+　　print("Correct.")
+else:
+    print("Wrong.")
+</pre>
+</blockquote>
+
+<h4 id="basic-controls-if"><code>if</code>文</h4>
+<p>
+いくつかの構文パターンが存在する。
+<code>if</code>節の内部では、
+必ずインデントが必要である。
+<dl>
+<dt> if節のみ
+<dd> <pre>
+password = input("password:")
+<mark>if</mark> <strong>password == "sasami"</strong>:
+    <span class=comment># 条件式が真であるときに実行される。</span>
+    print("Correct.")
+    print("Good.")
+</pre>
+<dt> if-else節
+<dd> <pre>
+x = int(input("x:"))
+<mark>if</mark> <strong>0 &lt; x</strong>:
+    <span class=comment># 条件式が真で<strong>ある</strong>ときに実行される。</span>
+    print("positive")
+<mark>else:</mark>
+    <span class=comment># 条件式が真で<strong>ない</strong>ときに実行される。</span>
+    print("zero or negative")
+</pre>
+<dt> if-elif-else節
+<dd> <pre>
+x = int(input("x:"))
+<mark>if</mark> <strong>0 &lt; x</strong>:    <span class=comment># 条件式1</span>
+    <span class=comment># 条件式1が真であるときに実行される。</span>
+    print("positive")
+<mark>elif</mark> <strong>0 &gt; x</strong>:  <span class=comment># 条件式2</span>
+    <span class=comment># 条件式1が真でなく、条件式2が真であるときに実行される。</span>
+    print("negative")
+<mark>else:</mark>
+    <span class=comment># どの条件式も真でないときに実行される。</span>
+    print("zero")
+</pre>
+<dt> 二重のif文
+<dd>
+<code>if</code>や<code>else</code>のなかに、さらにif文が入ることもありうる。
+この場合、「内側のif文」は2重にインデントされる。
+<pre>
+a = input("a:")
+b = input("b:")
+<mark>if</mark> <strong>a == "2"</strong>:
+    <mark>if</mark> <strong>b == "3"</strong>:
+        print("both correct")
+    <mark>else:</mark>
+        print("a is correct")
+<mark>else:</mark>
+    print("a is not correct")
+</pre>
+</dl>
+
+<h4 id="basic-controls-while"><code>while</code>文</h4>
+<dl>
+<dt> 基本:
+<dd> <pre>
+i = 0
+<mark>while</mark> <strong>i &lt; 10</strong>:
+    <span class=comment># 条件式が真の間、繰り返し実行される</span>
+    print(f"i={i}")
+    i += 1
+<span class=comment># 条件式が真でなくなったとき実行される</span>
+print("end")
+</pre>
+<dt> break文で抜ける:
+<dd> <code>while</code>ループ中では、
+<code>break</code>文および <code>continue</code>文が使える。
+<pre>
+i = 0
+<mark>while</mark> <strong>True</strong>:  <span class=comment># つねに真</span>
+    print(f"i={i}")
+    i += 1
+    if 10 &lt;= i:
+        <span class=comment># 条件式が真ならばループを抜ける</span>
+        <mark>break</mark>
+print("end")
+</pre>
+<dt> else節を使う:
+<dd> Pythonでは、<code>while</code>文の後に <code>else:</code>節を利用できる。
+これは <code>while</code>ループが途中で <code>break</code> されず、
+ループが最後まで (条件式が真でなくなるまで) 実行されたときにのみ
+実行される。
+<pre>
+a = [5,9,4,0]
+target = int(input("target:"))
+<mark>while</mark> <strong>i &lt; len(a)</strong>:
+    <span class=comment># 条件式が真の間、実行される</span>
+    if a[i] == target:
+        <span class=comment># targetが発見されたら抜ける。</span>
+        print("found")
+        <mark>break</mark>
+<mark>else:</mark>
+    <span class=comment># 条件式が真でなくなったら実行される</span>
+    print("not found")
+</pre>
+</dl>
+
+<h4 id="basic-controls-for"><code>for</code>文</h4>
+<p>
+Python の <code>for</code>文は C言語などにおけるカウンタを
+使うものではなく、「リストの各要素を1つずつたどる」動作をする。
+シェルスクリプトにおける <code>for</code> や、
+C# における <code>foreach</code> に近い。
+<dl>
+<dt> 基本:
+<dd> <pre>
+a = [5,9,4,0]
+<mark>for</mark> <strong>x</strong> in <strong>a</strong>:
+    <span class=comment># aの要素をひとつずつ表示する</span>
+    print(f"x={x}")
+</pre>
+<dt> range()関数を使う:
+<dd> 伝統的な (カウンタを使った) forループを書くには、
+<a href="#iter-range"><code>range()</code>関数</a> (後述) を使う:
+<pre>
+<span class=comment># i を 0〜9 まで変化させつつループ。</span>
+<mark>for</mark> <strong>i</strong> in <mark>range</mark>(<strong>10</strong>):
+    print(i)
+</pre>
+<dt> break文で抜ける:
+<dd> <pre>
+a = [5,9,4,0]
+<mark>for</mark> <strong>x</strong> in <strong>a</strong>:
+    print(f"x={x}")
+    if x % 2 == 0:
+        <span class=comment># 偶数であれば抜ける</span>
+        <mark>break</mark>
+</pre>
+<dt> else節を使う:
+<dd> <code>while</code>文と同様、<code>for</code>文における
+<code>else:</code>節も、途中で <code>break</code> されず、
+最後まで (すべての要素をたどるまで) ループが実行されたときに
+実行される。
+<pre>
+a = [5,9,4,0]
+target = int(input("target:"))
+<mark>for</mark> <strong>x</strong> in <strong>a</strong>:
+    if x == target:
+        <span class=comment># targetが発見されたら抜ける。</span>
+        print("found")
+        <mark>break</mark>
+<mark>else:</mark>
+    <span class=comment># すべての要素をたどったら実行される。</span>
+    print("not found")
+</pre>
+</dl>
+
+<h4 id="basic-controls-pass"><code>pass</code>文</h4>
+<p>
+何もしない文。<code>while</code>文などで
+中に最低ひとつの文が必要なときに、プレースホルダとして使われる。
+C や Java における「<code>;</code>」に近い。
+<blockquote><pre>
+<span class=comment># is_busy()が真のあいだ待つ。</span>
+while is_busy():
+    <mark>pass</mark>
+</pre></blockquote>
+
+<h4 id="basic-controls-try-except"><code>try…except</code>文</h4>
+<p>
+発生した例外を補足する。詳細は <a href="#basic-exceptions">エラーと例外</a> を参照。
+<div class=langnotice>
+Python には <code>switch</code>…<code>case</code>文や、
+<code>do</code>…<code>while</code>文は存在しない。
+</div>
+
+<h4 id="basic-controls-assert"><code>assert</code>文</h4>
+<p>
+デバッグ時の検査をおこなう文。
+条件式が成立していれば何もせず、
+成立していなければ指定されたメッセージとともに
+<code>AssertionError</code> を発生する。
+<blockquote><pre>
+assert 0 &lt; x, "x must be positive!"
+</pre>
+<div class=langnotice>
+Python に <code>-O</code> オプションをつけて起動した場合、
+<code>assert</code>文は無視される。
+</div></blockquote>
+
+<div class=exercise id="ex1-3">
+<div class=header>演習 1-3. 数列の計算</div>
+<ol type=a>
+<li> 与えられた数 n 以下のフィボナッチ数列を表示するプログラムを書け。
+<pre>
+n = int(input("n:"))
+a = 1
+b = 1
+...
+</pre>
+<li> 1〜100 までの素数をすべて表示するプログラムを書け。
+<pre>
+for i in range(100):
+    ...
+</pre>
+</ol>
+</div>
+
+<h3 id="basic-lists">2.4. リストとタプル</h3>
+<p>
+Python には可変長の配列として、<u>リスト</u> (<code>list</code>型) と
+<u>タプル</u> (<code>tuple</code>型) が存在する。
+この2つは機能的によく似ており、Python におけるリストとタプルの違いは
+よく取り沙汰される議論であるが、まずはリストから先に説明する。
+
+<dl>
+<dt> リストの作成
+<dd> Python のリストは、いわゆる参照型である。
+リストは式が<u>評価</u>された時点でメモリ上に作成 (new) される。
+Python はガーベジコレクション (GC) を使っているため、
+メモリの解放については考える必要がない。
+リストの各要素には、基本型の値や、別のリストを入れることができる。
+<pre>
+a = [5, 9, 4, 0]
+b = ["foo", "bar", 3.7]
+empty = []                       <span class=comment># 空のリスト</span>
+table = [[1,2], [3,4], [5,6,7]]  <span class=comment># リストのリスト</span>
+</pre>
+<div class=langnotice>
+Python のリストでは、各要素ごとに違う型が入ってもよい。
+</div>
+実際には、変数が保持しているのはリストへの<u>参照</u>であり、
+ある参照を別の変数に代入しただけではリストはコピーされない:
+<pre>
+a = [5, 9, 4, 0]
+b = a             <span class=comment># 参照はコピーされるが、リストは複製されない。</span>
+b[0] = 1          <span class=comment># a[0]も変更される。</span>
+</pre>
+
+<div class=figure>
+  <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="240" height="60">
+    <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+      <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+    </marker>
+    <g stroke="black" fill="none" stroke-width="2">
+      <rect x="70" y="15" width="40" height="30" />
+      <rect x="110" y="15" width="40" height="30" />
+      <rect x="150" y="15" width="40" height="30" />
+      <rect x="190" y="15" width="40" height="30" />
+      <g stroke-width="3" marker-end="url(#arrow)">
+        <line x1="20" x2="60" y1="10" y2="20" />
+        <line x1="20" x2="60" y1="50" y2="40" />
+      </g>
+    </g>
+    <g text-anchor="middle" style="font-family:monospace;">
+      <text x="10" y="10" dy="0.5em">a</text>
+      <text x="10" y="50" dy="0.5em">b</text>
+      <text x="90" y="30" dy="0.5em">5</text>
+      <text x="130" y="30" dy="0.5em">9</text>
+      <text x="170" y="30" dy="0.5em">4</text>
+      <text x="210" y="30" dy="0.5em">0</text>
+    </g>
+  </svg>
+</div>
+
+<p>
+「リストのリスト」では、外側のリストの各要素には内側のリストの参照が入っている。
+<pre>
+table = [[1,2], [3,4], [5,6,7]]
+</pre>
+
+<div class=figure>
+  <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="320" height="95">
+    <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+      <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+    </marker>
+    <g stroke="black" fill="none" stroke-width="2">
+      <rect x="100" y="5" width="40" height="30" />
+      <rect x="140" y="5" width="40" height="30" />
+      <rect x="180" y="5" width="40" height="30" />
+      <rect x="40" y="60" width="30" height="30" />
+      <rect x="70" y="60" width="30" height="30" />
+      <rect x="130" y="60" width="30" height="30" />
+      <rect x="160" y="60" width="30" height="30" />
+      <rect x="220" y="60" width="30" height="30" />
+      <rect x="250" y="60" width="30" height="30" />
+      <rect x="280" y="60" width="30" height="30" />
+      <g stroke-width="3" marker-end="url(#arrow)">
+        <line x1="50" x2="90" y1="20" y2="20" />
+        <line x1="120" y1="20" x2="90" y2="50" />
+        <line x1="160" y1="20" x2="160" y2="50" />
+        <line x1="200" y1="20" x2="230" y2="50" />
+      </g>
+    </g>
+    <g text-anchor="middle" style="font-family:monospace;">
+      <text x="25" y="20" dy="0.5em">table</text>
+      <text x="55" y="75" dy="0.5em">1</text>
+      <text x="85" y="75" dy="0.5em">2</text>
+      <text x="145" y="75" dy="0.5em">3</text>
+      <text x="175" y="75" dy="0.5em">4</text>
+      <text x="235" y="75" dy="0.5em">5</text>
+      <text x="265" y="75" dy="0.5em">6</text>
+      <text x="295" y="75" dy="0.5em">7</text>
+      </g>
+    </g>
+  </svg>
+</div>
+
+<dt> 要素の参照・変更
+<dd>
+リストの各要素にはインデックス <code>[…]</code> を使ってアクセスできる。
+<strong>インデックスは 0 から開始する</strong>。
+<pre>
+x = a[i]       <span class=comment># 要素の参照</span>
+a[0] = 3       <span class=comment># 要素の更新</span>
+a[n+1] = a[n]  <span class=comment># 要素のコピー</span>
+</pre>
+<p>
+<strong>インデックスはつねに int型</strong>である。
+インデックスが負の数だった場合、それはリストの末尾から数えた要素になる。
+<pre>
+print(a[-1])  <span class=comment># 最後の要素</span>
+print(a[-2])  <span class=comment># 最後から2番目の要素</span>
+</pre>
+<div class=langnotice>
+インデックスが範囲を超えた場合には、<code>IndexError</code> が発生する。
+</div>
+
+<dt> リストのスライス
+<dd>
+Python では、リストの部分列を簡単に取り出すことができる。
+リストの部分列を<u>スライス</u>という。
+たとえば、以下のようなリストがあるとする:
+<pre>
+a = [5,9,4,0,7,3,1,8]
+</pre>
+<p>
+このとき <code>a</code>の部分列は、以下のようにして取り出せる。
+なお、リストのスライスは<strong>つねに新しいリスト</strong>が作成される。
+
+<table border><tr>
+<td rowspan="2"><code>a[<i>i</i>:]</code></td>
+<td><strong><code>i &gt;=0</code> の場合:</strong>
+位置 <i>i</i> 以降の要素
+</tr><tr>
+<td><strong><code>i &lt; 0</code> の場合:</strong>
+末尾から <i>i</i> 番目以降の要素</td>
+</tr><tr>
+<td rowspan="2"><code>a[:<i>i</i>]</code></td>
+<td><strong><code>i &gt;=0</code> の場合:</strong>
+先頭から位置 <i>i</i> までの要素
+</tr><tr>
+<td><strong><code>i &lt; 0</code> の場合:</strong>
+(<i>i</i> が負の場合は末尾からの位置)</td>
+</tr><tr>
+<td><code>a[<i>i</i>:<i>j</i>]</code></td>
+<td>位置 <i>i</i> から位置 <i>j</i> の間にある要素
+ (このときの長さは <code>j - i</code> 要素)<br>
+</td>
+</tr></table>
+<p>
+以下はスライスの例である:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     version="1.1" width="340" height="260">
+  <g fill="none" stroke="black" stroke-width="2">
+    <rect x="10" y="10" width="40" height="40" />
+    <rect x="50" y="10" width="40" height="40" />
+    <rect x="90" y="10" width="40" height="40" />
+    <rect x="130" y="10" width="40" height="40" />
+    <rect x="170" y="10" width="40" height="40" />
+    <rect x="210" y="10" width="40" height="40" />
+    <rect x="250" y="10" width="40" height="40" />
+    <rect x="290" y="10" width="40" height="40" />
+  </g>
+  <g fill="#88ff88" stroke="black">
+    <rect x="10" y="80" width="40" height="25" />
+    <rect x="290" y="80" width="40" height="25" />
+    <rect x="90" y="110" width="80" height="25" />
+    <rect x="130" y="140" width="120" height="25" />
+    <rect x="10" y="170" width="80" height="25" />
+    <rect x="210" y="200" width="120" height="25" />
+    <rect x="250" y="230" width="80" height="25" />
+  </g>
+  <g text-anchor="middle">
+    <g style="font-size:120%; font-weight:bold;">
+    <text x="30" y="35">5</text>
+    <text x="70" y="35">9</text>
+    <text x="110" y="35">4</text>
+    <text x="150" y="35">0</text>
+    <text x="190" y="35">7</text>
+    <text x="230" y="35">3</text>
+    <text x="270" y="35">1</text>
+    <text x="310" y="35">8</text>
+    </g>
+    <text x="10" y="70">0</text>
+    <text x="50" y="70">1</text>
+    <text x="90" y="70">2</text>
+    <text x="130" y="70">3</text>
+    <text x="170" y="70">4</text>
+    <text x="210" y="70">5</text>
+    <text x="250" y="70">6</text>
+    <text x="290" y="70">7</text>
+    <text x="330" y="70">8</text>
+    <g style="font-family: monospace;">
+      <text x="30" y="100">a[0]</text>
+      <text x="310" y="100">a[-1]</text>
+      <text x="130" y="130">a[2:4]</text>
+      <text x="190" y="160">a[3:-2]</text>
+      <text x="50" y="190">a[:2]</text>
+      <text x="270" y="220">a[5:]</text>
+      <text x="290" y="250">a[-2:]</text>
+    </g>
+  </g>
+</svg>
+</div>
+
+<dt> リストのコピー
+<dd> リストを複製するには 2つの方法が存在する。
+全要素のスライスを作成する方法と、<code>copy()</code>メソッドを使う方法である。
+どちらを使ってもよい。
+<pre>
+a = [5,9,4,0]
+b = a[:]       <span class=comment># 全要素のスライスを作成。</span>
+c = a.copy()   <span class=comment># メソッドを使う方法。</span>
+</pre>
+
+<div class=langnotice>
+Python におけるリストのコピーは、いわゆる shallow copy である。
+「リストのリスト」をコピーした場合、コピーされるのは外側のリストだけで、
+内側のリストは共有されている。
+</div>
+
+<dt> 要素の追加・挿入・削除
+<dd> 要素の追加・挿入・削除は、
+<code>list</code>型のメソッドを使っておこなう。
+(歴史的な理由により、削除だけはメソッドではなく <code>del</code>文である。)
+
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>a</em>.append(<em>x</em>)</code></td>
+<td>リスト <em>a</em> の末尾に要素 <em>x</em> を追加。</td>
+<td><code><strong>r</strong>.append(<strong>2</strong>)</code></td>
+</tr><tr>
+<td><code><em>a</em>.insert(<em>i</em>, <em>x</em>)</code></td>
+<td>リスト <em>a</em> の <em>i</em>番目の要素として <em>x</em> を挿入。</td>
+<td><code><strong>args</strong>.insert(<strong>1</strong>, <strong>"foo"</strong>)</code></td>
+</tr><tr>
+<td><code>del <em>a</em>[<em>i</em>]</code></td>
+<td>リスト <em>a</em> の <em>i</em>番目の要素を削除。<br>
+<td><code>del <strong>users</strong>[<strong>0</strong>]</code></td>
+</tr></table>
+
+<dt> リストに対する演算
+<dd> リストに対しては、以下の演算が使用可能である:
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>a</em> + <em>b</em></code></td>
+<td>リスト<em>a</em> とリスト<em>b</em> を連結 (新しいリストが作成される)。</td>
+<td><code><strong>[1,2,3]</strong> + <strong>[4,5,6]</strong></code></td>
+</tr><tr>
+<td><code><em>a</em> * <em>n</em></code></td>
+<td>リスト<em>a</em> の <em>n</em>回繰り返し (新しいリストが作成される)。</td>
+<td><code><strong>[0]</strong> * <strong>5</strong></code></td>
+</tr><tr>
+<td><code>len(<em>a</em>)</code></td>
+<td>リスト <em>a</em> の長さを返す。</td>
+<td><code>len(<strong>args</strong>)</code></td>
+</tr><tr>
+<td><code>sorted(<em>a</em>)</code></td>
+<td>リスト <em>a</em> をソートした新しいリストを返す。</td>
+<td><code>sorted(<strong>[5,9,4,0]</strong>)</code></td>
+</tr></table>
+
+<div class=langnotice>
+リストどうしの <code>+</code> 演算では新しいリストが作成されるが、
+代入演算子 <code>+=</code> を用いた場合、新しいリストは作成されず、
+<strong>破壊的に要素が追加される</strong>。
+<pre>
+a = [5,9]
+b = a
+a += [4,0]  <span class=comment># a,b ともに [5,9,4,0] となる。</span>
+</pre>
+</div>
+
+<dt id="list-comprehension"> リスト内包表記 (list comprehension)
+<dd> Python にはすでに存在するリストの各要素を加工して、
+新しいリストを作成するための構文が用意されている。
+これを<u>リスト内包表記</u>という。
+リスト内包表記は以下のような形式をもつ:
+<pre>
+[ <em>式</em> for <em>変数名</em> in <em>リスト</em> ]
+</pre>
+<pre>
+a = [1,2,3,4,5]
+b = [ <strong>x*2+1</strong> for <strong>x</strong> in <strong>a</strong> ]  <span class=comment># [3,5,7,9,11]</span>
+</pre>
+<p>
+内包表記には、<code>if</code>節も追加できる。
+こうすると特定の条件を満たす要素だけを抽出できる。
+<pre>
+a = [1,2,3,4,5]
+e = [ <strong>x</strong> for <strong>x</strong> in <strong>a</strong> <mark>if x % 2 == 0</mark> ]  <span class=comment># [2,4]</span>
+</pre>
+
+</dl>
+
+<h4 id="basic-lists-tuples">リストとタプルの違い</h4>
+<p>
+タプルはリストと似た機能をもつ型としてよく挙げられる。
+最初に見た目の違いとして、リストでは各要素を <code>[1,2,3]</code> のように
+表現するのに対して、タプルは <code>(1,2,3)</code> のように表現する。
+機能的にもっとも大きな違いは、リストは<u>変更可能</u> (mutable) なのに対して
+タプルは<u>変更不能</u> (immutable) であるということである。
+したがってリストでは許される要素の変更や削除などは、
+タプルに対しては使えない:
+
+<blockquote><pre>
+t = (5,9,4)  <span class=comment># 3要素のタプルを作成。</span>
+print(t[0])
+t[1] = 3     <span class=err># TypeErrorが発生</span>
+del t[2]     <span class=err># TypeErrorが発生</span>
+</pre></blockquote>
+<p>
+ではタプルは一体何のために存在するのかというと、
+おもに複数の値をまとめる<strong>匿名構造体</strong>としてである。
+歴史的に Python には C の構造体に相当するものがなく、
+バージョン 1.5 でクラスが導入されるまで、
+タプルが構造体の代わりに使われていた。
+タプルを使うと、通常ひとつの値しか入らない場所
+(変数、リストの各要素、関数の返り値など) に複数の値を
+「つめこむ」ことができる。(リストでもこれは可能だが、
+タプルは変更不能なため、複数の値をまとめたタプルも
+依然として「ひとつの値」として扱われる。)
+代入文の左辺にタプルを使うと、まとめられた値を複数の変数に分解できる:
+<blockquote><pre>
+user = (<strong>'john'</strong>, <strong>30</strong>, <strong>6.5</strong>)    <span class=comment># タプルの作成 (pack)</span>
+(<strong>name</strong>, <strong>age</strong>, <strong>height</strong>) = user  <span class=comment># タプルの分解 (unpack)</span>
+</pre></blockquote>
+<p>
+タプルは任意の長さのものを作成できるが、一度作成されたタプルの
+長さが変わることはないため、
+この意味で、タプルは数学における伝統的な「ベクトル」に近い
+(数学におけるベクトルは、要素数が変化したりしない)。
+また、リストの基本的な役割が配列であり、その各要素は
+「均質」として扱われるのに対して、タプルは構造体であるため、
+<strong>タプル中の各要素はそれぞれ別の型・役割をもっていることが多い</strong>。
+<p>
+現在の Python プログラミングにおけるタプルのおもな用途は、
+次のとおりである:
+<ul>
+<li> リストの要素として:
+<pre>
+users = [<strong>('john', 30, 6.5)</strong>, <strong>('bob', 24, 5.9)</strong>]
+</pre>
+<li> 関数の返り値として:
+<pre>
+def split(name):
+    return <strong>(name[:8], name[8:])</strong>
+</pre>
+<li> <a href="#basic-dicts">辞書</a> のキーとして:
+<pre>
+d = {<strong>(2,3)</strong>:6, <strong>(-1,0)</strong>:7}
+</pre>
+</ul>
+<p>
+タプルは内部的には参照型であるが、
+変更不能であるため、リストのように明示的に複製する必要がない。
+タプル (の参照) のコピーはつねに同じ値であることが保証される:
+<blockquote><pre>
+a = (5,9,4,0)
+b = a         <span class=comment># 参照がコピーされる。</span>
+a[0] = 1      <span class=err># 変更不能。</span>
+</pre></blockquote>
+
+<h3 id="basic-dicts">2.5. 辞書と集合</h3>
+<h4>辞書型</h4>
+<p>
+Python における<u>辞書</u> (<code>dict</code>型) は、
+他言語では「ハッシュテーブル」「map型」「連想配列」などと
+呼ばれている。辞書を使うと、任意の<strong>変更不能な</strong>データに、
+別の値を関連づけることができる。
+これらの値をそれぞれ辞書の<u>キー</u> (key) および <u>バリュー</u> (value) と呼ぶ。
+<p>
+辞書の表面上の使い方は、リストとよく似ている。
+リストのインデックスとして <code>int</code>型のかわりに
+任意の値が入ると考えればよい:
+<blockquote>
+<pre>
+d = {'abc':123, 'def':456}  <span class=comment># 辞書を作成する。</span>
+print(d['abc'])             <span class=comment># キー'abc'に対応するバリューを取得する。</span>
+d['xyz'] = 999              <span class=comment># キー'xyz'に対応するバリューとして9999を設定する。</span>
+</pre>
+<div class=langnotice>
+Python の辞書は、見た目が JavaScript の「オブジェクト」に似ているが、
+別の概念である。JavaScript とは異なり、Python では
+<code>d['abc']</code> と <code>d.abc</code> は異なる意味をもつ。
+Python にもいわゆる
+「オブジェクト <a href="#basic-classes">(インスタンス型)</a>」は存在するが、
+辞書型とは異なる。
+</div>
+</blockquote>
+<p>
+辞書のキーは、必ず変更不能な値でなければならない
+(辞書のキーが途中で変化すると混乱するためである)。
+つまり、<strong>リストは辞書のキーになれない</strong>。
+ただし、タプルは変更不能であることが保証されているため、
+辞書のキーになることができる。タプルのおもな存在理由はこれである:
+<blockquote><pre>
+d = {}
+k1 = [1,2,3]  <span class=err># TypeError</span>
+d[k1] = 4
+k2 = (1,2,3)  <span class=comment># Ok</span>
+d[k2] = 4
+</pre></blockquote>
+
+<dl>
+<dt> 辞書の作成
+<dd> リストと同様、辞書も参照型である。
+辞書は式が評価された時点でメモリ上に作成される。
+<pre>
+d = {'abc': 123, 'def': 456}
+w = {'c':['cat','car'], 'd':['dog','duck']}
+empty = {}                                 <span class=comment># 空の辞書</span>
+files = { 'usr': {'bin': 42, 'lib': 65} }  <span class=comment># 辞書の辞書</span>
+</pre>
+<div class=langnotice>
+辞書の各キー・バリューの型は違っていてもよい。
+</div>
+<p>
+リストと同様に、辞書も内包表記を使って作成することができる:
+<pre>
+d = {'abc': 123, 'def': 456}
+dd = { <strong>k</strong>: <strong>v*2</strong> for <strong>(k,v)</strong> in <strong>d.items()</strong> }  <span class=comment># {'abc': 246, 'def': 912}</span>
+</pre>
+
+<dt> キー・バリューの参照・変更・削除
+<dd>
+リストと同様に、<code>[…]</code> 記法を使ってアクセスできる。
+<pre>
+v = d['abc']  <span class=comment># キーabcに対するバリューを取得</span>
+d['xyz'] = v  <span class=comment># キーxyzに対するバリューを設定</span>
+del d['xyz']  <span class=comment># キーxyzに対するバリューを削除</span>
+</pre>
+<div class=langnotice>
+指定されたキーが辞書中に存在しない場合、
+<code>KeyError</code> が発生する。
+</div>
+「存在するかどうかわからないキー」に対する値を取得したい場合は、
+後述する <code>.get()</code> メソッドを使うか、以下のように
+<code>try…except</code>文を使って <code>KeyError</code> を
+補足しなければならない:
+<pre>
+try:
+    v = d[k]  <span class=comment># キー k に対するバリューを取得。</span>
+except KeyError:
+    v = None  <span class=comment># キーが存在しない場合は None とする。</span>
+</pre>
+
+<dt> 辞書に対する操作
+<dd> 辞書に対しては以下のようなメソッド・関数が使用可能である:
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>d</em>.clear()</code></td>
+<td>辞書内のキー・バリューを全削除する。</td>
+<td><code><strong>d</strong>.clear()</code></td>
+</tr><tr>
+<td><code><em>d</em>.copy()</code></td>
+<td>辞書をコピー (shallow copy) する。</td>
+<td><code>e = <strong>d</strong>.copy()</code></td>
+</tr><tr>
+<td><code><em>d</em>.get(<em>k</em>, <em>v=None</em>)</code></td>
+<td>指定されたキー <em>k</em> に対するバリューを返す。<br>
+キーが存在しないときにはデフォルト値として <em>v</em> が返される。</td>
+<td><code>v = <strong>d</strong>.get(<strong>name</strong>)</code></td>
+</tr><tr>
+<td><code><em>d</em>.keys()</code></td>
+<td>辞書 <em>d</em> のキー一覧 (※) を返す。for文で巡回可能。<br>
+(実際には <code>for</code>文で使う場合、<code>.keys()</code> を省略できる)<br>
+<strong>返されるキーの順序は未定義であり、予測不能であるため注意。</strong>
+</div></td>
+<td><pre>
+for k in <strong>d</strong>.keys():
+    print(k)
+</pre>
+または
+<pre>
+for k in <strong>d</strong>:
+    print(k)
+</pre></td>
+</tr><tr>
+<td><code><em>d</em>.values()</code></td>
+<td>辞書 <em>d</em> のバリュー一覧 (※) を返す。for文で巡回可能。<br>
+<strong>返されるバリューの順序は未定義であり、予測不能であるため注意。</strong>
+</td>
+<td><pre>
+for v in <strong>d</strong>.values():
+    print(v)
+</pre></td>
+</tr><tr>
+<td><code><em>d</em>.items()</code></td>
+<td>(<em>キー</em>, <em>バリュー</em>) からなる
+2要素タプルの一覧 (※) を返す。for文で巡回可能。<br>
+<strong>返されるタプルの順序は未定義であり、予測不能であるため注意。</strong>
+</td>
+<td><pre>
+for (k,v) in <strong>d</strong>.items():
+    print(f"{k} -> {v}")
+</pre></td>
+</tr><tr>
+<td><code>len(<em>d</em>)</code></td>
+<td>辞書 <em>d</em> 中のキー・バリューの個数を返す。</td>
+<td><code>n = len(<strong>d</strong>)</code></td>
+</tr></table>
+<p>
+(※) ここで返される「一覧」とはリストではなく、
+<a href="#basic-iters">イテレータ</a> である。
+
+</dl>
+
+<h4>集合型</h4>
+<p>
+Python の集合 (<code>set</code>型) は、
+文字どおり重複を許さない値の集合である。
+これは「辞書のキーのみを取り出した型」とも言える。
+集合の各要素は、辞書と同様に<strong>変更不能</strong>な値でなければならない。
+
+<dl>
+<dt> 集合の作成
+<dd> リスト・辞書と同様、集合は参照型であり、
+式が評価された時点でメモリ上に作成される。
+<pre>
+s = {'abc', 'def'}
+w = set([1, 2, 3])      <span class=comment># リストを集合に変換</span>
+empty = set()           <span class=comment># 空の集合</span>
+t = {[1,2,3], [4,5,6]}  <span class=err># TypeErrorが発生</span>
+</pre>
+<div class=langnotice>
+集合中の各要素の型は違っていてもよい。
+</div>
+<p>
+内包表記を使った作成方法は以下のようになる:
+<pre>
+s = {'abc', 'def'}
+ss = { x[0] for x in s }  <span class=comment># {'a', 'd'}</span>
+</pre>
+
+<dt> 集合型に対する演算
+<dd> 集合型は <code>in</code>演算子または
+<code>not in</code>演算子を使って要素が含まれているか否かを判定できる。
+<pre>
+s = { 'abc', 'def' }
+print('abc' in s)      <span class=comment># True</span>
+print('xyz' not in s)  <span class=comment># True</span>
+</pre>
+<p>
+これ以外の集合型に関する演算としては、以下のものがある:
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>s</em>.clear()</code></td>
+<td>集合の要素をすべて削除する。</td>
+<td><code><strong>s</strong>.clear()</code></td>
+</tr><tr>
+<td><code><em>s</em>.copy()</code></td>
+<td>集合をコピー (shallow copy) する。</td>
+<td><code>tmp = <strong>s</strong>.copy()</code></td>
+</tr><tr>
+<td><code><em>s</em>.add(<em>x</em>)</code></td>
+<td>集合に要素をひとつ追加する。</td>
+<td><code><strong>files</strong>.add(<strong>path</strong>)</code></td>
+</tr><tr>
+<td><code><em>s</em>.remove(<em>x</em>)</code></td>
+<td>集合から要素をひとつ削除する。<Br>
+(要素がない場合は <code>KeyError</code> が発生する)
+</td>
+<td><code><strong>users</strong>.remove(<strong>uid</strong>)</code></td>
+</tr><tr>
+<td><code><em>s</em>.union(<em>t</em>)</code></td>
+<td>集合 <em>s</em> と <em>t</em> の和集合を返す。</td>
+<td><code>uid = <strong>uid</strong>.union(<strong>added</strong>)</code></td>
+</tr><tr>
+<td><code><em>s</em>.intersection(<em>t</em>)</code></td>
+<td>集合 <em>s</em> と <em>t</em> の積集合を返す。</td>
+<td><code>r = <strong>kwd1</strong>.intersection(<strong>kwd2</strong>)</code></td>
+</tr><tr>
+<td><code><em>s</em>.difference(<em>t</em>)</code></td>
+<td>集合 <em>s</em> から集合 <em>t</em> を引いたものを返す。</td>
+<td><code>objs = <strong>objs</strong>.difference(<strong>removed</strong>)</code></td>
+</tr><tr>
+<td><code><em>s</em>.issubset(<em>t</em>)</code></td>
+<td>集合 <em>s</em> が集合 <em>t</em> の部分集合 (subset) であれば真。</td>
+<td><pre>if <strong>{1,4}</strong>.issubset(<strong>flags</strong>):
+    process()</pre></td>
+</tr><tr>
+<td><code><em>s</em>.issuperset(<em>t</em>)</code></td>
+<td>集合 <em>s</em> が集合 <em>t</em> の上位集合 (superset) であれば真。</td>
+<td><pre>if not <strong>perms</strong>.issuperset(<strong>a</strong>):
+    print("denied")</pre></td>
+</tr><tr>
+<td><code>len(<em>s</em>)</code></td>
+<td>集合 <em>s</em> の要素数を返す。</td>
+<td><code>print(len(<strong>s</strong>))</code></td>
+</tr></table>
+
+</dl>
+
+<div class=exercise id="ex1-4">
+<div class=header>演習 1-4. 投票プログラム</div>
+<p>
+文字列からなるリスト <code>x</code> を与えると、
+もっとも頻出する文字列を選ぶ処理を書け:
+<blockquote><pre>
+x = ['a','b','a','c','b','a']
+
+...
+<span class=comment># 'a' を表示する。</span>
+</pre></blockquote>
+<p>
+(ちなみに、
+同様の処理は <code>collections.Counter</code> クラスを
+使えば可能である)
+</div>
+
+<h3 id="basic-functions">2.6. 関数</h3>
+<p>
+Python の関数は、以下のようにして定義する。
+関数の内部は、インデントする。
+<blockquote><pre>
+def <em>名前</em>(<em>引数1</em>, <em>引数2</em>, ...):
+    <em>処理</em>
+    ...
+    return <em>[返り値]</em>
+</pre></blockquote>
+<p>
+<code>return</code>文の返り値、または
+return文全体は省略可能である
+(その場合は <code>None</code> が返り値となる)。
+あるいは、関数中に複数の <code>return</code>があってもよい。
+<dl>
+<dt> 標準的な関数
+<dd> 関数の呼び出し時には、普通の順序で引数を渡す方法と、
+<u>キーワード指定</u>する方法がある。
+<pre>
+<span class=comment># 関数avgを定義する。</span>
+<mark>def</mark> <strong>avg</strong>(<strong>x</strong>, <strong>y</strong>):
+    a = (x+y)/2
+    <mark>return</mark> <strong>a</strong>
+
+<span class=comment># 関数avgを利用する。</span>
+print(<strong>avg(3, 5)</strong>)
+<span class=comment># 引数をキーワード指定する。</span>
+print(<strong>avg(x=3, y=5)</strong>)
+</pre>
+<p>
+Python の関数は、<code>def</code>文が<strong>実行されたときに</strong>定義される。
+まだ <code>def</code>が実行されていない時点で利用しようとすると
+<code>NameError</code> が発生する。
+<pre>
+<span class=comment># def文の実行前に関数を呼び出す。</span>
+print(<span class=err>avg2</span>(3, 5))  <span class=err># NameErrorが発生</span>
+
+def avg2(x, y):
+    a = (x+y)/2
+    return a
+</pre>
+
+<dt> デフォルト引数
+<dd> 関数の定義時に、各引数のデフォルト値を定義することができる。
+<pre>
+def avg(x<mark>=3</mark>, y<mark>=5</mark>):
+    a = (x+y)/2
+    return a
+
+print(<strong>avg()</strong>)      <span class=comment># 引数はどちらもデフォルト値。</span>
+print(<strong>avg(1)</strong>)     <span class=comment># 第2引数のみデフォルト値。</span>
+print(<strong>avg(x=1)</strong>)   <span class=comment># 第1引数のみキーワード指定、第2引数はデフォルト値。</span>
+print(<strong>avg(y=3)</strong>)   <span class=comment># 第2引数のみキーワード指定、第1引数はデフォルト値。</span>
+print(<strong>avg(1, 3)</strong>)  <span class=comment># デフォルト引数を使わない。</span>
+</pre>
+
+<dt> 可変長の引数
+<dd> 可変長の引数を受けとるには、引数名の前に <code>*</code> をつけると
+任意の個数の引数からなるタプルとして受け取れる。
+引数なしで呼び出した場合、空のタプルが渡される。
+<pre>
+def avg(<mark>*</mark>args):
+    a = 0
+    <span class=comment># タプルの要素をひとつずつ巡回。</span>
+    for x in args:
+        a += x
+    return a/len(args)
+
+print(<strong>avg()</strong>)       <span class=comment># argsは空のタプル。</span>
+print(<strong>avg(1,3)</strong>)    <span class=comment># argsは2要素のタプル。</span>
+print(<strong>avg(1,3,5)</strong>)  <span class=comment># argsは3要素のタプル。</span>
+</pre>
+</dl>
+
+<h4 id="basic-functions-object">関数オブジェクト</h4>
+<p>
+Python では、関数自体がひとつの値 (オブジェクト) であり、
+関数名は実はそのオブジェクトを保持している変数名である。
+<p>
+たとえば <code>print()</code>関数は、実際には
+「画面に文字列を表示する関数 (の参照)」がたまたま <code>print</code> という
+変数に保持されているにすぎない。その証拠に、以下のようにすると
+<code>print()</code> および <code>p()</code> は
+まったく同じ関数として扱える:
+<blockquote><pre>
+<strong>p</strong> = <strong>print</strong>   <span class=comment># print関数の参照を p にコピー。</span>
+<strong>p</strong>("hello")  <span class=comment># 関数pを呼び出す。</span>
+</pre></blockquote>
+つまり Python における <code>def</code>文は、
+<strong>関数オブジェクトを変数に代入する文</strong>とみなすことができる:
+<blockquote><pre>
+def foo(x):  <span class=comment># "foo = &lt;関数オブジェクト&gt;" と同値</span>
+    ...
+</pre></blockquote>
+この特徴を利用して、以下のように関数オブジェクトの一覧をリストに入れ、
+動的に切り替えることが可能になる:
+<blockquote><pre>
+<span class=comment># 3種類の異なる関数を定義。</span>
+def <strong>p1</strong>(x):
+    return x+1
+def <strong>p2</strong>(x):
+    return x+2
+def <strong>p3</strong>(x):
+    return x+3
+<span class=comment># これらをリストに入れる。</span>
+funcs = [<strong>p1</strong>, <strong>p2</strong>, <strong>p3</strong>]
+<span class=comment># ひとつずつ呼び出す。</span>
+for <strong>f</strong> in funcs:
+    print(<strong>f</strong>(123))
+</pre></blockquote>
+<p>
+以上のように、Python では関数名と変数名は同一の名前空間を使っている。
+そのため、同一の名前 (変数) に関数とそれ以外のデータを入れることはできない:
+<blockquote><pre>
+def a(x):
+    ...
+<strong>a</strong> = 1  <span class=comment># 関数a()は使えなくなる。</span>
+<strong>a</strong>()    <span class=err># TypeErrorが発生</span>
+</pre></blockquote>
+
+<h4 id="basic-functions-closures">クロージャ (closure)</h4>
+<p>
+Python では、いわゆる<u>クロージャ</u>が使える。
+クロージャとは、関数内で新たに関数を定義したとき、
+その関数の外側にある変数が記録され、
+アクセスできるようになっているものである:
+<blockquote><pre>
+def makeplus(n):
+    <span class=comment># 関数内でさらに関数 plusを定義する。</span>
+    <span class=comment># (この関数は変数 n にアクセスできるクロージャである)</span>
+    <strong>def plus(x):</strong>
+        <strong>return x+n</strong>
+    <span class=comment># 作成した関数オブジェクト plus を返す。</span>
+    return <strong>plus</strong>
+
+<strong>f</strong> = makeplus(2)  <span class=comment># fはクロージャ。</span>
+print(<strong>f</strong>(3))      <span class=comment># 2+3 が返される。</span>
+</pre></blockquote>
+
+<h4 id="basic-functions-lambdas"><code>lambda</code>式</h4>
+<p>
+ある種の関数は、(<code>def</code>文を使わずとも) 値として直接表現することが可能である。
+これが <code>lambda</code>式である:
+<blockquote>
+<pre>
+<span class=comment># 通常の関数定義。</span>
+def avg(x, y):
+    return (x+y)/2
+
+<span class=comment># lambda式を関数として代入した場合。</span>
+avg = (<mark>lambda</mark> <strong>x</strong>, <strong>y</strong>: <strong>(x+y)/2</strong>)
+</pre>
+<div class=langnotice>
+<code>lambda</code> 中で表せるのは <strong>1つの値を返す式のみ</strong>である。
+Python の一般的な構文 (代入文や制御文など) は使うことができない。
+Python には、JavaScript における <code>function() { ... }</code> のような、
+関数全体をひとつの値として直接表現する方法は存在しない。
+その場合は一度 <code>def</code>文を使って変数に代入する必要がある。
+</div>
+</blockquote>
+
+<h4 id="basic-functions-global"><code>global</code>文</h4>
+<p>
+Python では、関数の外で (スクリプト中にじかに) 定義されている変数は
+すべて<strong>グローバル変数</strong>として扱われる。
+いっぽう関数内で定義 (代入) されている変数は
+ローカル変数とみなされ、外側の変数とは区別される:
+<div class=file>
+foo.py
+<pre>
+<strong>flag</strong> = False     <span class=comment># グローバル変数</span>
+def set_flag():
+    <strong>flag</strong> = True  <span class=comment># 関数内のローカル変数</span>
+    return
+</pre>
+</div>
+<p>
+上のケースでは、関数 <code>set_flag()</code> 内で
+変更している変数 <code>flag</code> は
+グローバル変数 <code>flag</code> とは別物なため、
+<code>set_flag()</code> を呼んでも
+グローバル変数 <code>flag</code> の値は変わらない。
+<p>
+このような事態に対処するため Python では
+<code>global</code>文が用意されている。
+関数の先頭で、以下のように <code>global</code>文を使うことにより
+指定されたグローバル変数にアクセスできるようになる:
+<blockquote><pre>
+<strong>flag</strong> = False     <span class=comment># グローバル変数</span>
+def set_flag():
+    <mark>global</mark> <strong>flag</strong>  <span class=comment># flag をグローバル変数として認識する</span>
+    <strong>flag</strong> = True
+    return
+</pre></blockquote>
+
+<div class=exercise id="ex1-5">
+<div class=header>演習 1-5. 二次元リストの操作</div>
+<p>
+<code>0</code> で埋められた二次元リスト (の参照) に対して、
+指定された位置 (x,y) および大きさ (w,h) の矩形を
+<code>1</code> で描く関数 <code>drawrect()</code> を定義せよ:
+<blockquote><pre>
+<span class=comment># リストa 内の位置 (x,y) に大きさ (w,h) の矩形を描く。</span>
+def drawrect(a, x, y, w, h):
+    ...
+    return
+
+canvas = [ [0]*10 for i in range(10) ]
+drawrect(canvas, 0, 0, 10, 10)
+drawrect(canvas, 2, 3, 6, 4)
+for line in canvas:
+    print(line)
+
+<span class=comment># 以下が表示される:</span>
+<span class=comment>#   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]</span>
+<span class=comment>#   [1, 0, 0, 0, 0, 0, 0, 0, 0, 1]</span>
+<span class=comment>#   [1, 0, 0, 0, 0, 0, 0, 0, 0, 1]</span>
+<span class=comment>#   [1, 0, 1, 1, 1, 1, 1, 1, 0, 1]</span>
+<span class=comment>#   [1, 0, 1, 0, 0, 0, 0, 1, 0, 1]</span>
+<span class=comment>#   [1, 0, 1, 0, 0, 0, 0, 1, 0, 1]</span>
+<span class=comment>#   [1, 0, 1, 1, 1, 1, 1, 1, 0, 1]</span>
+<span class=comment>#   [1, 0, 0, 0, 0, 0, 0, 0, 0, 1]</span>
+<span class=comment>#   [1, 0, 0, 0, 0, 0, 0, 0, 0, 1]</span>
+<span class=comment>#   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]</span>
+</pre></blockquote>
+</div>
+
+<h3 id="basic-exceptions">2.7. エラーと例外</h3>
+<p>
+Python では、エラー発生時に必ず<u>トレースバック</u>
+(Traceback、いわゆるスタックフレーム) が表示される。
+たとえば、以下のプログラムを実行すると:
+<div class=file>
+foo.py
+<pre>
+def avg(x, y):
+    a = (x+y)/2
+    return a
+
+def main():
+    print(avg("a", "b"))
+
+main()
+</pre></div>
+<p>
+以下のトレースバックが表示され、Python は終了する。
+トレースバックには各関数の呼び出し位置が、
+<strong>外側 → 内側の関数の順で</strong>表示される:
+<blockquote><pre>
+Traceback (most recent call last):
+  File <mark>"/home/euske/.../foo.py"</mark>, <mark>line 8</mark>, in <mark>&lt;module&gt;</mark> <sub class=info>(最外部の発生位置)</sub>
+    main()
+  File <mark>"/home/euske/.../foo.py"</mark>, <mark>line 6</mark>, in <mark>main</mark> <sub class=info>(main中の発生位置)</sub>
+    print(avg("a", "b"))
+  File <mark>"/home/euske/.../foo.py"</mark>, <mark>line 2</mark>, in <mark>avg</mark> <sub class=info>(avg中の発生位置)</sub>
+    a = (x+y)/2
+<strong>TypeError: unsupported operand type(s) for /: 'str' and 'int'</strong> <sub class=info>(例外の種類および内容)</sub>
+</pre></blockquote>
+<p>
+各呼び出し位置に対して <code><em>ファイル名</em>, line <em>行数</em>, in <em>関数名</em></code>
+および、その行のコードが表示されている
+(もっとも外側のスクリプトレベルの関数は <code>&lt;module&gt;</code> と表示される)。
+最後に、例外の内容が表示される。デバッグするには、
+これらの情報をもとにコードを修正すればよい。
+<p>
+Python は (JavaScript などと比べると) 比較的頻繁に
+例外 (エラー) を発生させる言語である。
+Python における例外は、<code>SyntaxError</code> を除けば、
+すべて実行時の例外である。
+例外一覧については
+<a target="_blank" href="https://docs.python.org/3/library/exceptions.html">Built-in Exceptions</a>
+を参照。
+よく見かけるエラーの種類を以下に挙げる:
+
+<table border><tr>
+<th>例外</th><th>原因</th><th>例</th>
+</tr><tr>
+<td><code>KeyboardInterruption</code></td>
+<td><kbd>Control</kbd> + <kbd>C</kbd> を押したときに発生する例外。</td>
+<td></td>
+</tr><tr>
+<td><code>SyntaxError</code><br>
+<code>IndentationError</code>
+</td>
+<td>構文エラー。</td>
+<td><pre>
+print("hello"<span class=err>]</span>
+</pre></td>
+</tr><tr>
+<td><code>NameError</code></td>
+<td><strong>グローバル変数</strong>・関数が定義されていない。</td>
+<td><pre>
+a = <span class=err>nonexistent_var</span>
+<span class=err>undefined_func</span>(1)
+</pre></td>
+</tr><tr>
+<td><code>UnboundLocalError</code></td>
+<td><code>NameError</code>とほぼ同じだが、
+<strong>関数内で定義された変数</strong>に値がまだ代入されていない場合に起こる。
+</td>
+<td><pre>
+def foo():
+    print(<span class=err>x</span>)
+    x = 1
+</pre></td>
+</tr><tr>
+<td><code>AttributeError</code></td>
+<td>オブジェクトの <a href="#basic-classes">属性</a> が定義されていない。</td>
+<td><pre>
+s = "abc"
+print(s<span class=err>.foo</span>)
+</pre></td>
+</tr><tr>
+<td><code>TypeError</code></td>
+<td>型の不一致、または関数の引数の不一致。</td>
+<td><pre>
+"abc" <span class=err>/ 2</span>
+input("abc"<span class=err>, "xyz"</span>)
+</pre></td>
+</tr><tr>
+<td><code>ValueError</code></td>
+<td>さまざまな関数で、想定外の引数を与えた場合に発生する。</td>
+<td><pre>
+int(<span class=err>"よう"</span>)
+</pre></td>
+</tr><tr>
+<td><code>ZeroDivisionError</code></td>
+<td>ゼロ除算エラー。</td>
+<td><pre>
+2 / <span class=err>0</span>
+</pre></td>
+</tr><tr>
+<td><code>IndexError</code></td>
+<td>リストのインデックスが範囲を超えている。</td>
+<td><pre>
+a = [5,9,4,0]
+print(a[<span class=err>4</span>])
+</pre></td>
+</tr><tr>
+<td><code>KeyError</code></td>
+<td><u>辞書</u> のキーが存在しない。</td>
+<td><pre>
+d = {'abc':123, 'def':456}
+print(d[<span class=err>'pqrs'</span>])
+</pre></td>
+</tr><tr>
+<td><code>UnicodeDecodeError</code></td>
+<td>文字列をファイル等から読み込む際に正しくデコードできなかった。</td>
+<td><pre>
+b'<span class=err>\x80</span>'.decode('utf-8')
+</pre></td>
+</tr><tr>
+<td><code>UnicodeEncodeError</code></td>
+<td>文字列をファイル等に書き込む際に正しくエンコードできなかった。</td>
+<td><pre>
+'<span class=err>あ</span>'.encode('ascii')
+</pre></td>
+</tr><tr>
+<td><code>OSError</code></td>
+<td>OSレベルで発生する入出力関連のエラー。</td>
+<td><pre>
+open(<span class=err>'nonexistent_file'</span>)
+</pre></td>
+</tr><tr>
+<td><code>AssertionError</code></td>
+<td><code>assert</code>文の条件が成立しなかったときに発生する。</td>
+<td><pre>
+assert <span class=err>2+2 == 5</span>
+</pre></td>
+</tr></table>
+
+<div class=langnotice>
+Python では、エラーと例外の間に明白な区別がない。
+</div>
+
+<h4 id="basic-exceptions-catch"><code>try…except</code>文による例外の補足</h4>
+<p>
+Python の例外は、Java や C++ の例外と同様に
+例外オブジェクトを使っている。すべての例外は
+<code>try…except</code>文によって補足できる。
+<code>try…except</code>文は、
+ひとつの<code>try</code>節と複数の<code>except</code>節からなる:
+<blockquote><pre>
+try:
+    <em>なんらかの処理</em>
+except <em>例外クラス1</em> as <em>変数名1</em>:
+    <em>例外処理1</em>
+except <em>例外クラス2</em> as <em>変数名2</em>:
+    <em>例外処理2</em>
+...
+</pre></blockquote>
+<p>
+例外クラスには上に挙げた例外のどれかを指定する:
+<blockquote><pre>
+<mark>try:</mark>
+    <span class=comment># int が例外を発生する可能性。</span>
+    n = int(input("number:"))
+    print(f"n={n}")
+<mark>except</mark> <strong>ValueError</strong> <mark>as</mark> <strong>e</strong>:
+    <span class=comment># ValueErrorは変換できない文字列が与えられたことを意味する。</span>
+    print("not a number")
+</pre></blockquote>
+<p>
+上の例で、補足された例外オブジェクトは変数 <code>e</code> に格納される。
+ここには普通は例外の内容が <code>e.args</code> に含まれており、
+トレースバック情報も含まれている (が、詳細は省略する)。
+<p>
+実際には (Javaなどと同様に) Python の例外クラスは階層化されており、
+<code>except</code>節には当該する例外クラスか、その基底クラスを
+指定してもよい。すべての例外の基底クラスは
+<code>Exception</code> であるので:
+<blockquote><pre>
+<mark>try:</mark>
+    なんらかの処理
+<mark>except</mark> <strong>Exception</strong> <mark>as</mark> <strong>e</strong>:
+    例外処理
+</pre></blockquote>
+のようにすればあらゆる例外を補足できるが、
+例外クラスはなるべく細かく指定すべきであって、
+これは推奨される方法ではない。
+
+<h3 id="basic-iters">2.8. イテレータ</h3>
+<p>
+Python のプログラムでは <u>イテレータ</u> (iterator) がよく使われる。
+簡単にいえば、イテレータとは
+「<strong><code>for</code>文で巡回可能な値の列</strong>」のことである。
+Python のイテレータは C++ や Java におけるイテレータと機能的にほぼ同じだが、
+C++ や Java ではイテレータは単なるクラスのひとつであるのに対し、
+Python のイテレータは言語とより密接に関連している。
+Python では、ファイルからの入力や DB テーブルの行など、
+可変長の値を返す処理の多くがメモリ効率のために
+イテレータを返すようになっている。また
+辞書の <code><em>d</em>.keys()</code> などのメソッドが返す結果も
+イテレータである。
+
+<dl>
+<dt> イテレータの基本
+<dd> 以下はイテレータの基本的な使用例である。
+まず <code>iter()</code> 関数でリストの各要素をたどるイテレータを作成し、
+<code>next()</code> 関数でそれを1つずつ巡回する。
+それ以上の要素がなくなると <code>StopIteration</code>例外が発生する。
+<pre>
+a = [1,2,3]
+it = <strong>iter(a)</strong>     <span class=comment># イテレータを作成。</span>
+print(<strong>next(it)</strong>)  <span class=comment># 1</span>
+print(<strong>next(it)</strong>)  <span class=comment># 2</span>
+print(<strong>next(it)</strong>)  <span class=comment># 3</span>
+print(<strong>next(it)</strong>)  <span class=comment># StopIteration例外</span>
+</pre>
+<p>
+実際には、上のような方法でイテレータを使うことはまずない。
+イテレータに対して <code>for</code>文を使えば、
+以上の処理が簡単に書けるためである:
+<pre>
+a = [1,2,3]
+it = <strong>iter(a)</strong>  <span class=comment># イテレータを作成。</span>
+for x in it:
+    print(x)
+<span class=comment># イテレータが終われば for文も終わる。</span>
+</pre>
+<p>
+さらに、<code>for</code>文は与えられたオブジェクトのイテレータを自動的に生成するため、
+実は <code>iter()</code> 関数すら必要ない。
+一般的に、<strong>イテレータ型を受けつける部分には
+リスト・タプル・文字列・集合などの型も受けつける</strong>。
+<pre>
+a = [1,2,3]
+for x in <strong>a</strong>:  <span class=comment># 自動的にイテレータが作成される。</span>
+    print(x)
+</pre>
+
+<dt id="iter-range"> <code>range()</code>関数
+<dd> おそらくもっともよく使われるイテレータが <code>range()</code> 関数である。
+これはおもに <code>for</code>文で伝統的な
+(カウンタを使った) ループを表すのに使われる:
+<pre>
+<span class=comment># range(<em>n</em>): <em>0</em>…<em>(n-1)</em> までの整数を返す。</span>
+for i in range(<strong>10</strong>):
+    print(i)  <span class=comment># i: 0〜9</span>
+
+<span class=comment># range(i, j): <em>i</em>…<em>(j-1)</em> までの整数を返す。</span>
+for i in range(<strong>10</strong>, <strong>20</strong>):
+    print(i)  <span class=comment># i: 10〜19</span>
+
+<span class=comment># range(i, j, k): <em>i</em>…<em>(j-1)</em> までの <em>k</em> きざみで増える整数を返す。</span>
+for i in range(<strong>0</strong>, <strong>10</strong>, <strong>2</strong>):
+    print(i)  <span class=comment># i: 0,2,4,6,8</span>
+</pre>
+
+<dt> イテレータの合成
+<dd> Python では、イテレータを合成する関数がいくつか用意されている。
+これはあるイテレータを受けとり、その各要素になんらかの処理をほどこし、
+ふたたびイテレータとして出力するものである。
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code>enumerate(<em>it</em>)</code></td>
+<td>イテレータ <em>it</em> の各要素にインデックスを付加する。<br>
+<code><em>a</em>,<em>b</em>,<em>c</em>,…</code> の列は
+<code>(0,<em>a</em>),(1,<em>b</em>),(2,<em>c</em>),…</code> という
+2要素タプルの列に変換される。</td>
+<td><pre>
+a = ['abc','def','xyz']
+<span class=comment># iter(a) は省略可。</span>
+for (i,x) in enumerate(<strong>a</strong>):
+    print(i,x)
+</pre></td>
+</tr><tr>
+<td><code>map(<em>f</em>, <em>it</em>)</code></td>
+<td>イテレータ <em>it</em> の各要素に関数 <em>f</em> を適用する。<br>
+<code><em>a</em>,<em>b</em>,<em>c</em>,…</code> は
+<code><em>f</em>(<em>a</em>),<em>f</em>(<em>b</em>),<em>f</em>(<em>c</em>),…</code>
+に変換される。</td>
+<td><pre>
+a = [1,2,3]
+for x in map(<strong>str</strong>, <strong>a</strong>):
+    print(x)
+</pre></td>
+</tr><tr>
+<td><code>zip(<em>it1</em>, <em>it2</em>, …)</code></td>
+<td>イテレータ <em>it1</em>, <em>it2</em>, ...の各要素を
+ひとつのタプルにまとめる。<br>
+<code><em>a</em>,<em>b</em>,<em>c</em>,…</code> および
+<code><em>x</em>,<em>y</em>,<em>z</em>,…</code> というイテレータは
+<code>(<em>a</em>,<em>x</em>),(<em>b</em>,<em>y</em>),(<em>c</em>,<em>z</em>),…</code> に変換される。</td>
+<td><pre>
+a = ['abc','def','xyz']
+b = [1,2,3]
+for (x,y) in zip(<strong>a</strong>, <strong>b</strong>):
+    print(x, y)
+</pre></td>
+</tr></table>
+
+<dt> イテレータを受けとる関数
+<dd>
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code>list(<em>it</em>)</code></td>
+<td>イテレータ <em>it</em> をリストに変換する。</td>
+<td><code>a = list(<strong>it</strong>)</code></td>
+</tr><tr>
+<td><code>tuple(<em>it</em>)</code></td>
+<td>イテレータ <em>it</em> をタプルに変換する。</td>
+<td><code>t = tuple(<strong>it</strong>)</code></td>
+</tr><tr>
+<td><code>sum(<em>it</em>)</code></td>
+<td>イテレータ <em>it</em> の数値をすべて合計する。</td>
+<td><code>sum(<strong>range(1,5)</strong>)</code></td>
+</tr><tr>
+<td><code>min(<em>it</em>)</code></td>
+<td>イテレータ <em>it</em> の最小値を返す。</td>
+<td><code>min(<strong>[5,9,4]</strong>)</code></td>
+</tr><tr>
+<td><code>max(<em>it</em>)</code></td>
+<td>イテレータ <em>it</em> の最大値を返す。</td>
+<td><code>max(<strong>scores</strong>)</code></td>
+</tr><tr>
+<td><code><em>s</em>.join(<em>it</em>)</code></td>
+<td>イテレータ <em>it</em> の文字列を区切り文字 <em>s</em> で連結する。</td>
+<td><code><strong>'\n'</strong>.join(<strong>lines</strong>)</code></td>
+</tr></table>
+
+<div class=langnotice>
+イテレータに <code>len()</code> 関数を使うことはできない。
+</div>
+
+<dt> ジェネレータ式 (generator expression)
+<dd> <a href="#list-comprehension">リスト内包表記</a> に似た書式で
+<code>[…]</code> のかわりに <code>(…)</code> を使うと、
+リストのかわりにイテレータが返される。これを<u>ジェネレータ式</u>とよぶ:
+<pre>
+a = [1,2,3,4,5]
+b = ( <strong>x*2+1</strong> for <strong>x</strong> in <strong>a</strong> )
+for x in b:
+    print(x)  <span class=comment># 3,5,7,9,11</span>
+</pre>
+
+<dt> ジェネレータ関数 (generator function)
+<dd> イテレータは通常、なんらかの内部状態を保持する必要があるが、
+Python の <code>yield</code>文を使うと、
+イテレータを通常のプログラムのように簡単に記述できる。
+このような関数を<u>ジェネレータ</u>と呼ぶ。
+関数定義の中で <code>yield</code>文が使われていると、
+その関数はジェネレータとみなされる。通常の関数とは異なり、
+ジェネレータは<strong>段階的に実行される</strong>。
+<pre>
+<span class=comment># g: すべての奇数からなるイテレータ (無限に続く) を返す。</span>
+def g():
+    i = 1
+    while True:
+        <mark>yield</mark> <strong>i</strong>
+        i += 2
+
+<span class=comment># イテレータを消費する。</span>
+for n in g():
+    print(n)  <span class=comment># 1,3,5,7,…</span>
+</pre>
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="330" height="100">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+  <g fill="none" stroke="black" stroke-width="2">
+    <path d="M80,70 a35,35,0,1,1,0,-20" marker-end="url(#arrow)" />
+    <path d="M130,60 l70,0" stroke-width="4" marker-end="url(#arrow)" />
+    <rect x="200" y="35" width="120" height="50" />
+  </g>
+  <g style="font-size: 75%;">
+    <text text-anchor="middle" x="260" y="30">消費者</text>
+  </g>
+  <g style="font-family: monospace;">
+    <text text-anchor="middle" x="50" y="10" dy="0.5em">g()</text>
+    <text text-anchor="middle" x="90" y="60" dy="0.4em">yield i</text>
+    <text x="210" y="50">for n in g():</text>
+    <text x="240" y="70">print(n)</text>
+  </g>
+</svg><br>
+ジェネレータ関数 g() の実行の様子
+</div>
+<p>
+上の例にあるように、ジェネレータ関数は終了しなくてもかまわない。
+具体的には、ジェネレータ関数は以下のように実行される:
+<ol>
+<li> まず、関数が返すイテレータの最初の値が要求されるまで、
+関数本体は実行を開始しない。
+<li> イテレータの要素がひとつ要求されたら、関数は <code>yield</code>
+文に到達するまで実行される。
+<li> 値がひとつ生成され、イテレータの消費側に渡されると、
+次の要素が要求されるまで関数の実行は止まる。
+</ol>
+
+<div class=langnotice>
+ジェネレータ関数は必ずイテレータを返すため、
+<code>return</code>文による返り値は無視される。
+</div>
+
+</dl>
+
+<h3 id="basic-classes">2.9. クラスとインスタンス</h3>
+<p>
+Python では、オブジェクト指向はどちらかといえば付け足し的な扱いであり、
+(Javaのように) なんでもクラス化することが推奨されているわけではない。
+クラスを使わない Python プログラムも多く存在する。
+Python におけるクラスの用途は、おもに次の2つである:
+<ol type=a>
+  <li> なんらかの内部状態をもつオブジェクトを実装したいとき。
+  <li> 単にデータをまとめる構造体として。
+</ol>
+
+<p>
+Python でクラスを扱う場合は、<u>インスタンス</u>型を使う。
+これは一連の手続き (メソッド) にデータが付随したものである。
+すべてのインスタンスは、そのテンプレートである
+<u>クラス</u>から実体化される。
+
+<div class=langnotice>
+Python における「オブジェクト」という用語には注意が必要である。
+Java や C++ などの言語における「オブジェクト」は、
+クラスから作成したインスタンスのことだが、
+<strong>Pythonではどんな値も「オブジェクト」である</strong>。
+混乱を避けるため、ここではクラスから作成した実体はつねに
+<strong>「インスタンス」</strong>と呼ぶことにする。
+</div>
+
+<p>
+以下は Python の典型的なクラス定義と使用の例である
+(Python では、クラス名は大文字から始めることが多い) :
+<blockquote><pre>
+<span class=comment># Counterクラスの定義</span>
+<mark>class</mark> <strong>Counter</strong>:
+
+    <span class=comment># コンストラクタ</span>
+    def <strong>__init__</strong>(self, count):
+        self.count = count
+
+    <span class=comment># inc()メソッド: カウンタをnだけ増やす。</span>
+    def <strong>inc</strong>(self, n):
+        self.count += n
+        return self.count
+
+<span class=comment># インスタンスの作成</span>
+c = Counter(0)
+print(c.inc(1))  <span class=comment># 1</span>
+print(c.inc(1))  <span class=comment># 2</span>
+print(c.inc(1))  <span class=comment># 3</span>
+</pre></blockquote>
+
+<dl>
+<dt> クラスの定義
+<dd> クラスの定義は <code>class</code>文で始める。
+  Java などと違って、
+  Python ではインスタンス変数をあらかじめ宣言する必要はなく、
+  ひとつのインスタンス中にあとからいくらでも変数を追加できる。
+  次に、インデントされた各メソッドを記述する。
+  上の例では、メソッド <code>__init__</code> および <code>inc</code> が
+  定義されている。<code>__init__</code>メソッドは<u>コンストラクタ</u>であり、
+  そのインスタンスが作成されるときに最初に呼ばれる
+  (なお、コンストラクタは省略可能である)。
+  インスタンスに所属する変数は、
+  ふつうコンストラクタ (<code>__init__</code>メソッド) で初期化される。
+  上の例では <code>count</code> というインスタンス変数が初期化されている。
+  Python では、インスタンスに所属する変数を、オブジェクトの
+  <u>属性</u> (attribute) と呼ぶ。属性は、<code><em>c</em>.count</code> のように
+  インスタンスに <code>.</code> をつけることで参照・変更できる。
+  <div class=langnotice>
+    Python では「暗黙の変数スコープ」は存在しない。
+    メソッド内でインスタンス変数にアクセスする際には必ず
+    <code>self.</code> をつける必要がある。
+    同様に、同一クラス内のメソッド呼び出しも単に <code>foo()</code> とはできず、
+    必ず <code>self.foo()</code> のように書く必要がある。
+  </div>
+  <p>
+  関数と同様、Python のクラスは class文が<strong>実行されたときに</strong>定義される。
+  また、関数オブジェクトと同様に、Python ではクラスもひとつの値である。
+  つまり <code>class</code>文は、実際には
+  <strong>クラスオブジェクトを変数に代入する文</strong>である:
+<pre>
+class Counter:  <span class=comment># "Counter = &lt;クラスオブジェクト&gt;" と同値</span>
+    ...
+</pre>
+実際、<code>Counter</code> クラスを別の変数に代入すれば、
+その名前はクラスと同様に扱うことができる:
+<pre>
+<strong>T</strong> = <strong>Counter</strong>
+c = <strong>T</strong>(0)  <span class=comment># Counterインスタンスが作成される</span>
+</pre>
+
+<dt> メソッドの定義
+<dd> Python では、<strong>各メソッドの第1引数は必ず <code>self</code></strong> でなければならない。
+  (実際には他の名前もつけられるが、<code>self</code> が慣例である。)
+  Python では自分自身のインスタンスを表す <code>this</code> キーワードは
+  存在せず、インスタンスへの参照はつねにメソッドの第1引数 <code>self</code> に渡される。
+  ただし、引数として <code>self</code> が現れるのは定義だけであって、
+  メソッド<strong>呼び出し時には self を除いた引数を渡す</strong>。
+  上に挙げた <code>Counter</code>クラスを再掲すると、以下のようになる:
+<pre>
+class Counter:
+
+    def __init__(<mark>self</mark>, <strong>count</strong>):  <span class=comment># 実際に渡す引数: countのみ</span>
+        self.count = count
+
+    def inc(<mark>self</mark>, <strong>n</strong>):  <span class=comment># 実際に渡す引数: nのみ</span>
+        self.count += n
+        return self.count
+
+c = Counter(<strong>0</strong>)   <span class=comment># self=(新しいインスタンス), count=0</span>
+print(<strong>c</strong>.inc(<strong>1</strong>))  <span class=comment># self=c, n=1</span>
+</pre>
+
+<dt> インスタンスの作成とメソッドの呼び出し
+<dd> Python には、<code>new</code>演算子は存在しない。
+あるクラスのインスタンスを作成するには、
+そのクラス名 (クラスオブジェクト) を関数のようにして呼ぶだけでよい。
+ここで渡した引数はコンストラクタ (<code>__init__</code>メソッド) の
+引数として渡される:
+<pre>
+<span class=comment># インスタンスの作成</span>
+c = Counter(0)  <span class=comment># Counter.__init__ が呼ばれる。</span>
+</pre>
+<p>
+メソッド呼び出しは Java などの言語と似ているが、
+Python ではメソッドとは、単に<strong>クラスに所属し、
+あらかじめ第1引数が束縛されている関数オブジェクト</strong>にすぎない。
+以下の3つの関数 (メソッド) 呼び出しはどれも同じ効果をもつ:
+<pre>
+print(<strong>c.inc(1)</strong>)           <span class=comment># 通常のメソッド呼び出し</span>
+func = c.inc              <span class=comment># 関数オブジェクトを取り出す</span>
+print(<strong>func(1)</strong>)
+print(<strong>Counter.inc(c, 1)</strong>)  <span class=comment># 直接呼び出し (非推奨)</span>
+</pre>
+<div class=langnotice>
+JavaScript とは異なり、Python のメソッドは
+実際に <code>self</code> が束縛されたクロージャである。
+</div>
+
+<dt> クラスの継承
+<dd> Python では、クラスを継承するには <code>class</code>文で
+基底クラスを <code>(…)</code> で囲んで表示する。
+ここでは上の <code>Counter</code>クラスを継承し、<code>__init__</code> と
+<code>inc</code>メソッドを上書きした <code>DoubleCounter</code>クラスを定義している:
+<pre>
+<span class=comment># Counterを継承したDoubleCounterクラスの定義</span>
+class DoubleCounter(<mark>Counter</mark>):
+
+    def <strong>__init__</strong>(self, count):
+        <span class=comment># 基底クラスのメソッドを呼び出す。</span>
+        <mark>super()</mark>.__init__(count*2)
+
+    <span class=comment># 基底クラスの inc() を上書きする。</span>
+    def <strong>inc</strong>(self, n):
+        self.count += n*2
+        return self.count
+</pre>
+
+<div class=langnotice>
+基底クラスの <code>class</code>文は、
+必ず派生クラスの定義よりも前に実行されている必要がある。
+さもないと <code>NameError</code> が発生する。
+</div>
+<p>
+基底クラスのメソッドを呼ぶには、
+<code>super()</code> 関数を使う。
+こうするとクラスが多重継承である場合に、
+基底クラスのメソッドを正しい呼び出し順序 (MRO) で実行できる。
+
+<dt> クラスとインスタンスに対する演算
+<dd> クラスやインスタンスの関係を検査するために、以下の関数が用意されている:
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code>type(<em>x</em>)</code></td>
+<td>インスタンス <em>x</em> が所属するクラスを返す。</td>
+<td><pre>if type(<strong>c</strong>) == Counter:
+    c.inc(1)</pre></td>
+</tr><tr>
+<td><code>isinstance(<em>x</em>, <em>t</em>)</code></td>
+<td>インスタンス <em>x</em> がクラス <em>t</em> (あるいはその派生クラス) に
+所属していれば真。</td>
+<td><pre>if isinstance(<strong>c</strong>, <strong>Counter</strong>):
+    c.inc(1)</pre></td>
+</tr><tr>
+<td><code>issubclass(<em>s</em>, <em>t</em>)</code></td>
+<td>クラス <em>s</em> がクラス <em>t</em> の派生クラスであれば真。</td>
+<td><pre>assert issubclass(<strong>DoubleCounter</strong>, <strong>Counter</strong>)</pre></td>
+</tr></table>
+<p>
+実は Python では<strong>「型 (type)」と「クラス (class)」はほぼ同義</strong>である。
+<code>int</code>型や <code>str</code>型などは内部的に
+クラスとして扱われており、実際、<code>int</code> や <code>str</code> といった
+名前はクラスオブジェクト (<code>type</code>オブジェクト) が
+入っている変数にすぎない。(<code>int()</code> や <code>str()</code> 関数は、
+実際にはコンストラクタである。)
+したがって、上の3つの関数は実際にはクラスだけでなく、
+あらゆる値の型検査に使える:
+<pre>
+if isinstance(<strong>x</strong>, <strong>int</strong>):
+    <span class=comment># x が int型のときに実行。</span>
+    print(x+1)
+</pre>
+
+<dt> 特別なメソッド
+<dd> Python のクラスは、特定の名前をもつメソッドを定義することにより、
+インスタンスに特別な機能を持たせることができる。
+よく使われるものを以下に示す
+(完全な一覧については Pythonリファレンスマニュアルの
+<a target="_blank" href="https://docs.python.org/3/reference/datamodel.html#special-method-names">3.3. "Special method names"</a> を参照):
+<p>
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code>__repr__(self)</code></td>
+<td>インスタンスの「正式な」文字表現を返す。
+このインスタンスに対して <code>repr()</code> 関数が
+実行されたとき、このメソッドの返り値が使われる。</td>
+<td><pre>
+def __repr__(self):
+    return <strong>f'&lt;count={self.count}&gt;'</strong>
+</pre></td>
+</tr><tr>
+<td><code>__str__(self)</code></td>
+<td>インスタンスの「表示用の」文字表現を返す。
+このインスタンスに対して <code>str()</code> 関数が
+実行されたとき、このメソッドの返り値が使われる。</td>
+<td><pre>
+def __str__(self):
+    return <strong>f'<{self.count}>'</strong>
+</pre></td>
+</tr><tr>
+<td><code>__len__(self)</code></td>
+<td>インスタンスの「サイズ」を返す。
+このインスタンスに対して <code>len()</code> 関数が
+実行されたとき、このメソッドの返り値が使われる。
+リストや文字列のようなふるまいをインスタンスに持たせるときに使う。</td>
+<td><pre>
+def __len__(self):
+    return <strong>1</strong>
+</pre></td>
+</tr><tr>
+<td><code>__getitem__(self, <em>k</em>)</code></td>
+<td>インスタンス <em>x</em> に対して、添え字による参照
+<code><em>x</em>[<em>k</em>]</code> がおこなわれたときに、
+このメソッドの返り値が使われる。
+辞書のようなふるまいをインスタンスに持たせるときに使う。</td>
+<td><pre>
+def __getitem__(self, k):
+    return <strong>k * 2</strong>
+</pre></td>
+</tr><tr>
+<td><code>__setitem__(self, <em>k</em>, <em>v</em>)</code></td>
+<td>インスタンス <em>x</em> に対して、添え字による代入
+<code><em>x</em>[<em>k</em>] = <em>v</em></code> がおこなわれたときに、
+このメソッドが呼ばれる。</td>
+<td><pre>
+def __setitem__(self, k, v):
+    <strong>print(f'set {k} to {v}')</strong>
+</pre></td>
+</tr><tr>
+<td><code>__call__(self, <em>arg1, …</em>)</code></td>
+<td>インスタンス <em>x</em> に対して関数呼び出し
+<code><em>x</em>(<em>arg1</em>, …)</code> がおこなわれたときに、
+このメソッドが呼ばれる。
+インスタンスに関数オブジェクトのようなふるまいを持たせるときに使う。</td>
+</td>
+<td><pre>
+def __call__(self, <strong>x</strong>):
+    return <strong>x*2</strong>
+</pre></td>
+</tr><tr>
+<td><code>__iter__(self)</code></td>
+<td>インスタンス <em>x</em> に対して (<code>for</code>文などで)
+イテレータが要求されたときに、このメソッドの返り値が使われる。
+ジェネレータ関数であってもよい。
+</td>
+<td><pre>
+def __iter__(self):
+    <strong>yield 1</strong>
+    <strong>yield 2</strong>
+    <strong>yield 3</strong>
+</pre></td>
+</tr><tr>
+<td><code>__eq__(self, <em>x</em>)</code></td>
+<td>このインスタンスが <code>==</code> 演算子で
+他のオブジェクト (同じクラスとは限らない) と比較されたときに
+このメソッドが返り値が使われる。
+</td>
+<td><pre>
+def __eq__(self, c):
+    return <strong>(isinstance(c, Counter) and</strong>
+            <strong>self.count == c.count)</strong>
+</pre></td>
+</tr></table>
+
+</dl>
+
+<div class=exercise id="ex1-6">
+<div class=header>演習 1-6. 状態遷移器を使った文字列の解析</div>
+<p>
+以下のクラス <code>Parser</code> のメソッドを完成させよ。
+これはカンマ (<code>,</code>) で区切られた要素列を文字列のリストに
+変換するパーザで、"〜"内に囲まれた部分ではカンマは
+区切り文字として認識されない (エスケープされる)。
+<code>.feed()</code> メソッドは、文字を 1文字ずつ入力し
+内部状態を変化させ、
+<code>.get()</code> メソッドで最終的な結果を取得するものとする。
+<blockquote><pre>
+<span class=comment># カンマで区切られた要素列をリストに変換する。</span>
+class Parser:
+
+    def __init__(self):
+        self.result = []   <span class=comment># 最終的なリスト。</span>
+        self.inquote = ''  <span class=comment># "〜"内部ならばTrue。</span>
+        self.buf = ''      <span class=comment># 構築中の部分文字列。</span>
+
+    <span class=comment># 1文字を入力、内部状態を変化させる。</span>
+    def feed(self, c):
+        ...
+        return
+
+    <span class=comment># 解析結果を受けとる。</span>
+    def get(self):
+        ...
+        return self.result
+
+s = 'abc,"de"f,"p,qr"'
+<span class=comment># パーザを作成。</span>
+p = Parser()
+<span class=comment># 1文字ずつ解析させる。</span>
+for c in s:
+    p.feed(c)
+<span class=comment># 結果を取得する。</span>
+print(p.get())  <span class=comment># ['abc', 'def', 'p,qr']</span>
+</pre></blockquote>
+
+</div>
+
+<h3 id="basic-ios">2.10. ファイル入出力</h3>
+<p>
+Python では基本的な (ストリームによる)
+ファイル操作が標準でサポートされている。
+<dl>
+<dt> ファイルを開く・閉じる
+<dd> 以下は Python による基本的なファイル操作の手順を示したものである:
+<pre>
+<span class=comment># テキストファイルを開く。</span>
+<strong>fp</strong> = <mark>open</mark>('path/to/file')
+<span class=comment># 1行読み込む。</span>
+line = <strong>fp</strong>.readline()
+<span class=err># ファイルを閉じる (非推奨)。</span>
+<strong>fp</strong>.<mark>close</mark>()
+</pre>
+<p>
+Python では <code>open()</code> 関数によりファイルを開く。
+このとき<u>ファイルオブジェクト</u>が返されるので、それに対して
+読み書きの操作をおこなう。ファイルを閉じるには、
+<code>close()</code>メソッドを実行する。
+<div class=langnotice>
+ファイルオブジェクトは1種類ではない。
+<code>open()</code> はファイルを開くモード (後述) や
+バッファの有無によって異なった型のオブジェクトを返すが、
+この差をユーザが意識する必要はほとんどない。
+ここではひとまとめにファイルオブジェクトと呼ぶことにする。
+</div>
+<p>
+実は、上に示したやり方は<strong>現在は推奨されない</strong>。
+なんらかの原因で <code>fp.close()</code> が実行されない場合
+OS上のファイル記述子がリークしてしまうので、
+現在では以下のような <code>with</code>文を使った方法が推奨されている:
+<pre>
+<span class=comment># テキストファイルを開く。</span>
+with <mark>open</mark>('path/to/file') as <strong>fp</strong>:
+    <span class=comment># 1行読み込む。</span>
+    line = <strong>fp</strong>.readline()
+<span class=comment># withから抜けた時点で、自動的にファイルが閉じられる。</span>
+</pre>
+<p>
+(with文の動作の詳細については Pythonリファレンスマニュアルの
+<a target="_blank" href="https://docs.python.org/3/reference/datamodel.html#context-managers">3.3.9. With Statement Context Managers</a> を参照)
+<p>
+<code>open()</code> 関数の引数にはさまざまなオプションがある。
+代表的なものを以下に紹介する:
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code>open(<em>path</em>)</code></td>
+<td>テキストファイル <em>path</em> (UTF-8エンコーディング) を読み込みモードで開く。</td>
+<td><code>fp = open(<strong>'/etc/motd'</strong>)</code></td>
+</tr><tr>
+<td><code>open(<em>path</em>, encoding=<em>e</em>)</code></td>
+<td>テキストファイル <em>path</em> (エンコーディング <em>e</em>) を
+読み込みモードで開く。</td>
+<td><code>fp = open(<strong>'readme.txt'</strong>, encoding=<strong>'cp932'</strong>)</code></td>
+</tr><tr>
+<td><code>open(<em>path</em>, 'w')</code></td>
+<td>テキストファイル <em>path</em> を書き込みモードで開く
+(ファイルの内容はクリアされる)。</td>
+<td><code>fp = open(<strong>'/tmp/foo'</strong>, 'w')</code></td>
+</tr><tr>
+<td><code>open(<em>path</em>, 'a')</code></td>
+<td>テキストファイル <em>path</em> を追記モードで開く
+(ファイルがない場合は作成される)。</td>
+<td><code>fp = open(<strong>'out.log'</strong>, 'a')</code></td>
+</tr><tr>
+<td colspan="3"></td>
+</tr><tr>
+<td><code>open(<em>path</em>, 'rb')</code></td>
+<td>バイナリファイル <em>path</em> を読み込みモードで開く。</td>
+<td><code>fp = open(<strong>'foo.jpg'</strong>, 'rb')</code></td>
+</tr><tr>
+<td><code>open(<em>path</em>, 'wb')</code></td>
+<td>バイナリファイル <em>path</em> を書き込みモードで開く
+(ファイルの内容はクリアされる)。</td>
+<td><code>fp = open(<strong>'dump.dat'</strong>, 'wb')</code></td>
+</tr><tr>
+<td><code>open(<em>path</em>, 'rb+')</code></td>
+<td>バイナリファイル <em>path</em> を読み書き込みモードで開く
+(ファイルがない場合は作成される)。</td>
+<td><code>fp = open(<strong>'update.db'</strong>, 'wb+')</code></td>
+</tr></table>
+
+<dt> テキストファイルを読み書きする
+<dd> ファイルをテキストファイルとして読み込む場合、
+Python は自動的にそのファイルの文字コード変換
+(デフォルトは UTF-8) および改行コードの変換をおこなう。
+通常のテキストファイルでは "universal newline" モードが有効になっており、
+ファイル中の改行コードが
+CR (<code>\r</code>), LF (<code>\n</code>), CR+LF (<code>\r\n</code>)
+のどれであっても 1行として認識され、改行文字は
+自動的に str型の <code>'\n'</code> に変換される。
+<p>
+テキストファイルからデータを読み込む・書き込むには、
+以下の方法が用意されている:
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>fp</em>.read(<em>[n]</em>)</code></td>
+<td>ファイル <em>fp</em> から <em>n</em>文字を読み込む。
+<em>n</em>が省略された場合はファイルの終わりまで読み込む。</td>
+<td><code>print(<strong>fp</strong>.read())</code></td>
+</tr><tr>
+<td><code><em>fp</em>.readline()</code></td>
+<td>ファイル <em>fp</em> から1行分 (改行まで) の文字列を読み込む。</td>
+<td><code>line = <strong>fp</strong>.readline()</code></td>
+</tr><tr>
+<td><code>iter(<em>fp</em>)</code></td>
+<td>ファイル <em>fp</em> の各行を文字列の<u>イテレータ</u>として返す。</td>
+<td><pre>
+<span class=comment># iter() は省略可能</span>
+for line in <strong>fp</strong>:
+    print(line)
+</pre></td>
+</tr><tr>
+<td><code><em>fp</em>.write(<em>s</em>)</code></td>
+<td>ファイル <em>fp</em> に文字列 <em>s</em> を書き込む。</td>
+<td><code><strong>fp</strong>.write(<strong>'howdy!\n'</strong>)</code></td>
+</tr></table>
+
+<dt> バイナリファイルを読み書きする
+<dd>
+バイナリファイルを読み書きする場合、Python では<code>bytes</code>型を使う。
+<code>bytes</code>型は見た目・機能とも<code>str</code>型に似ているが、
+各要素は Unicode文字ではなく、0〜255の範囲をもつ整数である。
+Bytes型の定数は <code><strong>b</strong>'〜'</code> のように
+先頭に b をつけて表現する:
+<pre>
+b'abc'
+b'\x0d\x0a'
+</pre>
+<p>
+文字列とは異なり、bytes型の各要素は「長さ1の<code>bytes</code>型」ではなく
+<strong>int型である</strong>。
+ただし、<code>bytes</code>型の<strong>スライス</strong>はbytes型である:
+また、文字列と同じく<code>bytes</code>列は読み込み専用である。
+つまり各要素を取り出すことはできるが、変更することはできない。
+<pre>
+b = b'ABC'
+print(b[1])    <span class=comment># 66</span>
+print(b[1:2])  <span class=comment># b'B'</span>
+b[1] = 100     <span class=err># TypeError が発生</span>
+</pre>
+<p>
+<code>str</code>型をバイナリファイルとして読み込み・書き込みをする場合、
+明示的に<code>bytes</code>型と型変換しなければならないので注意が必要である。
+bytes型→str型への変換 (<u>デコード</u>) には <code>decode()</code> メソッドを、
+str型→bytes型への変換 (<u>エンコード</u>) には <code>encode()</code> メソッドを使う:
+<pre>
+b = fp.read(3)         <span class=comment># b'ABC'</span>
+s = <strong>b</strong>.<mark>decode</mark>(<strong>'utf-8'</strong>)  <span class=comment># bytes型→str型に変換 (UTF-8)</span>
+print(s)               <span class=comment># 'ABC'</span>
+s = 'あ'
+b = <strong>s</strong>.<mark>encode</mark>(<strong>'cp932'</strong>)  <span class=comment># str型→bytes型に変換 (Shift-JIS)</span>
+fp.write(b)            <span class=comment># b'\x82\xa0'</span>
+</pre>
+<p>
+バイナリファイルからデータを読み込む・書き込むには、
+以下の方法が用意されている:
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code><em>fp</em>.read(<em>[n]</em>)</code></td>
+<td>ファイル <em>fp</em> から <em>n</em>バイトを読み込む。
+<em>n</em>が省略された場合はファイルの終わりまで読み込む。</td>
+<td><code>b = <strong>fp</strong>.read(<strong>4</strong>)</code></td>
+</tr><tr>
+<td><code><em>fp</em>.seek(<em>offset</em><em>[, whence=0]</em>)</code></td>
+<td>ファイル <em>fp</em> の特定の位置 <em>offset</em> から読み込みを開始する。
+<code>whence</code> が 0 の場合、<em>offset</em> は絶対位置をあらわし、
+1 の場合は相対位置、2 の場合はファイル末尾からの相対位置をあわわす。</td>
+<td><code><strong>fp</strong>.seek(<strong>4096</strong>)</code></td>
+</tr><tr>
+<td><code><em>fp</em>.tell()</code></td>
+<td>ファイル <em>fp</em> の現在位置を返す。</td>
+<td><code>pos = <strong>fp</strong>.tell()</code></td>
+</tr><tr>
+<td><code><em>fp</em>.write(<em>b</em>)</code></td>
+<td>ファイル <em>fp</em> にバイト列 <em>b</em> を書き込む。</td>
+<td><code><strong>fp</strong>.write(<strong>'よう'.encode('utf-8')</strong>)</code></td>
+</tr></table>
+
+</dl>
+
+
+<h2 id="modules">3. Python の拡張機能</h2>
+<p>
+Python における<u>モジュール</u>とは、簡単にいえば
+<strong>別のプログラムから利用できる Python スクリプト</strong>
+(ファイル) のことである。
+ただし Python においてはモジュールは単なるファイルではなく、
+実際に値を参照したり代入したりできるオブジェクトとして扱われる。
+なお、Python では「モジュール」と「ライブラリ」はほぼ同じ意味である。
+<p>
+本節ではまずユーザがモジュールを定義・利用する方法を説明する。
+つぎに Python でデータ処理をする際に
+よく使われるモジュールの使用例を紹介する。
+
+<div class=langnotice>
+Python モジュールの検索パスは、通常は
+「実行するスクリプトが置かれているディレクトリ +
+環境変数 <code>PYTHONPATH</code> + システム標準」が使われる。
+システム標準は Python のディストリビューションによって異なっているが、
+<code>pip</code> あるいは <code>conda</code> などでモジュールを
+インストールした際には必ずシステム標準のパスで発見できるように
+なっている。
+</div>
+
+<h3 id="module-user">3.1. モジュールの定義と使用</h3>
+<p>
+以下は Python によるモジュールの例である:
+<div class=file>
+foo.py
+<pre>
+<strong>num</strong> = 1729
+
+def <strong>avg</strong>(x, y):
+    a = (x+y)/2
+    return a
+
+class <strong>Counter</strong>:
+    def __init__(self, count):
+        self.count = count
+    def inc(self, n):
+        self.count += n
+        return self.count
+</pre>
+</div>
+<p>
+このモジュールでは、変数<code>num</code>、
+関数<code>avg</code>、およびクラス<code>Counter</code> が定義されている。
+Python では、関数定義・クラス定義は
+どちらも変数へのオブジェクトの代入であるので、
+実際には上の <code>foo</code> モジュールは
+3つの属性 (<code>foo.num</code>、<code>foo.avg</code> および
+<code>foo.Counter</code>) をもつオブジェクトとみなせる。
+<div class=langnotice>
+Python では、モジュールとインスタンスは見た目上は区別できない。
+たとえば <code>foo.num</code> は <code>foo</code> というインスタンスの属性かもしれないし、
+<code>foo</code> というモジュールで定義された変数かもしれない。
+Python においては、どちらも<strong>特定の名前空間の属性</strong>なのである。
+</div>
+<p>
+モジュールを利用するには、<code>import</code>文を使う。
+Pythonインタプリタは、実行するスクリプトと同じディレクトリ
+(あるいは環境変数 <code>PYTHONPATH</code> で指定されているディレクトリ)
+上にある <code>foo.py</code> を読み込み、<code>def</code>文や <code>class</code>文などを
+実際に実行して関数・クラスを定義する:
+<blockquote><pre>
+import foo  <span class=comment># def, class などが実行される</span>
+print(foo.<strong>num</strong>)
+print(foo.<strong>avg</strong>(3, 5))
+c = foo.<strong>Counter</strong>(1)
+</pre></blockquote>
+<p>
+実際には、<code>import</code>文もまた
+変数への「モジュールオブジェクト」の代入とみなせる。
+<code>import</code>文には以下の4種類の表記があり、
+モジュール内のオブジェクトをどのように参照するかによって使いわける:
+<blockquote><pre>
+import <strong>foo</strong>                   <span class=comment># foo = &lt;モジュールfoo&gt;</span>
+import foo as <strong>bar</strong>            <span class=comment># bar = &lt;モジュールfoo&gt;</span>
+from foo import <strong>num</strong>          <span class=comment># num = &lt;モジュールfoo&gt;.num</span>
+from foo import num as <strong>spam</strong>  <span class=comment># spam = &lt;モジュールfoo&gt;.num</span>
+</pre></blockquote>
+<p>
+モジュール内のすべてのオブジェクトを現在の名前空間に取り込むには、
+以下のように <code>*</code>表記を使う (この方法は推奨されていない):
+<blockquote><pre>
+from foo import <strong>*</strong>  <span class=comment># num, avg, Counter が定義される</span>
+</pre></blockquote>
+
+<h4>階層的なモジュール</h4>
+<p>
+さらに、モジュールはディレクトリ (フォルダ) によって階層化できる。
+複数のモジュールをまとめたモジュールを<u>パッケージ</u> (package) と呼ぶ。
+たとえば、あるディレクトリ <code>mypkg</code> をパッケージとして利用するには、
+以下のようにファイルを配置する:
+<table><tr><td>
+<ul>
+<li> <code>mypkg/</code> (ディレクトリ)
+<ul>
+<li> <code>__init__.py</code> (ファイル)
+<li> <code>foo.py</code> (ファイル)
+<li> <code>bar.py</code> (ファイル)
+</ul>
+</ul>
+</td><td>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="120" height="130">
+  <g stroke="black" fill="none" stroke-width="2">
+    <rect x="5" y="5" width="110" height="120" />
+    <rect x="25" y="25" width="85" height="50" />
+    <rect x="25" y="80" width="85" height="30" />
+  </g>
+  <g style="font-size: 75%; font-family: courier;">
+    <text x="10" y="10" dy="0.5em">mypkg</text>
+    <text x="30" y="30" dy="0.5em">foo</text>
+    <text x="40" y="40" dy="0.5em">- num</text>
+    <text x="40" y="50" dy="0.5em">- avg</text>
+    <text x="40" y="60" dy="0.5em">- Counter</text>
+    <text x="30" y="85" dy="0.5em">bar</text>
+    <text x="40" y="95" dy="0.5em">...</text>
+  </g>
+</svg>
+</td></tr></table>
+<p>
+ディレクトリを Python パッケージ (モジュール) として認識させるためには、
+<strong>必ず <code>__init__.py</code> ファイルが必要である</strong>
+(内容は空でもよい)。<code>__init__.py</code> ファイル内で
+変数・関数・クラスを定義した場合、それらは
+<code>mypkg</code> モジュールの属性として利用できる。
+パッケージもモジュールであるので、普通に <code>import</code>文で利用できる:
+<blockquote><pre>
+<span class=comment># mypkg.foo として参照する場合</span>
+import mypkg.foo
+print(mypkg.foo.num)
+
+<span class=comment># fooを直接参照したい場合</span>
+from mypkg import foo
+print(foo.num)
+</pre></blockquote>
+
+<h4>モジュール単体での利用</h4>
+<p>
+通常、Python のモジュールに含まれる文は基本的に代入文
+(変数への代入や、<code>def</code>文および <code>class</code>文) だけである。
+なぜならモジュールの中身は <code>import</code>時にスクリプトとして
+実際に評価 (実行) されるため、たとえば <code>print()</code> などを書いておくと
+<code>import</code>時に余計な副作用が発生してしまうためである。
+<p>
+ただし、(テストなどの目的で) ときにモジュール用の
+Python スクリプトを単体でも実行したいときがある。
+このような場合は、以下のようなトリックを使う:
+<div class=file>
+foo.py
+<pre>
+num = ...
+def avg(x, y): ...
+class Counter: ...
+
+<mark>if __name__ == '__main__':</mark>
+    <span class=comment># foo.py を直接実行した場合。</span>
+    <strong>print('Hello')</strong>
+</pre>
+</div>
+<p>
+変数 <code>__name__</code> は現在 <code>import</code>している
+モジュール名をあらわす特殊変数で、スクリプトが単体で実行された場合、
+この値はつねに <code>'__main__'</code> となるため
+<code>if</code>文の中が実行される:
+<blockquote><pre>
+C:\Users\euske&gt; <strong>python foo.py</strong>
+Hello    <span class=comment># printが実行される。</span>
+C:\Users\euske&gt; <strong>python</strong>
+&gt;&gt;&gt; <strong>import foo</strong>
+&gt;&gt;&gt;      <span class=comment># 何も表示されない。</span>
+</pre></blockquote>
+
+<h3 id="module-stdlib">3.2. Python の標準ライブラリ</h3>
+<p>
+Python では「Battery included (電池つき)」の考え方により、
+多くのモジュールが標準搭載されている。その分野は
+ファイル処理からネットワーク処理、HTMLや電子メールの解析から
+端末制御や共有ライブラリ中の C APIの呼び出しまでさまざまである:
+<ul>
+  <li> <a target="_blank" href="https://docs.python.org/3/library/index.html">Python 標準ライブラリリファレンス</a>
+</ul>
+<p>
+これらの標準ライブラリのコードは、Windows の場合
+<code>C:\Users\<em>ユーザ名</em>\AppData\Local\Programs\Python3.9\Lib</code>
+以下に、macOS/Linux の場合は (通常)
+<code>/usr/lib/python3.9</code> 以下に格納されている。
+<p>
+以下によく使われるモジュールを挙げる:
+<ul>
+<li> <a target="_blank" href="https://docs.python.org/3/library/sys.html"><code>sys</code></a> (コマンドライン引数、標準入力・標準出力)
+<li> <a target="_blank" href="https://docs.python.org/3/library/os.html"><code>os</code></a> (ファイル操作)
+<li> <a target="_blank" href="https://docs.python.org/3/library/os.path.html"><code>os.path</code></a> (パス名操作)
+<li> <a target="_blank" href="https://docs.python.org/3/library/math.html"><code>math</code></a> (sqrt, sin, exp などの関数)
+<li> <a target="_blank" href="https://docs.python.org/3/library/re.html"><code>re</code></a> (正規表現)
+<li> <a target="_blank" href="https://docs.python.org/3/library/datetime.html"><code>datetime</code></a> (日付と時刻の操作)
+<li> <a target="_blank" href="https://docs.python.org/3/library/socket.html"><code>socket</code></a> (低レベルネットワーク処理)
+<li> <a target="_blank" href="https://docs.python.org/3/library/urllib.html"><code>urllib</code></a> (HTTP/HTTPS通信)
+<li> <a target="_blank" href="https://docs.python.org/3/library/subprocess.html"><code>subprocess</code></a> (外部プロセスの起動)
+<li> <a target="_blank" href="https://docs.python.org/3/library/random.html"><code>random</code></a> (乱数の発生)
+</ul>
+
+<h3 id="module-sys">3.3. コマンドライン引数を解析するには</h3>
+<p>
+Python でコマンドラインからの引数を解析するには、
+<a target="_blank" href="https://docs.python.org/3/library/sys.html"><code>sys</code>モジュール</a>を
+使うのが一般的である。<code>sys.argv</code> にはプロセス起動時の
+各引数 (C でいう <code>char** argv</code>) が
+<code>str</code>型のリストとして格納されており、
+<code>sys.argv[0]</code> はコマンド名に相当する:
+
+<blockquote><pre>
+import sys
+if __name__ == '__main__':
+    args = <strong>sys.argv</strong>[1:]
+    <span class=comment># ...argsを使った処理...</span>
+</pre></blockquote>
+
+<p>
+さらに、
+<a target="_blank" href="https://docs.python.org/3/library/argparse.html#argparse.ArgumentParser"><code>argparse.ArgumentParser</code> クラス</a> を使うと、
+引数およびオプションの解析を自動化できる:
+
+<blockquote><pre>
+if __name__ == '__main__':
+    from argparse import ArgumentParser
+    parser = <strong>ArgumentParser</strong>()
+    <span class=comment># 有効なオプションを追加。</span>
+    parser.add_argument(<strong>'-f'</strong>, <strong>'--file'</strong>, dest=<strong>'filename'</strong>,
+                        help=<strong>'file name to process'</strong>, metavar=<strong>'FILE'</strong>)
+    parser.add_argument(<strong>'-v'</strong>, <strong>'--verbose'</strong>,
+                        action=<strong>'store_true'</strong>, dest=<strong>'verbose'</strong>, default=<strong>False</strong>,
+                        help=<strong>'print debug messages'</strong>)
+    <span class=comment># 解析する。</span>
+    args = parser.parse_args()
+    <span class=comment># 例. オプションの値を使用する。</span>
+    print(args.filename)  <span class=comment># ファイル名 (デフォルトは None)</span>
+    print(args.verbose)   <span class=comment># verboseフラグ (デフォルトは False)</span>
+</pre></blockquote>
+
+<h3 id="module-csv">3.4. CSVファイルを読み書きするには</h3>
+<p>
+Python で CSVファイルを読み書きするには、
+<a target="_blank" href="https://docs.python.org/3/library/csv.html"><code>csv</code> モジュール</a>を使う。
+ここでは Excel が出力する形式の CSVファイルをサポートしている。
+読み込みには <code>csv.reader()</code> を使い、
+CSV の各行を返すイテレータを取得する:
+<blockquote><pre>
+import csv
+<span class=comment># Shift-JIS (cp932) の CSVファイルを開く。</span>
+with open('input.csv', encoding='cp932') as fp:
+     <span class=comment># CSVの各行は strのリストとして表される。</span>
+     for row in csv.reader(<strong>fp</strong>):
+         print(row)
+</pre></blockquote>
+<p>
+書き込みには <code>csv.writer()</code> を使う。
+ここで返される <code>writer</code>オブジェクトに対して
+<code>writerow()</code> メソッドを呼び、
+1行ずつ出力する:
+<blockquote><pre>
+import csv
+<span class=comment># UTF-8 の CSVファイルを開く。</span>
+with open('output.csv', 'w') as fp:
+     writer = csv.writer(<strong>fp</strong>)
+     <span class=comment># 1行ずつ出力する。</span>
+     for row in rows:
+         writer.writerow(<strong>row</strong>)
+</pre></blockquote>
+
+<h3 id="module-json">3.5. JSONファイルを読み書きするには</h3>
+<p>
+Python で JSONファイルを読み書きするには、
+<a target="_blank" href="https://docs.python.org/3/library/json.html"><code>json</code> モジュール</a>を使う。
+JSON の型は Python に近いため、
+JSON オブジェクトは容易に Python の辞書やリストとして扱うことができる。
+
+<blockquote><pre>
+import json
+<span class=comment># 文字列から読み込む場合。</span>
+text = '{"foo": "bar", "baz": [1, 2, 3]}'
+obj = json.loads(<strong>text</strong>)
+print(obj)  <span class=comment># {'foo': 'bar', 'baz': [1, 2, 3]}</span>
+
+<span class=comment># ファイルから読み込む場合。</span>
+with open('input.json') as fp:
+     obj = json.load(<strong>fp</strong>)
+</pre></blockquote>
+<p>
+以下は JSON 形式を出力する例である:
+<blockquote><pre>
+import json
+<span class=comment># 文字列として出力する場合。</span>
+obj = {'foo': 'bar', 'baz': [1, 2, 3]}
+print(json.dumps(<strong>obj</strong>))
+
+<span class=comment># ファイルに出力する場合。</span>
+with open('output.json') as fp:
+    json.dump(<strong>obj</strong>, <strong>fp</strong>)
+</pre></blockquote>
+
+<h3 id="module-zip">3.6. ZIPファイルを読み込むには</h3>
+<p>
+Zipファイルの読み書きには、
+<a target="_blank" href="https://docs.python.org/3/library/zipfile.html"><code>zipfile</code></a>モジュールを使う。
+最初に <a target="_blank" href="https://docs.python.org/3/library/zipfile.html#zipfile-objects"><code>ZipFile</code></a>インスタンスを作成すると、
+各ファイルに対するメタデータである <a target="_blank" href="https://docs.python.org/3/library/zipfile.html#zipinfo-objects"><code>ZipInfo</code></a> のリストが取得できる。
+次にこれを <code>.open()</code> メソッドに渡し、
+各ファイルの内容を取得する。
+なお zip に格納されたファイルはすべてバイナリファイルとして扱われる。
+<blockquote><pre>
+import zipfile
+<span class=comment># zipファイルを開く。</span>
+with zipfile.ZipFile(<strong>'input.zip'</strong>) as zfp:
+    <span class=comment># ファイル一覧を取得。</span>
+    for info in zfp.infolist():
+        <span class=comment># 各ファイルを開く。</span>
+        print(info.filename)
+        with zfp.open(info) as fp:
+            <span class=comment># ファイルの中身 (バイナリ) を読む。</span>
+            data = fp.read()
+</pre></blockquote>
+
+<h3 id="module-xml">3.7. XMLファイルを読み込むには</h3>
+<p>
+Python で XML を処理するにはいくつかの方法があるが、
+もっとも手軽なのは <a target="_blank" href="https://docs.python.org/3/library/xml.etree.elementtree.html"><code>xml.etree.ElementTree</code> モジュール</a>を使う方法である。
+たとえば、以下のような XML ファイルを読み込むことを考える:
+<div class=file>
+input.xml
+<pre>
+&lt;?xml version="1.0"?&gt;
+&lt;group&gt;
+  &lt;person id="1"&gt;john&lt;/person&gt;
+  &lt;person id="2"&gt;mary&lt;/person&gt;
+&lt;/group&gt;
+</pre>
+</div>
+<p>
+このような XML を処理するプログラムは以下のようになる:
+<blockquote><pre>
+from xml.etree.ElementTree import XML
+with open('input.xml') as fp:
+    <span class=comment># ファイルからXML文書を構築。</span>
+    root = XML(fp.read())
+    <span class=comment># トップレベルのタグは &lt;group&gt; のはず。</span>
+    assert root.tag == 'group'
+    <span class=comment># 子要素の一覧を取得する。</span>
+    for elem in root:
+        <span class=comment># &lt;person&gt;タグであれば、属性idおよびテキスト部分を取得。</span>
+        if elem.tag == 'person':
+            print(elem.get('id'))
+            print(elem.text)
+</pre></blockquote>
+
+<h3 id="module-pillow">3.8. 画像ファイルの処理</h3>
+<p>
+Python で画像ファイルを扱うモジュールは多数存在するが、
+ここでは広く使われている
+<a target="_blank" href="https://pillow.readthedocs.io/en/stable/">Pillow</a> という
+モジュールを使う。
+Pillow はデフォルトでは含まれていないため、
+<code>pip</code> を使ってインストールする:
+<blockquote><pre>
+C:\Users\euske&gt; <strong>pip install pillow</strong>
+Collecting pillow
+  Downloading Pillow-9.0.0-cp39-cp39-win_amd64.whl (3.2 MB)
+     |████████████████████████████████| 3.2 MB 2.2 MB/s
+Installing collected packages: pillow
+Successfully installed pillow-9.0.0
+</pre></blockquote>
+<p>
+Pillow は標準で PNG, JPEG, TIFF などの画像ファイル形式をサポートしている。
+以下のようにすると、現在サポートするファイル形式一覧が表示される:
+<blockquote><pre>
+C:\Users\euske&gt; <strong>python -m pip</strong>
+</pre></blockquote>
+<p>
+Pillow を使った典型的な画像の読み込み、情報の取得、切り取り、
+リサイズ、保存をする一連のプロセスは以下のようになる。
+(なお、Pillow はもともと PIL (Python Imaging Library) の
+互換モジュールとして開発されたため、モジュール名は <code>PIL</code> となっている。)
+<blockquote><pre>
+from PIL import Image
+<span class=comment># JPEG画像ファイルを読み込む。</span>
+img = Image.open('input.jpg')
+<span class=comment># 幅・高さ・形式を取得する。</span>
+print(img.width, img.height, img.mode)
+<span class=comment># 画像の切り取り。</span>
+img = img.crop((100, 200, 100, 100))
+<span class=comment># 画像のリサイズ。</span>
+img = img.resize((50, 50))
+<span class=comment># 画像を保存する。</span>
+img.save('output.jpg')
+</pre></blockquote>
+<p>
+Pillow の画像オブジェクトは <code>PIL.Image.Image</code>インスタンスとして
+表現されるが、ユーザがこのインスタンスを直接作成することはなく、
+通常は <code>Image.open</code> などの関数を使って作成する。
+また、切り取りやリサイズ等の操作ではもとの画像は変化せず、
+つねに新しい画像が返される。
+<p>
+さらに Pillow の画像オブジェクトは、後で紹介する NumPy の
+<a href="../lec4/index.html#numpy-ndarray"><code>ndarray</code>型</a>と
+簡単に画像データを相互変換できる。
+(注意: あとで説明するように、
+Pillow の画像は (高さ × 幅 × チャンネル数)
+という並びで表現されているため、
+PyTorch等で利用するには (チャンネル数 × 高さ × 幅)
+という並びに変える必要がある。)
+<blockquote><pre>
+from PIL import Image
+import numpy as np
+<span class=comment># ndarray配列 (10×10×3) から 10×10 のRGB画像を作成する。</span>
+a = np.array.zeros((10, 10, 3))
+img = Image.fromarray(a)
+
+<span class=comment># RGB画像を (高さ×幅×3) の ndarray配列に変換する。</span>
+img = Image.open('input.jpg')
+a = np.array(img)
+</pre></blockquote>
+
+<p>
+画像オブジェクトに対するおもな操作を以下に示す:
+<table border><tr>
+<th>書式</th><th>説明</th><th>例</th>
+</tr><tr>
+<td><code>Image.open(<em>path</em>)</code></td>
+<td>画像ファイル <em>path</em> を読み込み、画像オブジェクトを返す。</td>
+<td><code>img = Image.open(<strong>'input.jpg'</strong>)</code></td>
+</tr><tr>
+<td><code><em>img</em>.save(path)</code></td>
+<td>画像 <em>img</em> をファイル <em>path</em> に保存する。
+ファイル形式は拡張子に応じて決められる。
+<td><code><strong>out</strong>.save(<strong>'output.png'</strong>)</code></td>
+</tr><tr>
+<td><code><em>img</em>.copy()</code></td>
+<td>複製した画像を返す。</td>
+<td><code>img2 = <strong>img</strong>.copy()</code></td>
+</tr><tr>
+<td><code><em>img</em>.resize((<em>w</em>, <em>h</em>))</code></td>
+<td>画像 <em>img</em> を <em>w</em>×<em>h</em> ピクセルにリサイズした画像を返す。</td>
+<td><code>img = <strong>img</strong>.resize(<strong>(img.width//2, img.height//2)</strong>)</code></td>
+</tr><tr>
+<td><code><em>img</em>.crop((<em>x0</em>, <em>y0</em>, <em>x1</em>, <em>y1</em>))</code></td>
+<td>画像 <em>img</em> の一部を (<em>x0</em>, <em>y0</em>, <em>x1</em>, <em>y1</em>) の矩形で切り取った画像を返す。</td>
+<td><code>img = <strong>img</strong>.crop(<strong>(0, 0, 100, 100)</strong>)</code></td>
+</tr><tr>
+<td><code><em>dst</em>.paste(src, (<em>x0</em>, <em>y0</em>, <em>x1</em>, <em>y1</em>))</code></td>
+<td>画像 <em>src</em> を画像 <em>dst</em> 内の位置 (<em>x0</em>,<em>y0</em>,<em>x1</em>,<em>y1</em>) に描画する。
+<td><code><strong>out</strong>.paste(<strong>img</strong>, <strong>(x,y,x+img.width,y+img.height)</strong>)</code></td>
+</tr><tr>
+<td><code><em>img</em>.thumbnail((<em>w</em>, <em>h</em>))</code></td>
+<td>画像 <em>img</em> を <em>w</em>×<em>h</em> ピクセルに入るように変更する。このとき、画像の縦横比は保存される。</td>
+<td><code><strong>img</strong>.thumbnail(<strong>(100, 100)</strong>)</code></td>
+</tr><tr>
+<td><code><em>img</em>.width</code></td>
+<td>画像の幅を返す。</td>
+<td></td>
+</tr><tr>
+<td><code><em>img</em>.height</code></td>
+<td>画像の高さを返す。</td>
+<td></td>
+</tr><tr>
+<td><code><em>img</em>.mode</code></td>
+<td>画像のピクセル形式を文字列
+ (<code>'RGB'</code>, <code>'RGBA'</code> など) で返す。
+(<a targte="_blank" href="https://pillow.readthedocs.io/en/stable/handbook/concepts.html#concept-modes">一覧</a>)
+</td>
+<td></td>
+</tr></table>
+
+
+<hr>
+<div class=license>
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="クリエイティブ・コモンズ・ライセンス" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />この作品は、<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">クリエイティブ・コモンズ 表示 - 継承 4.0 国際 ライセンス</a>の下に提供されています。
+</div>
+<address>Yusuke Shinyama</address>

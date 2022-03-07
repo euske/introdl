@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="../common.css" />
+<title>第6回 GPU の仕組みと PyTorch 入門
+/ 真面目なプログラマのためのディープラーニング入門</title>
+<style><!--
+.example { outline: 1px solid black; }
+.bc { color: blue; font-weight: bold; }
+.ew { color: red; font-weight: bold; }
+.prev { color: gray; }
+.gpu { background: #ccffff; }
+--></style>
+<body>
+<div class=nav>
+<a href="../index.html">&lt; もどる</a>
+</div>
+
+<h1>第6回 GPU の仕組みと PyTorch 入門</h1>
+
+<ol>
+<li> <a href="#gpu-what">なぜ GPU なのか</a>
+<ul>
+  <li class=ex> <a href="#ex6-1">演習 6-1. CUDA を使って GPU プログラムを実行する (Linux環境のみ)</a>
+</ul>
+<li> <a href="#pytorch">PyTorch 入門</a>
+<ul>
+  <li> <a href="#pytorch-install">PyTorch を使う準備</a>
+  <li> <a href="#pytorch-tensor">Tensor (テンソル) とは何か?</a>
+  <li class=ex> <a href="#ex6-2">演習 6-2. Tensorオブジェクトを作成する</a>
+  <li class=ex> <a href="#ex6-3">演習 6-3. Tensor型の演算</a>
+  <li class=ex> <a href="#ex6-4">演習 6-4. Tensorの次元の並び換え</a>
+  <li> <a href="#pytorch-autograd">Tensor を使って勾配を自動的に計算する</a>
+  <li> <a href="#pytorch-gpu">GPU を使って計算する</a>
+  <li class=ex> <a href="#ex6-5">演習 6-5. CUDA を使ってテンソルを計算する (CUDA が使用可能な環境のみ)</a>
+  <li> <a href="#pytorch-learn">PyTorch における学習の流れ</a>
+</ul>
+<li> <a href="#mnist-pytorch">PyTorch を使った MNIST の実装</a>
+<ul>
+  <li class=ex> <a href="#ex6-6">演習 6-6. PyTorch を使った MNIST の実装</a>
+  <li> <a href="#mnist-save">学習したネットワークを保存・読み込む</a>
+  <li> <a href="#mnist-gpu">GPUを使って計算させる</a>
+  <li class=ex> <a href="#ex6-7">演習 6-7. MNIST を GPU上で動かす</a>
+  <li> <a href="#mnist-dataset">DatasetクラスとDataLoaderクラスを使う</a>
+  <li> <a href="#mnist-adam">Adam最適化器を使う</a>
+  <li> <a href="#mnist-full">いっさいがっさいをまとめる</a>
+  <li class=ex> <a href="#ex6-8">演習 6-8. CIFAR-10 を PyTorch で実装する</a>
+</ul>
+<li> <a href="#summary">まとめ</a>
+</ol>
+
+
+<h2 id="gpu-what">1. なぜ GPU なのか</h2>
+<p>
+前回までで見たように、ニューラルネットワーク
+(特に、畳み込みニューラルネットワーク) は多くの計算を必要とする。
+そのため、ある程度の大きさの画像を対象とした
+実用的なモデルを学習しようとすると、
+既存のパソコンの性能では不十分な場合が出てくる。
+そこで現在のディープラーニングでは、
+<u>GPU</u> (Graphical Processing Unit) を利用することが多い。
+GPU はもともと 3Dグラフィックスのための計算をおこなう装置だったが、
+その基本は並列処理であり、現在ではグラフィックス以外の用途にも利用されている。
+現在のところ、GPU を一般的な用途に利用する枠組みとしては
+NVIDIA の <a target="_blank" href="https://developer.nvidia.com/cuda-zone"><u>CUDA</u></a> が
+ほぼデファクト・スタンダードである
+(類似のオープンな規格として
+<a target="_blank" href="https://www.khronos.org/opencl/">OpenCL</a> があるが、
+2021年の時点ではまだマイナーな存在である)。
+
+<p>
+GPU は CPU に比べて単純な処理しかできないが、CPU に比べて
+はるかに多くの処理を並列実行できるため、ある種のアルゴリズムに対しては
+CPU に比べて数倍〜数十倍の速度が出せる。ニューラルネットワークで
+行われる演算はほとんどが足し算と掛け算なので、
+とくに GPU で処理するのに向いているといえる。
+NVIDIA が提供する CUDA 開発キットには GPU 用のコードが
+生成できるよう拡張された C/C++コンパイラ (nvcc) が付属している。
+これを使った簡単な C プログラムの例を以下に示す:
+
+<div class=file>
+mult.cu
+<pre style="font-size: 75%;">
+#include &lt;stdio.h&gt;
+
+<span class=comment>/* GPU で(並列に)実行される関数 */</span>
+<div class=gpu><mark>__global__</mark> void mult(float* out, float* a, float* b, int n)
+{
+    for (int i = 0; i &lt; n; i++) {
+        out[i] = a[i] * b[i];
+    }
+}
+</div>
+int main(int argc, char* argv[])
+{
+    int n = 1000000;
+
+    <span class=comment>/* データを用意する。 */</span>
+    float* a = (float*)malloc(sizeof(float) * n);
+    float* b = (float*)malloc(sizeof(float) * n);
+    float* out = (float*)malloc(sizeof(float) * n);
+    for (int i = 0; i &lt; n; i++) {
+        a[i] = b[i] = i;
+    }
+
+    <span class=comment>/* GPU上にデータ領域を割り当てる。 */</span>
+    float* c_a;
+    float* c_b;
+    float* c_out;
+    cudaMalloc(&amp;c_a, sizeof(float) * n);
+    cudaMalloc(&amp;c_b, sizeof(float) * n);
+    cudaMalloc(&amp;c_out, sizeof(float) * n);
+
+    <span class=comment>/* CPU→GPU にデータを転送する。 */</span>
+    cudaMemcpy(c_a, a, sizeof(float) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(c_b, b, sizeof(float) * n, cudaMemcpyHostToDevice);
+
+    <span class=comment>/* GPU 上で関数を実行する。 */</span>
+    <mark>mult&lt;&lt;&lt;1, 1&gt;&gt;&gt;(c_out, c_a, c_b, n);</mark>
+
+    <span class=comment>/* 計算結果を GPU→CPU に転送する。 */</span>
+    cudaMemcpy(out, c_out, sizeof(float) * n, cudaMemcpyDeviceToHost);
+
+    <span class=comment>/* 計算結果を表示する。 */</span>
+    printf("out[0]=%f\n", out[0]);
+    printf("out[n-1]=%f\n", out[n-1]);
+
+    <span class=comment>/* 領域を開放。 */</span>
+    cudaFree(c_a);
+    cudaFree(c_b);
+    cudaFree(c_out);
+    free(a);
+    free(b);
+    free(out);
+    return 0;
+}
+</pre>
+</div>
+
+<p>
+上のコードのうち <code><mark>__global__</mark></code> 宣言がある関数
+<code><span class=gpu>mult</span></code>
+(CUDA では<strong>カーネル</strong>と呼ばれるが、
+これはもともと各ピクセルごとの演算をさせていた名残りだと思われる) が
+GPU 上で走るバイナリにコンパイルされ、
+<code><mark>mult&lt;&lt;&lt;1, 1&gt;&gt;&gt;(...);</mark></code>
+という書式で呼び出される。プログラム中に「CPU-GPU 間のデータ転送」を
+おこなっている部分があるのに注目してほしい。
+GPU が動作する手順は以下のようになっている:
+<ol>
+<li> プログラムが CPU の主記憶 → GPU のメモリ に転送される。
+<li> プログラム中で使用するデータが CPU → GPU に転送される。
+<li> GPU 上で実行が行われる。
+<li> 実行結果が GPU → CPU に転送される。
+</ol>
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="240" height="120">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <rect x="10" y="10" width="60" height="100" />
+  <rect x="170" y="10" width="60" height="100" />
+</g>
+<g fill="none" stroke="black" stroke-width="3" marker-end="url(#arrow)">
+  <path d="M70,30 l90,0" />
+  <path d="M70,60 l90,0" />
+  <path d="M170,90 l-90,0" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="120" y="20" dy="0.5em">1. プログラム</text>
+  <text x="120" y="50" dy="0.5em">2. データ</text>
+  <text x="192" y="75" dy="0.5em">3. 実行</text>
+  <text x="120" y="80" dy="0.5em">4. 計算結果</text>
+</g>
+<g text-anchor="middle">
+  <text x="40" y="50" dy="0.5em">CPU</text>
+  <text x="200" y="50" dy="0.5em">GPU</text>
+</g>
+</svg><br>
+CPU と GPU の関係
+</div>
+
+<p>
+GPU は通常の CPU が使う主記憶とは独立したメモリを持っている。
+GPU を使ううえで注意すべきことは、たとえ計算処理が高速であっても
+<strong>データ転送にはそれなりに時間がかかる</strong>ということである。
+CPU と GPU の関係は、一般道路と高速道路に似ている。
+高速道路上では速く移動できるが、移動以外にできることは限られている。
+とはいえ、乗り降りには時間がかかるため、一度高速道路に乗ったら、
+なるべくそこから降りずに目的地の近くまで到達したい。
+GPU におけるプログラミングも同様で「いかにCPU-GPU間の転送を少なくするか」が
+効率のよいアルゴリズム設計の肝である。
+
+<div class=exercise id="ex6-1">
+<div class=header>演習6-1. CUDA を使って GPU プログラムを実行する (Linux環境のみ)</div>
+<p>
+Linux 上で <a target="_blank" href="https://developer.nvidia.com/cuda-downloads">CUDAをインストール</a>し、
+上のプログラムを実際にコンパイル・実行せよ:
+<pre>
+$ <strong>nvcc mult.cu</strong>
+$ <strong>./a.out</strong>
+</pre>
+</div>
+
+<div class=figure>
+<img width="267" height="241" src="gpu.png">
+</div>
+
+
+<h2 id="pytorch">2. PyTorch 入門</h2>
+<p>
+<a target="_blank" href="https://pytorch.org/">PyTorch</a> はいわゆる「機械学習フレームワーク」と
+呼ばれるソフトウェアの一種であり、効率のよいニューラルネットワークを
+簡単に実装するために開発された。
+PyTorch を使う利点は 3つある:
+<ol>
+<li> GPU を使って高速に計算できる。
+<li> 勾配を自動的に計算する機能 (autograd) がある。
+  <strong>そのため、各レイヤーで <code>backward()</code> メソッドを書く必要がない。</strong>
+<li> よく使われるレイヤー、活性化関数などがあらかじめ定義されている。
+</ol>
+<p>
+利点 1. の効率化もさることながら、
+プログラマにとって特に大きなメリットは 2. である。
+前章までのプログラムと同じく、PyTorch によるプログラムでも基本は
+各レイヤーがどのように入力を処理するか (<code>forward()</code> メソッド) を
+実装していくが、勾配が自動的に計算されるので、プログラマはそれ以外の
+部分を考える必要がない。そして 3. の利点により、実際には多くの場合
+既製のレイヤーを使うことで、 <code>forward()</code> すら書く必要がない。
+したがって、PyTorch を使ったプログラムは計算手順というよりも
+むしろ「各レイヤーをどのように結合するか」という記述に近い。
+本章ではこれを使ってより高速かつ複雑なネットワークを作成し、
+実用的な問題に応用していくことにしよう。
+
+<ul>
+<li> <a target="_blank" href="https://pytorch.org/docs/stable/index.html">PyTorch ドキュメンテーション</a>
+</ul>
+
+<h3 id="pytorch-install">2.1. PyTorch を使う準備</h3>
+<p>
+NumPy と同じく、torch モジュールも素の Python には含まれていないので、
+インストールする必要がある。
+ここではついでに画像を処理するモジュールである
+<a href="../lec1/index.html#module-pillow">Pillow</a> も
+インストールしておこう
+(Google Colab を使っている場合はどちらもインストール不要):
+<ul>
+<li> <strong>Anaconda を使っている場合:</strong>
+<pre>
+C:\&gt; <strong>conda install -c pytorch pytorch</strong>
+C:\&gt; <strong>conda install -c anaconda pillow</strong>
+</pre>
+<li> <strong>スタンドアロンの Python を使っている場合:</strong>
+<pre>
+C:\&gt; <strong>pip install torch -f https://download.pytorch.org/whl/torch_stable.html</strong>
+C:\&gt; <strong>pip install pillow</strong>
+</pre>
+</ul>
+<p>
+Python 中で PyTorch モジュールを使うときは、
+以下のように <code>import</code> する:
+<blockquote><pre>
+import torch
+</pre></blockquote>
+<p>
+ただし、PyTorch のバージョン (あるいはハードウェアの構成) によっては
+GPU (CUDA) が使えない場合もある。GPU が利用可能かどうかは、
+以下のようにして判定できる:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>import torch</strong>
+&gt;&gt;&gt; <strong>torch.cuda.is_available()</strong>
+True
+</pre></blockquote>
+
+<h3 id="pytorch-tensor">2.2. Tensor (テンソル) とは何か?</h3>
+<p>
+ニューラルネットワークの実装に入る前に、まず PyTorch における
+重要なデータ型である <code>Tensor</code> (テンソル) 型について説明する。
+本来、数学では「テンソル」はもうすこし抽象的な意味をもつが、
+<strong>機械学習における「テンソル」は「多次元配列」とほぼ同義である</strong>。
+したがって <code>Tensor</code>型の基本機能も NumPy における
+<code>ndarray</code>型とほとんど同じであり、使い方もわざと
+<code>ndarray</code>型に似せてある。
+ただし、以下のような機能が追加されている:
+<ol>
+  <li> <code>Tensor</code>オブジェクト上のデータは、CPU上の主記憶か、
+    あるいは GPU上のメモリのどちらに格納するか選ぶことができる。
+  <li> <code>Tensor</code>オブジェクト上の各数値は、
+    それが計算されたときの勾配 (<code>grad</code>) を保持することができる。
+</ol>
+<p>
+<code>Tensor</code>オブジェクトを作成するには、以下の方法がある:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>torch.tensor([1,2,3,4])</strong>           <span class=comment># 4要素のPythonリストからTensorを作成</span>
+&gt;&gt;&gt; <strong>torch.tensor([[1,2,3], [4,5,6]])</strong>  <span class=comment># 2×3要素のPythonリストからTensorを作成</span>
+&gt;&gt;&gt; <strong>torch.zeros(4)</strong>                    <span class=comment># 4要素すべてゼロ</span>
+&gt;&gt;&gt; <strong>torch.zeros((2, 3))</strong>               <span class=comment># 2列3行すべてゼロ</span>
+&gt;&gt;&gt; <strong>torch.rand(4)</strong>                     <span class=comment># 4要素の乱数 (0〜1の範囲)</span>
+&gt;&gt;&gt; <strong>torch.rand((2, 3))</strong>                <span class=comment># 2列3行の乱数 (0〜1の範囲)</span>
+</pre></blockquote>
+
+<div class=exercise id="ex6-2">
+<div class=header>演習6-2. Tensorオブジェクトを作成する</div>
+<ol type=a>
+<li> Pythonで10×10要素のリスト(のリスト) を作り、
+  これを <code>Tensor</code>型に変換せよ。
+<li> <code>torch.rand((3, 3))</code> の値を表示せよ。
+</ol>
+</div>
+
+<h4>高次元の配列 (テンソル) を想像するには</h4>
+<p>
+畳み込みネットワークでは、各レイヤーへの画像の入力は 3次元の配列
+(チャンネル数 × 高さ × 幅) であった。さらに PyTorch では
+後で述べる理由により、<strong>ひとつのミニバッチの入力を
+まるごとひとつの <code>Tensor</code> で表す</strong>ことが多い。
+このような場合、テンソルは4次元の配列
+(データ数N × チャンネル数C × 高さH × 幅W) を表すことになる。
+<p>
+このような高次元の配列を頭の中で想像するひとつの方法として、
+計算機科学でよく出てくる「木構造」として考えるやりかたがある。
+たとえば N×C×H×Wの 4次元テンソルは、
+以下のような木構造のいずれかとして解釈できる:
+<div class=figure>
+<table align=center><tr><td>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="180" height="150">
+<g fill="none" stroke="black" stroke-width="2">
+<path d="M120,10 l-80,80 m80,-80 l-20,80 m20,-80 l30,70" />
+<path d="M10,100 l0,40 l40,0 l0,-40 z l15,-10 l40,0 l-15,10 z m40,0 l15,-10 l0,40 l-15,10 z "/>
+<path d="M70,100 l0,40 l40,0 l0,-40 z l15,-10 l40,0 l-15,10 z m40,0 l15,-10 l0,40 l-15,10 z "/>
+<circle cx="120" cy="10" r="5" fill="white" />
+</g>
+<text x="60" y="50">N</text>
+<text x="140" y="115" style="font-size:150%; font-weight: bold;">...</text>
+</svg>
+</td><td>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="150">
+<g fill="none" stroke="black" stroke-width="2">
+<path d="M100,10 l-40,40 m40,-40 l40,40 m-40,-40 l40,20" />
+<path d="M60,50 l-30,50 m30,-50 l20,50" />
+<path d="M140,50 l-10,50 m10,-50 l20,30" />
+<rect x="10" y="100" width="40" height="40" />
+<rect x="60" y="100" width="40" height="40" />
+<rect x="110" y="100" width="40" height="40" />
+<circle cx="100" cy="10" r="5" fill="white" />
+<circle cx="60" cy="50" r="5" fill="white" />
+<circle cx="140" cy="50" r="5" fill="white" />
+</g>
+<text x="65" y="30">N</text>
+<text x="25" y="80">C</text>
+<text x="120" y="80">C</text>
+<text x="160" y="120" style="font-size:150%; font-weight: bold;">...</text>
+</svg>
+</td><td>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="180" height="150">
+<g fill="none" stroke="black" stroke-width="2">
+<path d="M120,10 l-40,30 m40,-30 l40,30 m-40,-30 l50,20" />
+<path d="M80,40 l-30,30 m30,-30 l30,30" />
+<path d="M50,70 l-20,30 m20,-30 l20,30" />
+<path d="M30,100 l-10,40 m10,-40 l10,40" />
+<path d="M70,100 l-10,40 m10,-40 l10,30" />
+<path d="M110,70 l-10,30 m10,-30 l10,20" />
+<circle cx="120" cy="10" r="5" fill="white" />
+<circle cx="80" cy="40" r="5" fill="white" />
+<circle cx="50" cy="70" r="5" fill="white" />
+<circle cx="110" cy="70" r="5" fill="white" />
+<circle cx="30" cy="100" r="5" fill="white" />
+<circle cx="70" cy="100" r="5" fill="white" />
+<circle cx="20" cy="140" r="5" fill="white" />
+<circle cx="40" cy="140" r="5" fill="white" />
+<circle cx="60" cy="140" r="5" fill="white" />
+</g>
+<text x="80" y="25">N</text>
+<text x="50" y="55">C</text>
+<text x="25" y="85">H</text>
+<text x="90" y="85">H</text>
+<text x="5" y="125">W</text>
+<text x="45" y="125">W</text>
+<text x="100" y="130" style="font-size:150%; font-weight: bold;">...</text>
+</svg>
+</td></tr><tr>
+<td>N × 3次元配列</td><td>N × C × 2次元配列</td><td>N × C × H × W</td>
+</tr></table>
+</div>
+
+<h4>Tensor型の演算・参照・変更など</h4>
+<p>
+<code>Tensor</code>オブジェクトの演算も ndarray型と同じく、
+<strong>分配</strong> (<span class=bc>broadcast</span>) と
+<strong>要素ごとの演算</strong> (<span class=ew>element-wise</span>) が
+サポートされている。
+
+<blockquote><pre>
+&gt;&gt;&gt; <strong>5 + torch.tensor([1,2,3])</strong>  <span class=comment># 左→右に分配 (broadcast)。</span>
+tensor([6, 7, 8])
+&gt;&gt;&gt; <strong>torch.tensor([1,2,3]) * 5</strong>  <span class=comment># 左←右に分配 (broadcast)。</span>
+tensor([ 5, 10, 15])
+&gt;&gt;&gt; <strong>5 + torch.tensor([[1,2,3], [4,5,6]])</strong>  <span class=comment># 行と列に分配。</span>
+tensor([[ 6,  7,  8],
+        [ 9, 10, 11]])
+&gt;&gt;&gt; <strong>torch.tensor([1,2,3]) + torch.tensor([4,5,6])</strong>  <span class=comment># 要素ごと (element-wise)。</span>
+tensor([5, 7, 9])
+&gt;&gt;&gt; <strong>torch.tensor([[-1],[1]]) * torch.tensor([[1,2,3], [4,5,6]])</strong>
+tensor([[-1, -2, -3],
+        [ 4,  5,  6]])
+</pre></blockquote>
+
+<p>
+<code>Tensor</code>オブジェクトの参照・変更も、
+<code>ndarray</code> とまったく同じである:
+<code>x[i][j]</code> とともに <code>x[i,j]</code> という表記も許されている。
+<blockquote><pre>
+&gt;&gt;&gt; <strong>x = torch.tensor([[1,2,3], [4,5,6]])</strong>
+&gt;&gt;&gt; <strong>x[0]</strong>        <span class=comment># 0行目を取得。</span>
+tensor([1, 2, 3])
+&gt;&gt;&gt; <strong>x[1][2]</strong>     <span class=comment># 1行2列目の値を取得。</span>
+6
+&gt;&gt;&gt; <strong>x[1][1:3]</strong>   <span class=comment># 1行1〜2列目の値を取得。</span>
+tensor([5, 6])
+&gt;&gt;&gt; <strong>x[1,2]</strong>      <span class=comment># 上と同じ。</span>
+6
+&gt;&gt;&gt; <strong>x[0,1] = 0</strong>  <span class=comment># 0行1列目の値を変更。</span>
+&gt;&gt;&gt; <strong>x</strong>
+tensor([[1, 0, 3],
+        [4, 5, 6]])
+</pre></blockquote>
+
+<p>
+配列の大きさ確認や形状変換なども同じである:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>x = torch.tensor([[1,2,3], [4,5,6]])</strong>
+&gt;&gt;&gt; <strong>len(x)</strong>   <span class=comment># リストとして見たときの要素数 (行数)。</span>
+2
+&gt;&gt;&gt; <strong>x.shape</strong>  <span class=comment># 配列の「形状」。</span>
+(2, 3)
+&gt;&gt;&gt; <strong>x.reshape(3,2)</strong>  <span class=comment># 3行×2列の配列に変換。</span>
+tensor([[1, 2],
+        [3, 4],
+        [5, 6]])
+&gt;&gt;&gt; <strong>x.reshape(6)</strong>    <span class=comment># フラットな1次元配列に変換。</span>
+tensor([1, 2, 3, 4, 5, 6])
+</pre></blockquote>
+
+<p>
+また、<code>Tensor</code>オブジェクトと <code>ndarray</code>配列は
+相互に変換することが可能である:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>np.array(torch.tensor([1,2,3]))</strong>  <span class=comment># Tensorをndarrayに変換。</span>
+array([1, 2, 3])
+&gt;&gt;&gt; <strong>torch.tensor(np.array([1,2,3]))</strong>  <span class=comment># ndarrayをTensorに変換。</span>
+tensor([1, 2, 3])
+</pre></blockquote>
+
+<div class=exercise id="ex6-3">
+<div class=header>演習6-3. Tensor型の演算</div>
+<p>
+以下の <code>Tensor</code>オブジェクトの演算をしたときの結果を予想し、
+実際に実行してみて結果を確認せよ。
+<pre>
+&gt;&gt;&gt; <strong>torch.tensor([1,2]) * torch.tensor([3,4])</strong>
+&gt;&gt;&gt; <strong>torch.tensor([1,2]) * 4</strong>
+&gt;&gt;&gt; <strong>torch.tensor([[1,2], [3,4]]) + torch.tensor([[5,6], [7,8]])</strong>
+&gt;&gt;&gt; <strong>torch.tensor([[1],[2],[3]]) * torch.tensor([1,2,3])</strong>
+&gt;&gt;&gt; <strong>torch.tensor([1,2]) * torch.tensor([3])</strong>
+&gt;&gt;&gt; <strong>torch.tensor([1,2]) * torch.tensor([3, 4, 5])</strong>
+</pre>
+</div>
+
+<h4 id="tensor-permute">Tensor の次元の並び換え (permute)</h4>
+<p>
+高次元のテンソルを扱うと、しばしば「次元」の順序が重要となってくる。
+たとえば、PyTorch では画像をテンソルとして扱う場合
+(チャンネル数C × 高さH × 幅W) と表現するのが普通だが、
+通常の RGB画像フォーマットではこれは
+(高さH × 幅W × チャンネル数C) と表現されることが多い:
+<div class=figure>
+<table align=center>
+<tr><th>通常のRGB画像</th><th>PyTorchにおける表現</th></tr>
+<tr><td align=left style="padding-right:1em;"><pre>
+[ [[R G B] [R G B] ... [R G B]]
+  [[R G B] [R G B] ... [R G B]]
+   ...
+  [[R G B] [R G B] ... [R G B]] ]
+</pre></td><td align=left><pre>
+[ [[R R ... R]  [[G G ... G]  [[B B ... B]
+   [R R ... R]   [G G ... G]   [B B ... B]
+    ...           ...           ...
+   [R R ... R]]  [G G ... G]]  [B B ... B]] ]
+</pre></td></tr>
+</table>
+通常のRGB画像とPyTorchにおける表現の違い
+</div>
+<p>
+PyTorch で普通に (<a href="../lec1/index.html#module-pillow">Pillow</a> などのライブラリを使って)
+画像ファイルを処理しようとすると、要素の並び方がネットワークの想定と違う場合が出てくる。
+そのため PyTorch の Tensor では、次元の「並び換え (permute)」という操作が可能である。
+(類似の処理に「転置 (transpose)」があるが、permute のほうが汎用性があるため、
+こちらを紹介する。)
+<p>
+<code>permute()</code>メソッドの使い方は簡単で、もとの次元の番号
+(0, 1, 2, ...) を並び換えたい順序で指定すればよい。
+テンソルの各要素を指定された順序で並び換えた新しい <code>Tensor</code> が返される。
+
+<blockquote><pre>
+<span class=comment># (2×2×3) のテンソルを作成。</span>
+&gt;&gt;&gt; <strong>x = torch.tensor([ [[1,2,3], [1,2,3]], [[4,5,6],[4,5,6]] ])</strong>
+<span class=comment># (0,1,2)番目の次元を、それぞれ(1,0,2)番目に並び換える。</span>
+&gt;&gt;&gt; <strong>x.permute(1,0,2)</strong>
+tensor([[[1, 2, 3],
+         [4, 5, 6]],
+
+        [[1, 2, 3],
+         [4, 5, 6]]])
+</pre></blockquote>
+
+<div class=exercise id="ex6-4">
+<div class=header>演習6-4. Tensorの次元の並び換え</div>
+<p>
+N枚の画像データが (N × W × H × C) というテンソルで表されているとする。<br>
+これを PyTorch の (N × C × H × W) というテンソルに変換するための
+<code>permute()</code> の引数を答えよ。
+</div>
+
+<h3 id="pytorch-autograd">2.3. Tensor を使って勾配を自動的に計算する</h3>
+<p>
+<code>Tensor</code>オブジェクトには、勾配を自動的に計算する機能がある。
+この機能を使うには、まず勾配を計算したい <code>Tensor</code> を作成するときに
+<code>requires_grad=True</code> オプションを渡しておく。
+このテンソルを使って何がしかの計算をおこなった後、
+その結果のテンソルに対して <code>backward()</code> メソッドを呼ぶと、
+計算に使ったテンソルすべての勾配が計算される。
+これは、各テンソルが使われた計算過程 (計算グラフ) をすべて記録しているためである。
+たとえば以下の例では関数 y = x<sup>3</sup> + 2x + 1 の x = 1 における
+微分 dy/dx (<code>x.grad</code>) を求めている:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>x = torch.tensor(1.0, <mark>requires_grad=True</mark>)</strong>
+&gt;&gt;&gt; <strong>y = x**3 + 2*x + 1</strong>  <span class=comment># y = x<sup>3</sup> + 2x + 1 を計算。</span>
+&gt;&gt;&gt; <strong>y</strong>
+tensor(4., grad_fn=&lt;AddBackward0&gt;)
+&gt;&gt;&gt; <strong>y.backward()</strong>        <span class=comment># dy/dx を計算。</span>
+&gt;&gt;&gt; <strong>x.grad</strong>              <span class=comment># dy/dx を表示。</span>
+tensor(5.)
+&gt;&gt;&gt; <strong>y = x**3 + 2*x + 1</strong>  <span class=comment># もう一度計算。</span>
+&gt;&gt;&gt; <strong>y.backward()</strong>
+&gt;&gt;&gt; <strong>x.grad</strong>
+tensor(10.)             <span class=comment># 値が増えている。</span>
+&gt;&gt;&gt; <strong>x.grad = None</strong>       <span class=comment># 勾配をクリアする。</span>
+</pre></blockquote>
+<p>
+上の例でわかるように、各 Tensor に付随する勾配 (<code>.gradの値</code>) は
+<code>backward()</code> を実行するたびに毎回上書きされるのではなく、
+以前の値に足されるようになっている。これはニューラルネットワークの
+誤差逆伝播法においては、複数のノードからくる勾配を足し合わせるためである。
+勾配をゼロにクリアするときは <code>x.grad = None</code> のようにする。
+(注意: <code>.grad</code> はつねに Tensor型でなければならないため、
+<code>x.grad = 0</code> とはできない。)
+<p>
+PyTorch を通常使っている限りでは、勾配を直接利用することはほとんどないが、
+<strong>つねに勾配が失われないように注意する必要がある</strong>。
+たとえば以下の例で、平方根を計算するのに Python 組み込みの
+<code>math.sqrt()</code> 関数を使うと、<code>Tensor</code>オブジェクトが
+通常の <code>float</code>型に変換されてしまい、その計算過程は失われ、
+勾配が計算できなくなってしまう。
+勾配を保持するには、つねに PyTorch の組み込み関数
+(<code>torch.sqrt()</code> など) を使って演算する必要がある。
+このため PyTorch はほぼすべての演算に対して自前のバージョンを用意している。
+<blockquote><pre>
+&gt;&gt;&gt; <strong>x = torch.tensor(2.0, requires_grad=True)</strong>
+&gt;&gt;&gt; <strong>y = math.sqrt(x)</strong>   <span class=err># math.sqrt() は Tensor を通常の値に変換してしまう。</span>
+&gt;&gt;&gt; <strong>y</strong>
+1.4142135623730951
+&gt;&gt;&gt; <strong>y = <mark>torch.sqrt</mark>(x)</strong>  <span class=comment># torch.sqrt() は Tensor のままで計算する。</span>
+&gt;&gt;&gt; <strong>y</strong>
+tensor(1.4142, grad_fn=&lt;SqrtBackward&gt;)
+</pre></blockquote>
+
+<h4>NumPy との相違点</h4>
+<p>
+NumPy では、<code>ndarray</code> では配列の各要素は
+「通常の (int型などの) 数値」であったが、
+<strong>PyTorch では <code>Tensor</code> の各要素も <code>Tensor</code>である。</strong>
+これは、すべての値が勾配を保持できるようにするためである。
+ひとつの数値をあらわすテンソルは「0次元の<code>Tensor</code>オブジェクト」として
+表されるが、これを意図的に「ただの数値」に変換するためには、
+<code>.item()</code> メソッドを使えばよい。
+当然ながら、こうすると勾配は失われてしまうので注意。
+<blockquote><pre>
+&gt;&gt;&gt; <strong>a = np.array([1,2,3])</strong>
+&gt;&gt;&gt; <strong>a[1]</strong>         <span class=comment># ndarrayの要素を取得。</span>
+2
+&gt;&gt;&gt; <strong>x = torch.tensor([1,2,3])</strong>
+&gt;&gt;&gt; <strong>x[1]</strong>         <span class=comment># Tensorの要素を取得。</span>
+tensor(2)
+&gt;&gt;&gt; <strong>x[1].item()</strong>  <span class=comment># Tensorの要素を通常の数値に変換。(勾配は失われる)</span>
+2
+</pre></blockquote>
+
+<h3 id="pytorch-gpu">2.4. GPU を使って計算する</h3>
+<p>
+PyTorch で CUDA が使用可能な場合、<code>Tensor</code> オブジェクトを
+GPU 上に転送し、そこで計算させることができる。
+Tensorオブジェクトに対して <code>.to('cuda')</code>メソッドを実行すると
+そのテンソルは GPU 上に転送され、逆に <code>.to('cpu')</code>メソッドを実行すると
+GPU上のテンソルが CPU に転送される:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>torch.cuda.is_available()</strong>
+True                            <span class=comment># CUDAが利用可能。</span>
+&gt;&gt;&gt; <strong>x1 = torch.tensor([1,2,3])</strong>  <span class=comment># x1はCPU上に作成される。</span>
+&gt;&gt;&gt; <strong>x1</strong>
+tensor([1, 2, 3])
+&gt;&gt;&gt; <strong>x2 = x1.to('cuda')</strong>          <span class=comment># x1をGPUに転送し、x2とする。</span>
+&gt;&gt;&gt; <strong>x2</strong>
+tensor([1, 2, 3]<mark>, device='cuda:0'</mark>)
+&gt;&gt;&gt; <strong>x3 = x2.to('cpu')</strong>           <span class=comment># x2をCPUに転送し、x3とする。</span>
+&gt;&gt;&gt; <strong>x3</strong>
+tensor([1, 4, 9])
+</pre></blockquote>
+<p>
+GPU 上にある Tensorどうしを計算しようとすると、
+自動的に GPU 内で計算が行われ、結果も GPU 上のテンソルとして返される。
+いっぽう、CPU と GPU 内にある Tensorは互いに計算できない:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>x2*x2</strong>      <span class=comment># GPU上で計算をおこなう。</span>
+tensor([1, 4, 9], device='cuda:0')
+&gt;&gt;&gt; <strong>x1*x2</strong>      <span class=err># CPU上とGPU上にあるデータは互いに計算できない。</span>
+RuntimeError: Expected all tensors to be on the same device,
+ but found at least two devices, cuda:0 and cpu!
+</pre></blockquote>
+<p>
+基本的には、PyTorch で GPU を使う際にはほとんど何もする必要がない。
+何か複雑な計算を行う直前に Tensor を <code>.to('cuda')</code> で GPUに転送しておき、
+計算が終わったらその結果を <code>.to('cpu')</code> で受け取ればよいのである。
+GPU内での演算は内部で CUDA用のコードが自動的に生成・実行されるが、
+ユーザはそのことを気にする必要がない。
+
+<div class=exercise id="ex6-5">
+<div class=header>演習6-5. CUDA を使ってテンソルを計算する (CUDA が使用可能な環境のみ)</div>
+<p>
+以下のプログラムを実行し、表示された時間を観察せよ。
+つぎに <code><mark>.to('cuda')</mark></code> の部分を
+はずして CPU 上で実行し、GPU と比べて何倍の時間がかかったかを調べよ。
+<pre>
+import time
+<span class=comment># timeit: テンソルを二乗し、計算にかかった時間を表示する。</span>
+def timeit(x):
+    t0 = time.time()
+    x = torch.mm(x, x)
+    dt = time.time() - t0
+    print(dt)
+    return dt
+
+<span class=comment># 100×100のランダムな行列を二乗する。</span>
+x = torch.rand(100,100)<mark>.to('cuda')</mark>
+timeit(x)
+<span class=comment># 10000×10000のランダムな行列を二乗する。</span>
+x = torch.rand(10000,10000)<mark>.to('cuda')</mark>
+timeit(x)
+</pre>
+</div>
+
+<h3 id="pytorch-learn">2.5. PyTorch における学習の流れ</h3>
+<p>
+以上をふまえて、PyTorch におけるニューラルネットワーク学習の
+おおまかな流れを説明する。はじめに、これまで実装してきた
+ニューラルネットワークと PyTorch の実装は若干異なっている:
+
+<ol type=a>
+<li> PyTorch では「レイヤー」 (PyTorchではModuleと呼ばれる) を
+  もっと細かく分ける。たとえば、完全接続されたノードの入力に
+  重みをつけて足す部分と、(シグモイドやReLUなどの) 活性化関数、
+  max pooling処理などはそれぞれ別々の「レイヤー」として定義されている。
+  (こうしておくと、個々のレイヤーを組み合わせることで柔軟に
+  ニューラルネットワークを構築できるためである。)
+<li> PyTorch では、ニューラルネットワークへの入力・出力は
+  1個1個の訓練データではなく、<strong>ミニバッチ全体</strong>である。
+  これは先に述べた CPU-GPU 間の通信を最小限にするためである。
+<li> PyTorch では、ネットワークの重み・バイアスを更新するときに
+  直接変更せず、<u>最適化器</u> (optimizer) という特別な
+  オブジェクトを経由しておこなう。
+  これは、重み・バイアスの更新に単純な確率的勾配降下法 (SGD) 以外の
+  より優れた方式を使えるようにするためである。
+  (詳細は <a href="#mnist-adam">3.4. Adam最適化器を使う</a> を参照)
+</ol>
+
+<p>
+PyTorch による学習の流れを図示すると、以下のようになる:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="400" height="190">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <rect x="5" y="55" width="60" height="30" />
+  <rect x="125" y="50" width="50" height="40" />
+  <ellipse cx="150" cy="70" rx="40" ry="30" />
+  <ellipse cx="265" cy="70" rx="35" ry="25" />
+  <rect x="345" y="55" width="50" height="30" />
+  <ellipse cx="150" cy="160" rx="40" ry="25" />
+</g>
+<g fill="none" stroke="black" stroke-width="3" marker-end="url(#arrow)">
+  <path d="M65,75 l40,0" />
+  <path d="M190,70 l35,0" />
+  <path d="M300,70 l40,0" />
+  <path d="M370,85 l0,75 l-175,0" />
+  <path d="M150,135 l0,-30" />
+  <path d="M65,65 l30,0 l0,-50 l170,0 l0,25" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="35" y="70" dy="0.5em">ミニバッチ</text>
+  <text x="150" y="30" dy="0.5em">レイヤー</text>
+  <text x="150" y="70" dy="0.0em">重み・</text>
+  <text x="150" y="70" dy="1.1em">バイアス</text>
+  <text x="265" y="70" dy="0.5em">損失関数</text>
+  <text x="370" y="70" dy="0.5em">損失</text>
+  <text x="150" y="160" dy="0.5em">最適化器</text>
+  <text x="85" y="85" dy="0.5em">入力</text>
+  <text x="210" y="80" dy="0.5em">出力</text>
+  <text x="285" y="30" dy="0.5em">正解</text>
+  <text x="170" y="120" dy="0.5em">更新</text>
+  <text x="300" y="145" dy="0.5em">勾配 (.grad)</text>
+</g>
+</svg><br>
+PyTorch による学習の流れ
+</div>
+
+<p>
+実際のコードは以下のようになっている:
+<blockquote><pre>
+<span class=comment># ニューラルネットワークを定義する。</span>
+model = ...
+<span class=comment># ニューラルネットワークを訓練モードにする。</span>
+model.train()
+<span class=comment># ミニバッチごとの訓練データを用意する。</span>
+minibatches = [ ... ]
+<span class=comment># 最適化器と学習率を定義する。</span>
+optimizer = <mark>optim.SGD</mark>(model.parameters(), lr=<mark>0.01</mark>)
+<span class=comment># 各ミニバッチを処理する。</span>
+for (inputs, targets) in minibatches:
+    <span class=comment># すべての勾配(.grad)をクリアしておく。</span>
+    optimizer.zero_grad()
+    <span class=comment># 与えられたミニバッチをニューラルネットワークに処理させる。</span>
+    output = model(inputs)
+    <span class=comment># 損失を計算する。</span>
+    loss = <mark>F.mse_loss</mark>(output, targets)
+    <span class=comment># 勾配を計算する。</span>
+    loss.backward()
+    <span class=comment># 重み・バイアスを更新する。</span>
+    optimizer.step()
+</pre></blockquote>
+<p>
+PyTorch のコードは大抵どれもこのパターンに従っている。
+違うのは最適化器と学習率および損失関数で、
+上の例ではそれぞれ最適化器として <code><mark>optim.SGD</mark></code> (普通の確率的勾配降下法)、
+学習率 <code><mark>0.01</mark></code>、
+そして損失関数として <code><mark>F.mse_loss</mark></code> を使っている。
+(PyTorchでは、ニューラルネットワーク用の関数は
+すべて <code>F.</code> という名前空間で定義される慣例になっている。)
+
+<h2 id="mnist-pytorch">3. PyTorch を使った MNIST の実装</h2>
+<p>
+では前章で NumPy を使って実装した MNIST を、
+今回は PyTorch を使って実装してみよう。
+<p>
+まず、ニューラルネットワークを定義する部分である:
+<div class=file>
+mnist_dl.py
+<pre>
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+
+<span class=comment># MNISTを処理するニューラルネットワーク。</span>
+class MNISTNet(nn.Module):
+
+    <span class=comment># 各レイヤーの初期化。</span>
+    def __init__(self):
+        nn.Module.__init__(self)
+        <span class=comment># 畳み込み: 入力1チャンネル、出力10チャンネル、カーネル3×3。</span>
+        self.conv1 = nn.Conv2d(1, 10, 3)
+        <span class=comment># Max Pooling: 1/2に縮める。</span>
+        self.pool1 = nn.MaxPool2d(2)
+        <span class=comment># 畳み込み: 入力10チャンネル、出力20チャンネル、カーネル3×3。</span>
+        self.conv2 = nn.Conv2d(10, 20, 3)
+        <span class=comment># Max Pooling: 1/2に縮める。</span>
+        self.pool2 = nn.MaxPool2d(2)
+        <span class=comment># 全接続 (fully connected): 入力500ノード、出力10ノード。</span>
+        self.fc1 = nn.Linear(20*5*5, 10)
+        return
+
+    <span class=comment># 与えらえたミニバッチ x を処理する。</span>
+    def forward(self, x):
+        <span class=comment># x: (N × 1 × 28 × 28)</span>
+        x = self.conv1(x)
+        x = F.relu(x)
+        <span class=comment># x: (N × 10 × 26 × 26)</span>
+        x = self.pool1(x)
+        <span class=comment># x: (N × 10 × 13 × 13)</span>
+        x = self.conv2(x)
+        x = F.relu(x)
+        <span class=comment># x: (N × 20 × 11 × 11)</span>
+        x = self.pool2(x)
+        <span class=comment># x: (N × 20 × 5 × 5)</span>
+        x = x.reshape(len(x), 20*5*5)
+        <span class=comment># x: (N × 500)</span>
+        x = self.fc1(x)
+        <span class=comment># x: (N × 10)</span>
+        return x
+
+<span class=comment># 実際のオブジェクトを作成。</span>
+model = MNISTNet()
+</pre>
+</div>
+
+<p>
+まず、PyTorch におけるニューラルネットワークは、すべて
+<code>nn.Module</code> の派生クラスとして定義する。
+この中で各レイヤーの初期化をおこなう <code>__init__()</code> メソッドと、
+入力から出力までの処理をおこなう <code>forward()</code> メソッドを実装している。
+以下、順に見ていこう。
+<p>
+<code>__init__()</code> メソッドでは、 <code>nn.Conv2d</code>,
+<code>nn.MaxPool2d</code> などのオブジェクトを作成している。
+PyTorch では、これらは最初からニューラルネットワークの構成レイヤーとして
+利用可能である:
+<ul>
+<li> <code>nn.Linear(<em>入力ノード数</em>, <em>出力ノード数</em>)</code>
+… 全接続レイヤーを作成する。
+<li> <code>nn.Conv2d(<em>入力チャンネル数</em>, <em>出力チャンネル数</em>, <em>カーネル幅</em>)</code>
+… 畳み込みレイヤーを作成する。
+<li> <code>nn.MaxPool2d(<em>カーネル幅</em>)</code>
+… Max poolingレイヤーを作成する。カーネル幅は縮小率を表す。
+</ul>
+<p>
+<code>nn.Linear</code> および <code>nn.Conv2d</code> オブジェクトはどちらも
+内部に重み・バイアスを保持しており、これらはオブジェクト作成時に
+ランダムに初期化されている。
+<p>
+次の <code>forward()</code> メソッドは、
+前に NumPy などで実装した <code>forward()</code> メソッドとほぼ同じである。
+入力値として <code>Tensor</code>オブジェクトの <code>x</code> が与えられ、
+それを各レイヤーに通して最終的な出力テンソルを返す。
+PyTorch では、各レイヤーは「関数呼び出しのように」利用する流儀になっている:
+<blockquote><pre>
+x = self.conv1(x)          <span class=comment># 正しい</span>
+x = self.conv1.forward(x)  <span class=err># 間違い</span>
+</pre></blockquote>
+上の例で使われている
+<code>F.relu()</code> は ReLU 関数である。
+最後のレイヤー <code>fc1</code> のあとでは活性化関数を適用していないが、
+PyTorch では慣例により、最終レイヤーの活性化関数は
+<code>forward()</code> の外側で適用することになっている。
+<p>
+PyTorch では、<code>nn.Module</code> の派生クラス
+(<code>nn.Linear</code> や <code>nn.Conv2d</code> も含む) はすべて
+<code>forward()</code> メソッドを持っているが、これらを直接呼び出すことはなく、
+つねに関数呼び出しのように利用する
+(これは Python における <code>__call__</code> メソッドを使っている)。
+<code>MNISTNet</code> オブジェクト自身も <code>nn.Module</code> の派生クラスなので、
+<code>forward()</code> メソッドを直接呼び出すことはなく、関数呼び出しのように利用する:
+<blockquote><pre>
+<span class=comment># ニューラルネットワークを定義する。</span>
+model = MNISTNet()
+<span class=comment># ニューラルネットワークを使用する。(x: 入力テンソル)</span>
+x = model(x)
+</pre></blockquote>
+<p>
+つまり PyTorch におけるニューラルネットワークは、
+入れ子になった <code>nn.Module</code>クラス (の派生クラス) と考えることができる:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="160" height="180">
+<g fill="none" stroke="black" stroke-width="2">
+  <rect x="10" y="10" width="140" height="160" />
+  <rect x="20" y="30" width="120" height="60" />
+  <rect x="30" y="50" width="100" height="30" />
+  <rect x="20" y="100" width="120" height="40" />
+</g>
+<g style="font-family: courier; font-weight: bold; font-size: 80%;">
+  <text x="15" y="15" dy="0.5em">nn.Module</text>
+  <text x="25" y="35" dy="0.5em">nn.Module</text>
+  <text x="35" y="55" dy="0.5em">nn.Module</text>
+  <text x="25" y="105" dy="0.5em">nn.Module</text>
+  <text transform="translate(80,140) rotate(90)" dy="0.5em">...</text>
+</g>
+</svg><br>
+PyTorch におけるニューラルネットワークの構造
+</div>
+<p>
+なお、ここで作成した <code>MNISTNet</code> インスタンスを表示すると、
+内部の構造を実際に見ることができる:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>print(model)</strong>
+MNISTNet(
+  (conv1): Conv2d(1, 10, kernel_size=(3, 3), stride=(1, 1))
+  (pool1): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+  (conv2): Conv2d(10, 20, kernel_size=(3, 3), stride=(1, 1))
+  (pool2): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+  (fc1): Linear(in_features=500, out_features=10, bias=True)
+)
+</pre></blockquote>
+
+<p>
+では、実際にこのモデルを使って学習をおこなってみる。
+以下のコードは、<a href="#pytorch-learn">2.5 節</a>で示したものとほとんど同じである:
+<div class=file>
+mnist_dl.py (続き)
+<pre>
+<span class=comment># ミニバッチごとの訓練データを用意する。</span>
+train_images = splitarray3d(32, load_mnist('train-images-idx3-ubyte.gz'))
+train_labels = splitarray1d(32, load_mnist('train-labels-idx1-ubyte.gz'))
+<span class=comment># ニューラルネットワークを訓練モードにする。</span>
+model.train()
+<span class=comment># 最適化器と学習率を定義する。</span>
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+n = 0
+<span class=comment># 各ミニバッチを処理する。</span>
+for (images,labels) in zip(train_images, train_labels):
+    images = images.reshape(len(images), 1, 28, 28)
+    <span class=comment># 入力をfloat型のテンソルに変換。</span>
+    inputs = torch.tensor(images).float()
+    <span class=comment># 正解をlong型のテンソルに変換。</span>
+    targets = torch.tensor(labels).long()
+    <span class=comment># すべての勾配(.grad)をクリアしておく。</span>
+    optimizer.zero_grad()
+    <span class=comment># 与えられたミニバッチをニューラルネットワークに処理させる。</span>
+    output = model(inputs)
+    <span class=comment># 損失を計算する。</span>
+    loss = <mark>F.cross_entropy</mark>(output, labels)
+    <span class=comment># 勾配を計算する。</span>
+    loss.backward()
+    <span class=comment># 重み・バイアスを更新する。</span>
+    optimizer.step()
+    n += len(images)
+    print(n, loss.item())
+</pre>
+</div>
+<p>
+上のコードで使っている <code>F.cross_entropy()</code> という関数は
+交差エントロピー誤差を計算するもので、実際には
+<blockquote><pre>
+loss = F.nll_loss(F.log_softmax(output, dim=1), labels)
+</pre></blockquote>
+と等価である
+(<code>F.log_softmax()</code> の最後に <code>dim=1</code> という
+部分があるが、これは入力が (N×10) の2次元配列なので、
+2番目の次元に対して LogSoftmax 関数を適用せよという意味である。)
+<p>
+また、訓練データをミニバッチごとに区切るため
+<code>splitarray3d()</code> と <code>splitarray1d()</code> という関数を使っている:
+
+<div class=file>
+mnist_dl.py (続き)
+<pre>
+<span class=comment># splitarray1d: 与えられて1次元配列をn要素ごとに区切る。</span>
+def splitarray1d(n, a):
+    for i in range(0, len(a), n):
+        yield np.array(a[i:i+n])
+    return
+
+<span class=comment># splitarray3d: 与えられて3次元配列をn要素ごとに区切る。</span>
+def splitarray3d(n, a):
+    for i in range(0, len(a), n):
+        yield np.array(a[i:i+n,:,:])
+    return
+</pre>
+</div>
+
+<p>
+訓練したニューラルネットワークを評価するには、
+以下のようにする。ここでもミニバッチごとに評価している以外は、
+以前のコードとほどんど変わっていない。
+<div class=file>
+mnist_dl.py (続き)
+<pre>
+<span class=comment># ミニバッチごとのテストデータを用意する。</span>
+test_images = splitarray3d(32, load_mnist('t10k-images-idx3-ubyte.gz'))
+test_labels = splitarray1d(32, load_mnist('t10k-labels-idx1-ubyte.gz'))
+<span class=comment># ニューラルネットワークを評価モードにする。</span>
+model.eval()
+correct = 0
+for (images,labels) in zip(test_images, test_labels):
+    images = images.reshape(len(images), 1, 28, 28)
+    <span class=comment># 入力をfloat型のテンソルに変換。</span>
+    inputs = torch.tensor(images).float()
+    <span class=comment># 与えられたミニバッチをニューラルネットワークに処理させる。</span>
+    outputs = model(inputs)
+    <span class=comment># 正解かどうかを判定する。</span>
+    for (y,label) in zip(outputs, labels):
+        i = torch.argmax(y)
+        if i == label:
+            correct += 1
+print(correct)
+</pre>
+</div>
+<p>
+上のコード中に「ニューラルネットワークを訓練モードに」
+<code>model.train()</code>
+「評価モードに」
+<code>model.eval()</code>
+という部分があるが、これは PyTorch における
+一部のレイヤー (後で説明する BatchNorm など) の挙動が
+訓練時と推論時で変わるためである。
+とりあえず、これは PyTorch を使ううえでの
+慣例であると覚えておけばよい。
+
+<div class=exercise id="ex6-6">
+<div class=header>演習6-6. PyTorch を使った MNIST の実装</div>
+<p>
+上のコード <code>mnist_dl.py</code> を実際に動かし、
+実行時間を計測せよ。
+</div>
+
+<p>
+PyTorch を使うと、(たとえ GPU を使わずとも)
+NumPy よりもずっと高速に処理できることがわかる。
+これはフレームワーク全体がニューラルネットワークの処理のみに
+特化されているためである。
+
+<h3 id="mnist-save">3.1. 学習したネットワークを保存・読み込む</h3>
+<p>
+PyTorch には、他にもニューラルネットワークの実験用に
+便利な機能がいろいろ用意されている。そのうちのひとつが
+学習したモデル (重み・バイアス) のファイルへの保存機能である。
+NumPy を使った例では、訓練したニューラルネットワークの
+重み・バイアスはメモリ上にある状態のままで使っていたが、
+実際にはこれをファイルに保存しておき、あとで読み込みたい。
+PyTorch ではこれを以下のように簡単に行うことができる:
+
+<h4>モデルを保存する:</h4>
+<blockquote><pre>
+model = MNISTNet()
+<span class=comment># ニューラルネットワークを訓練する。</span>
+model.train()
+...
+<span class=comment># 訓練した重み・バイアスをファイルに保存する。</span>
+torch.save(model.state_dict(), '<mark>model.pt</mark>')
+</pre></blockquote>
+
+<h4>保存したモデルを読み込む:</h4>
+<blockquote><pre>
+model = MNISTNet()
+<span class=comment># 保存しておいた重み・バイアスを読み込む。</span>
+model.load_state_dict(torch.load('<mark>model.pt</mark>'))
+<span class=comment># ニューラルネットワークを使用する。</span>
+model.eval()
+...
+</pre></blockquote>
+
+<p>
+ここで <code>model.state_dict()</code> メソッドは、
+<code>MNISTNet</code> クラス内部で定義されている
+各レイヤー (<code>nn.Conv2d</code>、<code>nn.Linear</code>) の
+重み・バイアスを再帰的に列挙し、
+ひとつの巨大な Python 辞書として返すものである。
+<code>nn.Module</code>クラス (ここでは <code>MNISTNet</code> クラス) および
+
+<code>model.load_state_dict()</code> メソッドはその逆で、
+Python 辞書として与えられた重み・バイアスを <code>Module</code>クラス中の
+各レイヤーに設定する。
+これらのメソッドは Pythonのリフレクション機能を利用しているため、
+トップレベルの <code>Module</code>クラスのみに適用すれば
+再帰的に内部の <code>Module</code>クラスも処理されるようになっている。
+<p>
+なお、<a href="#pytorch-learn">2.5 節</a>で使われていた
+<code>model.parameters()</code> も
+類似の仕組みで作られており、これは <code>Module</code>クラス内で
+使われている重み・バイアスを列挙し、一括して
+<code>optimizer</code>オブジェクトに渡せるようになっている。
+
+<h3 id="mnist-gpu">3.2. GPUを使って計算させる</h3>
+<p>
+さて、これまで説明してきた方法はすべて CPU を使ったものであった。
+PyTorch では、計算に使うテンソルが GPU 上にあれば GPU 上で計算が行われる。
+そのため、以上のコードを GPU に対応させるのは容易である。
+具体的には、以下のステップを踏めさえすればよい:
+<ol>
+<li> ニューラルネットワークの重み・バイアスを GPU に転送する:
+<pre>
+<span class=prev># model = MNISTNet()</span>
+model = MNISTNet()<mark>.to('cuda')</mark>
+</pre>
+<li> 入力する各ミニバッチ (inputs) を GPU に転送する。
+<pre>
+<mark>inputs = inputs.to('cuda')</mark>
+</pre>
+<li> GPU 内で演算を実行する。
+<pre>
+outputs = model(inputs)
+</pre>
+<li> 出力結果 (outputs) を CPU に転送する。
+<pre>
+<mark>outputs = outputs.to('cpu')</mark>
+</pre>
+</ol>
+
+<div class=exercise id="ex6-7">
+<div class=header>演習6-7. MNIST を GPU上で動かす</div>
+<p>
+<code>mnist_dl.py</code> が GPU 上で動くように変更せよ。
+</div>
+
+<h3 id="mnist-dataset">3.3. DatasetクラスとDataLoaderクラスを使う</h3>
+<p>
+ここで、PyTorch でよく使われる
+<code>Dataset</code> クラスと <code>DataLoader</code> クラスについて、
+簡単に説明しておく。ミニバッチを使った学習では、訓練データが
+ミニバッチ中になるべくランダムな順序で現れるようにする必要があるが、
+これら 2つのクラスを使うと、訓練データを簡単にミニバッチに区切ったり、
+シャッフルしたりすることができる。
+<p>
+まず、<code>Dataset</code>クラスを継承して <code>MNISTDataset</code> を定義する。
+ここでは <code>__len__()</code> と <code>__getitem__()</code> という
+2つのメソッドのみを定義しておく。Python ではこれらのメソッドを上書きすることで、
+そのオブジェクトを配列のように扱うことができる:
+<blockquote><pre>
+from torch.utils.data import Dataset, DataLoader
+
+<span class=comment>##  MNISTDataset</span>
+<span class=comment>##  指定されたファイルから入力と正解を読み込む。</span>
+<span class=comment>##</span>
+class MNISTDataset(Dataset):
+
+    def __init__(self, images_path, labels_path):
+        <span class=comment># データセットを初期化する。</span>
+        Dataset.__init__(self)
+        self.images = load_mnist(images_path)
+        self.labels = load_mnist(labels_path)
+        return
+
+    def __len__(self):
+        <span class=comment># データの個数を返す。</span>
+        return len(self.images)
+
+    def __getitem__(self, i):
+        <span class=comment># i番目の (入力, 正解) タプルを返す。</span>
+        return (self.images[i], self.labels[i])
+
+<span class=comment># 実際のオブジェクトを作成。</span>
+dataset = MNISTDataset('t10k-images-idx3-ubyte.gz', 't10k-labels-idx1-ubyte.gz')
+print(len(dataset))  <span class=comment># データの個数を返す。</span>
+print(dataset[0])    <span class=comment># 0番目の (入力, 正解) タプルを返す。</span>
+</pre></blockquote>
+<p>
+上のようなクラスを定義しておくと、これに対して
+<code>DataLoader</code>クラスを使うことができる。
+<code>DataLoader</code> クラスは <code>Dataset</code> が提供する
+各データをシャッフルし、ミニバッチごとに返す。
+あとはこれを使って訓練すればよい:
+<blockquote><pre>
+<span class=comment># バッチサイズ32 でデータを利用する。</span>
+loader = DataLoader(dataset, batch_size=32)
+for (images, labels) in loader:
+    <span class=comment># images: 32個の入力画像</span>
+    <span class=comment># labels: 32個の正解ラベル</span>
+    ...
+</pre></blockquote>
+
+<h3 id="mnist-adam">3.4. Adam最適化器を使う</h3>
+<p>
+PyTorch でもうひとつの便利な機能として、Adam最適化器が
+利用可能なことがあげられる。Adam は従来の単純な勾配降下法 (SGD) を
+改良した方法で、SGD に比べてより早く収束する (重み・バイアスが学習できる)
+ことが知られている。
+<p>
+Adam の簡単な原理は次のとおりである。従来の SGD では、
+勾配の各成分に決まった学習率 (alpha) を掛けて重み・バイアスを調整していた:
+<blockquote><pre>
+<span class=comment># 単純なSGD</span>
+w1 -= alpha * dw1
+w2 -= alpha * dw2
+w3 -= alpha * dw3
+...
+</pre></blockquote>
+<p>
+Adam では、これに以下のような改良が加えられている (詳細は省略):
+<ol type=i>
+<li> すべての勾配で同一の学習率を使うのではなく、各成分によって学習率を変える (RMSProp)。
+<li> 学習率に「勢い」を持たせ、現在の状態に応じて最適な速度を調整する (Momentum)。
+</ol>
+<p>
+PyTorch で SGD の代わりに Adam を使うには、
+次の1行を書き換えるだけでよい:
+<blockquote><pre>
+<span class=comment># 最適化器と学習率を定義する。</span>
+<span class=prev># optimizer = optim.SGD(model.parameters(), lr=0.01)</span>
+optimizer = <mark>optim.Adam</mark>(model.parameters(), lr=0.01)
+</pre></blockquote>
+
+<h3 id="mnist-full">3.5. いっさいがっさいをまとめる</h3>
+<p>
+以上で説明してきた PyTorch によるニューラルネットワークの構築、
+モデルの保存・読み込み、GPU の利用などをすべてまとめ、
+MNIST を PyTorch で実験をおこなうさいの典型的な形式にしたものが
+<a href="../src/mnist_torch.py">mnist_torch.py</a> である。
+これは、今後いろいろなモデルを使って機械学習の実験をおこなうための
+雛形として利用することができる。
+<p>
+<code>mnist_torch.py</code> の構成は以下のようになっている:
+
+<blockquote><pre>
+<span class=comment># 必要なモジュールのインポート</span>
+import torch
+...
+<span class=comment># Datasetの定義</span>
+class MNISTDataset(Dataset):
+    ...
+<span class=comment># モデルの定義</span>
+class MNISTNet(nn.Module):
+    ...
+<span class=comment># train: 1エポック分の訓練をおこなう関数。</span>
+def train(model, device, loader, optimizer, ...):
+    ...
+<span class=comment># test: テストをおこなう関数。</span>
+def test(model, device, loader):
+    ...
+<span class=comment># main: 最初に実行される関数。</span>
+def main():
+    ...
+if __name__ == '__main__': main()
+</pre></blockquote>
+<p>
+<code>main()</code> 関数は、<code>argparse</code>モジュールを
+使ってコマンドライン引数を解析する。コマンドラインの書き方は
+多くの PyTorch用のプログラムで共通しており、
+以下のような書式になっている
+(この説明は <code>-h</code> オプションを与えると表示される):
+<blockquote><pre>
+usage: mnist_torch.py
+    [-h] [--verbose] [--batch-size N] [--test-batch-size N]
+    [--no-shuffle] [--epochs N] [--lr LR] [--seed S]
+    [--no-cuda] [--dry-run] [--log-interval N]
+    [--save-model path]
+    datadir
+</pre></blockquote>
+<p>
+最後の引数 <code>datadir</code> は必須で、
+ここには MNIST のデータ (<code>train-images-idx3-ubyte.gz</code> および
+<code>train-labels-idx1-ubyte.gz</code>) が入っている
+ディレクトリのパスを指定する。それ以外のオプションの説明は
+以下のとおりである:
+<table border align=center><tr>
+<th>オプション</th><th>説明</th>
+</tr><tr>
+<td><code>--verbose</code></td>
+<td>詳細なログを表示する。</td>
+</tr><tr>
+<td><code>--batch-size <em>n</em></code></td>
+<td>訓練時のバッチサイズを指定する。(デフォルト: 32個)</td>
+</tr><tr>
+<td><code>--test-batch-size <em>n</em></code></td>
+<td>テスト時のバッチサイズを指定する。(デフォルト: 1000個)</td>
+</tr><tr>
+<td><code>--no-shuffle</code></td>
+<td>訓練データをシャッフルしない。</td>
+</tr><tr>
+<td><code>--epochs <em>N</em></code></td>
+<td>訓練時のエポック数を指定する。(デフォルト: 10回)</td>
+</tr><tr>
+<td><code>--lr <em>rate</em></code></td>
+<td>学習率を指定する。(デフォルト: 0.01)</td>
+</tr><tr>
+<td><code>--seed <em>seed</em></code></td>
+<td>乱数のシードを指定する。(デフォルト: 1)</td>
+</tr><tr>
+<td><code>--no-cuda</code></td>
+<td>GPUがある場合でもCUDAを使用しない。</td>
+</tr><tr>
+<td><code>--dry-run</code></td>
+<td>デバッグ用に1バッチのみ実行する。</td>
+</tr><tr>
+<td><code>--log-interval <em>n</em></code></td>
+<td>進捗状況を表示する間隔。(デフォルト: 10バッチごと)</td>
+</tr><tr>
+<td><code>--save-model <em>path</em></code></td>
+<td>モデルを保存・読み込むパス名。(デフォルト: なし)</td>
+</tr></table>
+<p>
+<code>--verbose</code> や <code>--no-cuda</code>、
+<code>--dry-run</code> などのオプションは、プログラムの
+デバッグ時に用いる。それ以外のオプションは条件をあれこれ変えて
+実験したいときに利用する。たとえば、訓練データ・テストデータが
+<code>./MNIST</code> ディレクトリに入っているとして、学習率 0.005 で
+100エポックの訓練をおこない、完了時のモデルを <code>mnist_net.pt</code>
+というファイルに保存したい場合は、以下のようにする:
+<blockquote><pre>
+$ <strong>python mnist_torch.py --lr=<mark>0.005</mark> --epochs=<mark>100</mark> --save-model=<mark>mnist_net.pt</mark> <mark>./MNIST</mark></strong>
+</pre></blockquote>
+
+<div class=exercise id="ex6-8">
+<div class=header>演習6-8. CIFAR-10 を PyTorch で実装する</div>
+<p>
+<code>mnist_torch.py</code> のコードを参考に、
+CIFAR-10 を PyTorch 上で実装せよ。
+</div>
+
+
+<h2 id="summary">4. まとめ</h2>
+<ul>
+<li> <nobr><span class=bl>GPU</span></nobr> は並列演算をおこなうハードウェアであり、
+  ニューラルネットワークの計算に向いている。
+<li> GPU は CPU とは独立した<nobr><span class=bl>メモリ</span></nobr>を持っており、
+  計算に必要なプログラムとデータをそのつど CPU から転送しなければならない。
+<li> <nobr><span class=bl>PyTorch</span></nobr> はニューラルネットワークの実装に適した
+Pythonのフレームワークである。
+<li> PyTorch では<code>nn.<nobr><span class=bl>Linear</span></nobr></code>レイヤーや
+  <code>nn.<nobr><span class=bl>Conv2d</span></nobr></code>レイヤー、活性化関数などを
+  組み合わせてニューラルネットワークを構築する。
+<li> PyTorch には計算結果の<nobr><span class=bl>微分</span></nobr>を自動的に計算する <u>autograd</u>機能があり、
+  この機能を使うとニューラルネットワークの実装に必要な労力を
+  大幅に軽減できる。
+<li> PyTorch の多次元配列である <nobr><span class=bl>Tensor</span></nobr>型は
+  NumPy の ndarray型に似ているが、GPU上で計算することができる。
+<li> PyTorch では、CPU-GPU 間の通信を最小限にするため
+  <nobr><span class=bl>ミニバッチ</span></nobr>全体を一度に転送し、計算する。
+</ul>
+
+
+<hr>
+<div class=license>
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="クリエイティブ・コモンズ・ライセンス" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />この作品は、<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">クリエイティブ・コモンズ 表示 - 継承 4.0 国際 ライセンス</a>の下に提供されています。
+</div>
+<address>Yusuke Shinyama</address>

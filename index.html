@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="common.css" />
+<title>真面目なプログラマのためのディープラーニング入門</title>
+<style><!--
+.author { text-align: right; }
+--></style>
+<body>
+<h1 style="display: flex; align-items: center;">
+<div style="padding-right: 1em;">
+真面目なプログラマのための<Br>ディープラーニング入門
+</div>
+<div>
+<img src="dl.png" width="130" height="184">
+</div>
+</h1>
+<div class=author>
+新山 祐介
+</div>
+
+<dl>
+<dt> はじめに:
+<dd>
+本講座は「機械学習ってなんか面倒くさそう」と感じている
+プログラマのためのものである。本講座では
+「<strong>そもそも機械が『学習する』とはどういうことか?</strong>」
+「<strong>なぜニューラルネットワークで学習できるのか?</strong>」といった
+根本的な疑問に答えることから始める。
+そのうえで「<strong>ニューラルネットワークでどのようなことが学習できるのか?</strong>」
+という疑問に対する具体例として、物体認識や奥行き認識などの問題を扱う。
+最終的には、機械学習のブラックボックス性を解消し、所詮は
+ニューラルネットワークもただのソフトウェアであり、
+固有の長所と短所をもっていることを学ぶことが目的である。
+なお、この講座では機械学習のソフトウェア的な原理を中心に説明しており、
+理論的・数学的な基礎はそれほど厳密には説明しない。
+使用環境は Python + PyTorch を使っているが、一度原理を理解してしまえば
+環境や使用言語が変わってもそれほど混乱しないはずである。
+<p>
+てっとり早く概要が知りたい人は、<a href="summary.html">本講座の超要約</a>を参照のこと。
+<dt> 受講対象者:
+<dd>
+<ul>
+<li> ある程度のプログラミング経験 (C, Java, Pythonなど) がある方。
+<li> 高校数学を理解している方。
+</ul>
+<dt> 達成目標:
+<dd>
+<ul>
+<li> ニューラルネットワークやディープラーニング (深層学習) の原理を理解する。
+<li> 画像処理のためのニューラルネットワークを設計できる。
+<li> 自分の設計したニューラルネットワークを実装できる。
+</ul>
+</dl>
+
+<div class=notice>
+<strong>免責事項:</strong>
+本講座は新山 祐介が個人の興味において制作したものです。
+内容の正確さは保証しません。
+また本サイトは常時更新されており、
+内容は予告なく変更されることがあります。
+</div>
+
+<h2>目次</h2>
+<ol class=spacy>
+<li> <a href="lec1/index.html">プログラマのための Python 入門</a><br>
+  Python にそれほど詳しくない人のため、Python のおもな機能をおさらいする。
+  機械学習に関する話は一切出てこないので、
+  Pythonに習熟している人は読みとばしてもかまわない。
+
+<li> <a href="lec2/index.html">機械が「学習する」とはどういうことか?</a><br>
+  簡単な機械学習アルゴリズム (決定木) の実装をおこない、
+  機械学習の基本的な概念・用語 (特徴量とは何か、
+  訓練データとテストデータの違いは何か、など) を説明する。
+
+<li> <a href="lec3/index.html">なぜニューラルネットワークで学習できるのか?</a><br>
+  ニューラルネットワークの原理と勾配降下法について説明し、
+  Python で簡単なニューラルネットワークを実装する。
+  これが完了した時点で、読者はニューラルネットワークについて
+  明確なイメージが持てているはずである。
+
+<li> <a href="lec4/index.html">ディープラーニングへの入り口: MNIST</a><br>
+  NumPy を使ってニューラルネットワークの実装を効率化し、
+  より多くの入力を扱えるようにする。
+  これを使って画像認識の代表的なタスクである MNIST の学習を実装する。
+
+<li> <a href="lec5/index.html">画像処理に適したニューラルネットワークとは?</a><br>
+  画像認識の性能を上げるための様々なテクニックについて解説する。
+  そのひとつである畳み込みニューラルネットワークを解説し、
+  これを使って MNIST と CIFAR-10 を学習する。
+
+<li> <a href="lec6/index.html">GPU の仕組みと PyTorch 入門</a><br>
+  GPU を使ったディープニューラルネットワークを開発するための準備をおこなう。
+  PyTorch の使い方を説明し、それを使って MNIST を再実装する。
+
+<li> <a href="lec7/index.html">ディープラーニング応用: 物体認識と奥行き推定</a><br>
+  現実的なディープラーニングの問題にチャレンジする。
+  はじめによく知られた画像認識システムである VGG を紹介する。
+  つぎに物体認識 (YOLO) および奥行き推定の原理を説明し、
+  PyTorch を使ってそれを実装する。
+  また、アノテーションツール (VIA) の簡単な使い方についてもふれる。
+
+<li> <a href="lec8/index.html">さらにディープな世界へ: 勾配消失問題と残差ネットワーク (ResNet)</a><br>
+  勾配消失問題と残差ネットワーク (ResNet) を紹介し、
+  PyTorch をさらに活用するためのトピック (転移学習、ONNX形式など) について触れる。
+</ol>
+
+<ul>
+<li> <a href="epilogue.html">おわりに - なぜ機械学習はうさん臭く感じられるのか?</a>
+</ul>
+
+
+<hr>
+<div class=license>
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="クリエイティブ・コモンズ・ライセンス" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />この作品は、<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">クリエイティブ・コモンズ 表示 - 継承 4.0 国際 ライセンス</a>の下に提供されています。
+</div>
+<address>Yusuke Shinyama</address>

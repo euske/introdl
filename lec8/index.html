@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="../common.css" />
+<title>第8回 さらにディープな世界へ: 勾配消失問題と残差ネットワーク (ResNet)
+/ 真面目なプログラマのためのディープラーニング入門</title>
+<style><!--
+--></style>
+<body>
+<div class=nav>
+<a href="../index.html">&lt; もどる</a>
+</div>
+
+<h1>第8回 さらにディープな世界へ: 勾配消失問題と残差ネットワーク (ResNet)</h1>
+
+<ol>
+<li> <a href="#vg">勾配消失問題とは</a>
+<li> <a href="#resnet">残差ネットワークとは</a>
+<ul>
+  <li> <a href="#resnet-50">画像認識の最先端 ResNet</a>
+</ul>
+<li> <a href="#further">PyTorchをさらに活用するために</a>
+<ul>
+  <li> <a href="#torchvision">torchvision を使う</a>
+  <li> <a href="#transfer">転移学習を実装する</a>
+  <li> <a href="#onnx">ONNX形式を使ってモデルを出力する</a>
+</ul>
+<li> <a href="#summary">まとめ</a>
+</ol>
+
+
+<h2 id="vg">1. 勾配消失問題とは</h2>
+<p>
+本講座では、これまで
+「<a href="../lec3/index.html#learn-why">ニューラルネットワークのレイヤーを増やすほど学習能力は上がる</a>」と
+説明してきた。
+しかし当然レイヤーを増やすことによるコストもある。
+とくに顕著なのは、
+「<strong>レイヤーを増やせば増やすほど訓練に時間がかかる</strong>」ということである。
+これには 2つの要因があって:
+<ol type=a>
+  <li> レイヤーを増やすとノードの数が増えるため、ネットワーク全体の計算に時間がかかるようになる。
+  <li> レイヤーを増やすと、最初のほうの (入力に近い) レイヤーの重み・バイアスの変化が<strong>指数的に</strong>遅くなる。
+</ol>
+ためである。
+特に b. の現象を「<u>勾配消失問題</u> (vanishing gradient problem)」という。
+勾配消失問題が起こる原因は、ニューラルネットワークの訓練方法のためである。
+第3回の<a href="../lec3/index.html#learn-bp">誤差逆伝播法</a>を思い出そう。
+ここでは、勾配を計算するため <code>backward()</code> メソッドが
+最終レイヤーから順に呼ばれていた:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="410" height="150">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <rect x="40" y="10" width="60" height="120" />
+  <rect x="140" y="10" width="60" height="120" />
+  <rect x="240" y="10" width="60" height="120" />
+  <path d="M10,40 l50,0" marker-end="url(#arrow)" />
+  <path d="M75,40 l85,0" marker-end="url(#arrow)" />
+  <path d="M175,40 l85,0" marker-end="url(#arrow)" />
+  <path d="M275,40 l115,0" marker-end="url(#arrow)" />
+  <path d="M390,90 l-30,0" marker-end="url(#arrow)" />
+  <path d="M345,90 l-65,0" marker-end="url(#arrow)" />
+  <path d="M265,90 l-85,0" marker-end="url(#arrow)" />
+  <path d="M165,90 l-85,0" marker-end="url(#arrow)" />
+  <circle r="4" cx="70" cy="40" />
+  <circle r="4" cx="170" cy="40" />
+  <circle r="4" cx="270" cy="40" />
+  <circle r="4" cx="70" cy="90" />
+  <circle r="4" cx="170" cy="90" />
+  <circle r="4" cx="270" cy="90" />
+  <circle r="4" cx="350" cy="90" />
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+<text x="30" y="30" dy="0.5em">x</text>
+<text x="120" y="30" dy="0.5em">y</text>
+<text x="220" y="30" dy="0.5em">y</text>
+<text x="400" y="30" dy="0.5em">y</text>
+<text x="400" y="80" dy="0.5em">y0</text>
+<text x="320" y="80" dy="0.5em">delta</text>
+<text x="220" y="80" dy="0.5em">delta</text>
+<text x="120" y="80" dy="0.5em">delta</text>
+<text x="70" y="50" dy="0.5em">forward</text>
+<text x="170" y="50" dy="0.5em">forward</text>
+<text x="270" y="50" dy="0.5em">forward</text>
+<text x="70" y="100" dy="0.5em">backward</text>
+<text x="170" y="100" dy="0.5em">backward</text>
+<text x="270" y="100" dy="0.5em">backward</text>
+<text x="350" y="100" dy="0.5em">mse_loss</text>
+<text x="70" y="140" dy="0.5em">レイヤー1</text>
+<text x="170" y="140" dy="0.5em">レイヤー2</text>
+<text x="270" y="140" dy="0.5em">レイヤー3</text>
+</g>
+</svg>
+</div>
+<p>
+そして実際の <code>backward()</code> メソッドは次のようになっている
+(読みやすさのため、<a href="../lec4/index.html#nn-numpy">NumPy で書かれたバージョン</a> を使っている):
+<blockquote><pre>
+    def backward(self, <mark>delta</mark>):
+        <span class=comment># self.y が計算されたときのシグモイド関数の微分を求める。</span>
+        ds = d_sigmoid(self.y)
+        <span class=comment># 各偏微分を計算する。</span>
+        self.dw += (<mark>delta</mark> * ds).reshape(self.nout, 1) * self.x
+        self.db += <mark>delta</mark> * ds
+        <span class=comment># 各入力値の微分を求める。</span>
+        dx = np.dot(<mark>delta</mark> * ds, self.w)
+        return dx
+</blockquote></pre>
+<p>
+各ノードにおける重み・バイアスの変化 (<code>self.dw</code>、<code>self.db</code>)
+は、どちらも引数 <code>delta</code> に依存している。
+さらに <code>delta</code> の値は、最終レイヤーから最初のレイヤーへと
+渡されていくことを思い出してほしい。
+活性化関数にシグモイド関数を使っている場合、ここでの
+各ノードへの入力 <code>x</code> および微分 <code>ds</code> はどちらも
+1 以下なので、<code>delta</code> の値はレイヤーが戻るたびに減衰していく。
+これが最初のレイヤーに到達するころには、 <code>delta</code> は
+最終レイヤーの <code>delta</code> よりもずっと小さくなってしまう
+(消失してしまう)。
+
+<div class=exercise id="ex8-1">
+<div class=header>演習8-1. 勾配消失問題を実際に観察する</div>
+<p>
+第4回の<a href="../lec4/index.html#ex4-7">演習4-7.</a>のコードを変更した以下のプログラムを実行せよ。
+このコードはN個の中間レイヤー (+ Softmax レイヤー) を使って、
+MNIST の学習をおこなうものである。
+ミニバッチごとに、各レイヤーの重みの変化 (dw) の大きさを表示する。
+中間レイヤーの数 N を増やし、N が増えると各レイヤーの変化率が
+どのように異なっていくか観察せよ。
+<blockquote><pre>
+<span class=comment># 訓練データの画像・ラベルを読み込む (パス名は適宜変更)。</span>
+train_images = load_mnist('train-images-idx3-ubyte.gz')
+train_labels = load_mnist('train-labels-idx1-ubyte.gz')
+<span class=comment># レイヤーをリストで管理する。</span>
+layers = [Layer(784, 100)]  <span class=comment># 最初のレイヤー</span>
+<span class=comment># N個の中間レイヤーを作成。</span>
+N = <mark>2</mark>
+for _ in range(N):
+    layers.append(Layer(100, 100))
+softmax = SoftmaxLayer(100, 10)
+n = 0
+for i in range(1):
+    for (image,label) in zip(train_images, train_labels):
+        x = (image/255).reshape(784)
+        ya = np.zeros(10)
+        ya[label] = 1
+        <span class=comment># 各レイヤーに入力を与える。</span>
+        for layer in layers:
+            x = layer.forward(x)
+        y = softmax.forward(x)
+        delta = softmax.cross_entropy_loss_backward(ya)
+        <span class=comment># 逆順で勾配を与える。</span>
+        for layer in reversed(layers):
+            delta = layer.backward(delta)
+        n += 1
+        if (n % 50 == 0):
+            <span class=comment># 各レイヤーの重み変化 (dw) の平均的な大きさを計算する。</span>
+            grads = [ np.sqrt((layer.dw**2).mean()) for layer in layers ]
+            print(n, softmax.loss, grads)
+            for layer in layers:
+                layer.update(0.01)
+            softmax.update(0.01)
+</pre></blockquote>
+</div>
+<p>
+上の演習を実行すると、レイヤーが増えるに従って
+最初のほうのレイヤーの <code>dw</code> が顕著に小さくなっているのがわかる。
+これらはほぼ指数的に小さくなっている。つまり、
+<strong>レイヤーが増えるに従って、訓練にかかる時間は指数的に増大する</strong>のである。
+実際、N=2 のときは損失 (<code>softmax.loss</code>) がゆるやかに減少していくが、
+N=10 のときはある時点でほとんど変化しなくなってしまう。
+<p>
+勾配消失問題を緩和する対策のひとつが
+「なるべく勾配が各レイヤーで減衰しないようにする」ことである。
+第5回で紹介した <a href="../lec5/index.html#conv-relu">活性化関数 ReLU</a>
+はまさにこのような目的で導入された。
+しかしこれは問題を本質的に解決しているわけではない。
+レイヤーが多くなれば (つまりネットワークが「ディープ」になればなるほど)
+いずれ勾配は消失してしまう。
+勾配消失問題は、よりディープなニューラルネットワークを
+設計しようとするときに避けて通れない問題なのである。
+
+
+<h2 id="resnet">2. 残差ネットワークとは</h2>
+<p>
+勾配消失問題を解決するために考え出されたのが
+<u>残差ネットワーク</u> (residual network) である。
+これは以下のような「残差ブロック」を重ねて作られた
+ニューラルネットワークで、
+図中の <code>+</code> はベクトルの加算をあらわす。
+中央のレイヤーを飛び越して入力と出力を直接つなぐ
+「<u>スキップ接続</u> (skip connection)」に注目してほしい。
+これが勾配消失問題を解決するためのメカニズムである。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="130" height="125">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,70 l40,0" />
+ <path d="M75,70 l10,0" />
+ <path d="M105,70 l20,0" />
+ <path d="M25,70 l10,-60 l50,0 l10,50" />
+</g>
+<circle stroke="none" fill="black" cx="25" cy="70" r="3" />
+<g stroke="black" fill="white" stroke-width="2">
+ <rect x="45" y="20" width="30" height="100" />
+ <circle cx="96" cy="70" r="8" />
+</g>
+<g style="font-size: 75%;" text-anchor="middle">
+ <text transform="translate(65,70) rotate(-90)">Layer</text>
+ <text transform="translate(100,70) rotate(-90)">+</text>
+</g>
+</svg><br>
+残差ブロックとスキップ接続
+</div>
+
+<p>
+残差ブロックの機能を数式で表すと、次のようになる。
+簡単のため、レイヤーの入力 <strong>x</strong> と
+出力 <strong>y</strong> はそれぞれ同数のチャンネルをもつと仮定する。
+レイヤーが 2つの入力 x<sub>1</sub>, x<sub>2</sub> および
+2つの出力 y<sub>1</sub>, y<sub>2</sub> をもつとき、
+残差ブロックの出力は以下のように表せる
+(活性化関数にはシグモイド関数 &sigma; を使っている):
+<div class=formula>
+y<sub>1</sub> = &sigma;(w<sub>11</sub>&middot;x<sub>1</sub> + w<sub>12</sub>&middot;x<sub>2</sub> + b<sub>1</sub>) <mark>+ x<sub>1</sub></mark><br>
+y<sub>2</sub> = &sigma;(w<sub>21</sub>&middot;x<sub>1</sub> + w<sub>22</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) <mark>+ x<sub>2</sub></mark><br>
+</div>
+<p>
+学習時、重み・バイアスの勾配は以前と同じである:
+<div class=formula>
+<span class=sym>&part;</span>y<sub>1</sub>/<span class=sym>&part;</span>w<sub>11</sub> = &sigma;&prime;(w<sub>11</sub>&middot;x<sub>1</sub> + w<sub>12</sub>&middot;x<sub>2</sub> + b<sub>1</sub>) &middot; x<sub>1</sub>
+<br>
+<span class=sym>&part;</span>y<sub>1</sub>/<span class=sym>&part;</span>w<sub>12</sub> = &sigma;&prime;(w<sub>11</sub>&middot;x<sub>1</sub> + w<sub>12</sub>&middot;x<sub>2</sub> + b<sub>1</sub>) &middot; x<sub>2</sub>
+<br>
+<span class=sym>&part;</span>y<sub>2</sub>/<span class=sym>&part;</span>w<sub>21</sub> = &sigma;&prime;(w<sub>21</sub>&middot;x<sub>1</sub> + w<sub>22</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) &middot; x<sub>1</sub>
+<br>
+<span class=sym>&part;</span>y<sub>2</sub>/<span class=sym>&part;</span>w<sub>22</sub> = &sigma;&prime;(w<sub>21</sub>&middot;x<sub>1</sub> + w<sub>22</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) &middot; x<sub>2</sub>
+<br>
+<span class=sym>&part;</span>y<sub>1</sub>/<span class=sym>&part;</span>b<sub>1</sub> = &sigma;&prime;(w<sub>11</sub>&middot;x<sub>1</sub> + w<sub>12</sub>&middot;x<sub>2</sub> + b<sub>1</sub>) &middot; 1
+<br>
+<span class=sym>&part;</span>y<sub>2</sub>/<span class=sym>&part;</span>b<sub>2</sub> = &sigma;&prime;(w<sub>21</sub>&middot;x<sub>1</sub> + w<sub>22</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) &middot; 1
+<br>
+</div>
+<p>
+しかし誤差逆伝播法でひとつ前のレイヤーに戻る
+x<sub>1</sub>, x<sub>2</sub> に対する勾配は違っている:
+<div class=formula>
+<span class=sym>&part;</span>y<sub>1</sub>/<span class=sym>&part;</span>x<sub>1</sub> =
+&sigma;&prime;(w<sub>11</sub>&middot;x<sub>1</sub> + w<sub>12</sub>&middot;x<sub>2</sub> + b<sub>1</sub>) &middot; w<sub>11</sub> <mark>+ 1</mark><br>
+<span class=sym>&part;</span>y<sub>2</sub>/<span class=sym>&part;</span>x<sub>1</sub> =
+&sigma;&prime;(w<sub>21</sub>&middot;x<sub>1</sub> + w<sub>22</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) &middot; w<sub>21</sub> <mark>+ 0</mark><br>
+<br>
+<span class=sym>&part;</span>y<sub>1</sub>/<span class=sym>&part;</span>x<sub>2</sub> =
+&sigma;&prime;(w<sub>11</sub>&middot;x<sub>1</sub> + w<sub>12</sub>&middot;x<sub>2</sub> + b<sub>1</sub>) &middot; w<sub>12</sub> <mark>+ 0</mark><br>
+<span class=sym>&part;</span>y<sub>2</sub>/<span class=sym>&part;</span>x<sub>2</sub> =
+&sigma;&prime;(w<sub>21</sub>&middot;x<sub>1</sub> + w<sub>22</sub>&middot;x<sub>2</sub> + b<sub>2</sub>) &middot; w<sub>22</sub> <mark>+ 1</mark><br>
+</div>
+<p>
+y<sub>1</sub> と y<sub>2</sub> の微分は足し合わされるので、
+結局のところ x<sub>1</sub>, x<sub>2</sub> に対する勾配は
+もともとの勾配の各成分に 1 を足したものになっている。
+したがって、<code>backward()</code> メソッドにおける返り値は
+従来の <code>dx</code> から <code>dx <mark>+ delta</mark></code>
+になり、<code>delta</code> の値は減衰せずにそのまま
+前のレイヤーに渡されることになる。
+
+<div class=exercise id="ex8-2">
+<div class=header>演習8-2. 残差ブロックを実装する</div>
+<p>
+<code>Layer</code> クラスに残差ブロックの機能を追加した
+以下の <code>ResidualLayer</code> クラスを定義し、
+<a href="#ex8-1">演習 8-1.</a> の例で
+N個の <code>Layer</code>のかわりにこれを利用する。
+N=10 のときに勾配が消失しないことを観察せよ。
+<blockquote><pre>
+class ResidualLayer(Layer):
+
+    def forward(self, x):
+        <span class=comment># xは nin個の要素をもつ入力値のリスト。</span>
+        <span class=comment># 与えられた入力に対する各ノードの出力を計算する。</span>
+        self.x = x
+        self.y = sigmoid(np.dot(self.w, x) + self.b)
+        <span class=comment># yは nout個の要素をもつ出力値のリスト</span>
+        return self.y <mark>+ x</mark>
+
+    def backward(self, delta):
+        <span class=comment># self.y が計算されたときのシグモイド関数の微分を求める。</span>
+        ds = d_sigmoid(self.y)
+        <span class=comment># 各偏微分を計算する。</span>
+        self.dw += (delta * ds).reshape(self.nout, 1) * self.x
+        self.db += delta * ds
+        <span class=comment># 各入力値の微分を求める。</span>
+        dx = np.dot(delta * ds, self.w)
+        return dx <mark>+ delta</mark>
+</pre></blockquote>
+</div>
+
+<h3 id="resnet-50">2.1. 画像認識の最先端 ResNet</h3>
+<p>
+では残差ネットワークを応用したニューラルネットワーク ResNet を見てみよう。
+ResNet は VGG の翌年に発表されたネットワークで、
+ImageNet の画像を 94% 程度の精度で認識できる。
+ResNet にはレイヤーの数が 34個から 152個までのいくつかの実装があるが、
+そのひとつである <u>ResNet-50</u> は計50個のレイヤーをもっており、
+これは現在、ディープラーニングを使った画像認識では
+デファクト・スタンダードとなっている
+(YOLO の後期バージョンである YOLOv3 も ResNet の構造を参考にしている)。
+<ul>
+<li> <a target="_blank" href="https://arxiv.org/abs/1512.03385v1">ResNet が提案された論文:
+"Deep Residual Learning for Image Recognition"</a>
+</ul>
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="810" height="160">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g transform="translate(0,80)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,0 l35,0" />
+ <path d="M80,0 l45,0" />
+ <path d="M120,0 l5,-70 l70,0 l5,65" />
+ <path d="M190,0 l20,0" />
+ <path d="M230,0 l45,0" />
+ <path d="M270,0 l5,-70 l70,0 l5,65" />
+ <path d="M340,0 l20,0" />
+ <path d="M380,0 l45,0" />
+ <path d="M420,0 l5,-70 l70,0 l5,65" />
+ <path d="M490,0 l20,0" />
+ <path d="M530,0 l45,0" />
+ <path d="M570,0 l5,-70 l70,0 l5,65" />
+ <path d="M640,0 l20,0" />
+ <path d="M680,0 l35,0" />
+ <path d="M760,0 l45,0" />
+</g>
+<g stroke="black" fill="none" stroke-width="1">
+ <path d="M120,65 l0,10 l45,0 m20,0 l45,0 l0,-10" />
+ <path d="M270,65 l0,10 l45,0 m20,0 l45,0 l0,-10" />
+ <path d="M420,65 l0,10 l45,0 m20,0 l45,0 l0,-10" />
+ <path d="M570,65 l0,10 l45,0 m20,0 l45,0 l0,-10" />
+</g>
+<g stroke="black" fill="white" stroke-width="1">
+ <circle cx="200" cy="0" r="3" />
+ <circle cx="350" cy="0" r="3" />
+ <circle cx="500" cy="0" r="3" />
+ <circle cx="650" cy="0" r="3" />
+</g>
+<g stroke="none" fill="#ddd">
+ <rect x="10" y="-60" width="20" height="120" />
+ <rect x="90" y="-60" width="20" height="120" />
+ <rect x="240" y="-60" width="20" height="120" />
+ <rect x="390" y="-60" width="20" height="120" />
+ <rect x="540" y="-60" width="20" height="120" />
+ <rect x="690" y="-60" width="20" height="120" />
+ <rect x="770" y="-60" width="20" height="120" />
+</g>
+<g stroke="black" fill="#ccf" stroke-width="2">
+ <rect x="40" y="-60" width="20" height="120" />
+ <rect x="130" y="-60" width="20" height="120" />
+ <rect x="150" y="-60" width="20" height="120" />
+ <rect x="170" y="-60" width="20" height="120" />
+ <rect x="280" y="-60" width="20" height="120" />
+ <rect x="300" y="-60" width="20" height="120" />
+ <rect x="320" y="-60" width="20" height="120" />
+ <rect x="430" y="-60" width="20" height="120" />
+ <rect x="450" y="-60" width="20" height="120" />
+ <rect x="470" y="-60" width="20" height="120" />
+ <rect x="580" y="-60" width="20" height="120" />
+ <rect x="600" y="-60" width="20" height="120" />
+ <rect x="620" y="-60" width="20" height="120" />
+</g>
+<g stroke="black" fill="#fcc" stroke-width="2">
+ <rect x="60" y="-60" width="20" height="120" />
+</g>
+<g stroke="black" fill="#cfc" stroke-width="2">
+ <rect x="720" y="-60" width="20" height="120" />
+</g>
+<g stroke="black" fill="#ffc" stroke-width="2">
+ <rect x="740" y="-60" width="20" height="120" />
+</g>
+<g style="font-size: 75%;" text-anchor="middle">
+ <text transform="translate(25,0) rotate(-90)">入力画像 (3×224×224)</text>
+ <text transform="translate(55,0) rotate(-90)">Conv-7, /2 (64)</text>
+ <text transform="translate(75,0) rotate(-90)">Max Pooling</text>
+ <text transform="translate(105,0) rotate(-90)">(64×56×56)</text>
+ <text transform="translate(145,0) rotate(-90)">Conv-1, /2 (64)</text>
+ <text transform="translate(165,0) rotate(-90)">Conv-3 (64)</text>
+ <text transform="translate(185,0) rotate(-90)">Conv-1 (256)</text>
+ <text x="220" y="0">...</text>
+ <text x="175" y="80">×3</text>
+ <text transform="translate(255,0) rotate(-90)">(256×28×28)</text>
+ <text transform="translate(295,0) rotate(-90)">Conv-1, /2 (128)</text>
+ <text transform="translate(315,0) rotate(-90)">Conv-3 (128)</text>
+ <text transform="translate(335,0) rotate(-90)">Conv-1 (512)</text>
+ <text x="370" y="0">...</text>
+ <text x="325" y="80">×4</text>
+ <text transform="translate(405,0) rotate(-90)">(512×14×14)</text>
+ <text transform="translate(445,0) rotate(-90)">Conv-1, /2 (256)</text>
+ <text transform="translate(465,0) rotate(-90)">Conv-3 (256)</text>
+ <text transform="translate(485,0) rotate(-90)">Conv-1 (1024)</text>
+ <text x="520" y="0">...</text>
+ <text x="475" y="80">×6</text>
+ <text transform="translate(555,0) rotate(-90)">(1024×7×7)</text>
+ <text transform="translate(595,0) rotate(-90)">Conv-1, /2 (512)</text>
+ <text transform="translate(615,0) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(635,0) rotate(-90)">Conv-1 (2048)</text>
+ <text x="670" y="0">...</text>
+ <text x="625" y="80">×3</text>
+ <text transform="translate(705,0) rotate(-90)">(2048×7×7)</text>
+ <text transform="translate(735,0) rotate(-90)">Linear (1000)</text>
+ <text transform="translate(755,0) rotate(-90)">Softmax</text>
+ <text transform="translate(785,0) rotate(-90)">(1000)</text>
+</g>
+</g>
+</svg><br>
+ResNet-50 のレイヤー (/2 は最初のブロックのみ)
+</div>
+<p>
+ResNet-50 では、ひとつの残差ブロックは 3つの畳み込みレイヤーから
+構成されている。これを複数回くり返し、さらに「画像を縮小しつつ
+チャンネルを増やす」という従来の手法を使うことによって
+高精度な画像認識を達成できている。
+<p>
+PyTorch を使って ResNet を実装する場合は、前述の
+<code>backward()</code> は必要ないため、
+<code>forward()</code> メソッド中で単に入力の <code>x</code> を
+出力時に足せばよい。PyTorch を使った残差ブロックの定義は以下のようになる:
+<blockquote><pre>
+class ResBlock(nn.Module):
+
+    def __init__(self, cin, cmid, cout, stride=1):
+        nn.Module.__init__(self)
+        <span class=comment># 1つの残差ブロックは 3つの畳み込みレイヤー (+バッチ正規化) からなる。</span>
+        self.conv1 = nn.Conv2d(cin, cmid, 1, stride=stride)
+        self.norm1 = nn.BatchNorm2d(cmid)
+        self.conv2 = nn.Conv2d(cmid, cmid, 3, padding=1)
+        self.norm2 = nn.BatchNorm2d(cmid)
+        self.conv3 = nn.Conv2d(cmid, cout, 1)
+        self.norm3 = nn.BatchNorm2d(cout)
+        return
+
+    def forward(self, x):
+        <mark>skip</mark> = x  <span class=comment># スキップ接続</span>
+        x = self.conv1(x)
+        x = self.norm1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = self.norm2(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = self.norm3(x)
+        x = F.relu(x)
+        <span class=comment># スキップ接続の値を x に足す。</span>
+        return x <mark>+ expand(skip, x.shape)</mark>
+</pre></blockquote>
+<p>
+ここで使っている関数 <code>expand()</code> は、
+残差ブロックの入力・出力チャンネル数が違う場合に、
+出力に合わせてテンソルを拡大する (不足部分を 0 で埋める) ものである:
+<blockquote><pre>
+<span class=comment># expand: テンソル t をサイズ target に拡張する。</span>
+def expand(t, target):
+    padding = sum(( (0,a-b) for (a,b) in zip(target, t.shape) ), ())
+    return F.pad(ta, padding)
+</pre></blockquote>
+<p>
+PyTorch では、<code>nn.Module</code> クラスから派生したクラスは
+1つのレイヤーのように扱える。そのため、<code>ResNet50</code> クラスでは
+先に定義した <code>ResBlock</code> クラスをあたかもひとつのレイヤーのように
+使うことができる:
+<blockquote><pre>
+class ResNet50(nn.Module):
+
+    def __init__(self):
+        nn.Module.__init__(self)
+        self.conv1 = nn.Conv2d(3, 64, 7, padding=3, stride=2)
+        self.pool1 = nn.MaxPool2d(2)
+        <span class=comment># 最初の3ブロック。</span>
+        self.conv2_1 = ResBlock(64, 64, 256, stride=2)
+        self.conv2_2 = ResBlock(256, 64, 256)
+        self.conv2_3 = ResBlock(256, 64, 256)
+        <span class=comment># 次の4ブロック。</span>
+        self.conv3_1 = ResBlock(128, 512, stride=2)
+        ...
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.pool1(x)
+        <span class=comment># 各ブロックをひとつのレイヤーのように使う。</span>
+        x = self.conv2_1(x)
+        x = F.relu(x)
+        x = self.conv2_2(x)
+        x = F.relu(x)
+        x = self.conv2_3(x)
+        x = F.relu(x)
+        ...
+</pre></blockquote>
+<p>
+ResNet の訓練には非常に時間がかかるため、ここでは実際に実行はしないが、
+完成した実際の ResNet50 モデル (重み・バイアス) は
+<a href="#torchvision">torchvision モジュール</a> (後述) として利用可能である。
+<p>
+なお、残差ネットワークの利点は単に勾配消失問題がない (レイヤーが多い) 以外にも
+あるのではないか、という指摘がされている。
+まず、本来ニューラルネットワークの出力には入力の要素がそのまま含まれていることが多く、
+f(<em>x</em>) という関数 f を直接推定するよりも、 f'(<em>x</em>)+<em>x</em> における
+関数 f' を推定するほうが容易だという説がある。さらに、残差ブロックに入力された情報は
+通常のレイヤーとスキップ接続の 2通りの経路をたどると考えられるため、
+たとえば以下のような 3層の残差ネットワークがある場合、
+情報の経路は 2<sup>3</sup> = 8 通り存在する。
+これは事実上、8種類のニューラルネットワークを並列に組み合わせている、
+と考えることができるというのである。
+
+<ul>
+<li> <a target="_blank" href="https://arxiv.org/abs/1605.06431v2">ResNet の性能に関する考察:
+"Residual Networks Behave Like Ensembles of Relatively Shallow Networks"</a>
+</ul>
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="250" height="260">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g transform="translate(0,30)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,0 l30,0" />
+ <path d="M20,0 l10,-20 l30,0 l10,15" />
+ <path d="M50,0 l50,0" />
+ <path d="M90,0 l10,-20 l30,0 l10,15" />
+ <path d="M120,0 l50,0" />
+ <path d="M160,0 l10,-20 l30,0 l10,15" />
+ <path d="M190,0 l40,0" />
+</g>
+<g stroke="black" fill="white" stroke-width="2">
+ <rect x="35" y="-10" width="20" height="20" />
+ <rect x="105" y="-10" width="20" height="20" />
+ <rect x="175" y="-10" width="20" height="20" />
+</g>
+<g stroke="black" fill="white" stroke-width="1">
+ <circle cx="70" cy="0" r="3" />
+ <circle cx="140" cy="0" r="3" />
+ <circle cx="210" cy="0" r="3" />
+</g>
+</g>
+<text transform="translate(120,60) rotate(-90)">=</text>
+<g transform="translate(0,80)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,87 L10,0 l20,0" />
+ <path d="M50,0 l170,0 l10,87" />
+</g>
+<g stroke="black" fill="white" stroke-width="2">
+ <rect x="35" y="-10" width="20" height="20" />
+</g>
+</g>
+<g transform="translate(0,105)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,62 L10,0 l90,0" />
+ <path d="M120,0 l100,0 l10,62" />
+</g>
+<g stroke="black" fill="white" stroke-width="2">
+ <rect x="105" y="-10" width="20" height="20" />
+</g>
+</g>
+<g transform="translate(0,130)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,37 L10,0 l20,0" />
+ <path d="M50,0 l50,0" />
+ <path d="M120,0 l100,0 l10,37" />
+</g>
+<g stroke="black" fill="white" stroke-width="2">
+ <rect x="35" y="-10" width="20" height="20" />
+ <rect x="105" y="-10" width="20" height="20" />
+</g>
+</g>
+<g transform="translate(0,155)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,12 L10,0 l160,0" />
+ <path d="M190,0 l30,0 l10,12" />
+</g>
+<g stroke="black" fill="white" stroke-width="2">
+ <rect x="175" y="-10" width="20" height="20" />
+</g>
+</g>
+<g transform="translate(0,180)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,-13 L10,0 l20,0" />
+ <path d="M50,0 l120,0" />
+ <path d="M190,0 l30,0 l10,-13" />
+</g>
+<g stroke="black" fill="white" stroke-width="2">
+ <rect x="35" y="-10" width="20" height="20" />
+ <rect x="175" y="-10" width="20" height="20" />
+</g>
+</g>
+<g transform="translate(0,205)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,-38 L10,0 l90,0" />
+ <path d="M50,0 l120,0" />
+ <path d="M190,0 l30,0 l10,-38" />
+</g>
+<g stroke="black" fill="white" stroke-width="2">
+ <rect x="105" y="-10" width="20" height="20" />
+ <rect x="175" y="-10" width="20" height="20" />
+</g>
+</g>
+<g transform="translate(0,230)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,-63 L10,0 l20,0" />
+ <path d="M50,0 l50,0" />
+ <path d="M120,0 l50,0" />
+ <path d="M190,0 l30,0 l10,-63" />
+</g>
+<g stroke="black" fill="white" stroke-width="2">
+ <rect x="35" y="-10" width="20" height="20" />
+ <rect x="105" y="-10" width="20" height="20" />
+ <rect x="175" y="-10" width="20" height="20" />
+</g>
+</g>
+<g transform="translate(0,255)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,-88 L10,0 l210,0 l10,-88" />
+</g>
+</g>
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M230,167 l10,0" />
+</g>
+<g stroke="black" fill="white" stroke-width="1">
+ <circle cx="230" cy="167" r="3" />
+</g>
+</svg><br>
+残差ブロックが並列なネットワークを構成する
+</div>
+
+
+<h2 id="further">3. PyTorchをさらに活用するために</h2>
+<P>
+ここでは、PyTorch をさらに開発するための
+いくつかのトピックについて紹介する。
+
+<h3 id="torchvision">3.1. torchvision を使う</h3>
+<p>
+PyTorch には、いくつもの派生プロジェクトが存在する。
+ここではよく知られる <a target="_blank" href="https://pytorch.org/vision/stable/index.html">torchvision</a>
+モジュールについて紹介する。
+これは PyTorch で画像処理をするときの便利な機能をまとめたものである。
+また VGG や ResNet など、よく知られている画像認識モデルの
+PyTorch による完全な実装が含まれており、
+これらのモデルを (重み・バイアスつきで) ダウンロードして
+すぐに使えるようになっている。
+(これ以外にも <a target="_blank" href="https://pytorch.org/hub/">PyTorch Hub</a> という枠組みがあり、
+公開済みのモデルを自動的にダウンロードして利用できるのだが、
+現時点ではまだ動作が不安定なことが多いため、ここでは解説しない。)
+<p>
+まず <code>torchvision</code> モジュールをインストールしよう
+(Google Colab を使っている場合はインストール不要):
+<ul>
+<li> <strong>Anaconda を使っている場合:</strong>
+<pre>C:\&gt; <strong>conda install -c pytorch torchvision</strong></pre>
+<li> <strong>スタンドアロンの Python を使っている場合:</strong>
+<pre>C:\&gt; <strong>pip install torchvision</strong></pre>
+</ul>
+<p>
+Torchvision で提供されているモデルの利用は、非常に簡単である。
+ただ単に <code>torchvision.models.vgg16</code> や
+<code>torchvision.models.resnet50</code> といった関数を呼べばよい:
+<ul>
+<li> <code>torchvision.models.vgg16(<em>pretrained</em>)</code>
+  … VGG-16 のモデルを返す。
+<li> <code>torchvision.models.resnet50(<em>pretrained</em>)</code>
+  … ResNet-50 のモデルを返す。
+<li> <a target="_blank" href="https://pytorch.org/vision/stable/models.html#classification">利用可能な画像認識ニューラルネットワークの一覧</a>
+</ul>
+<p>
+どちらも関数も <code>pretrained</code> が <code>True</code> の場合、
+定義されたモデルを返すだけでなく、その重み・バイアスも
+<code>torch.load()</code> 関数を使って自動的に外部サイトからダウンロードする
+(ダウンロードした重み・バイアスは、
+ホームディレクトリ中の <code>~/.cache/torch/</code> 以下のフォルダに格納される):
+<blockquote><pre>
+&gt;&gt;&gt; <strong>import torchvision</strong>
+&gt;&gt;&gt; <strong>model = torchvision.models.vgg16(True)</strong>     <span class=comment># VGG-16 を利用</span>
+Downloading: "https://download.pytorch.org/models/vgg16-397923af.pth" to /home/euske/.cache\torch\hub\checkpoints\vgg16-397923af.pth
+100.0%
+&gt;&gt;&gt; <strong>model = torchvision.models.resnet50(True)</strong>  <span class=comment># ResNet-50 を利用</span>
+Downloading: "https://download.pytorch.org/models/resnet50-0676ba61.pth" to /home/euske/.cache\torch\hub\checkpoints\resnet50-0676ba61.pth
+100.0%
+</pre></blockquote>
+<p>
+ここで返される <code>model</code> は <code>nn.Module</code> 型の
+オブジェクトであり、すぐに画像のテンソルを渡して推論させることができる:
+<blockquote><pre>
+import torch
+import numpy as np
+from PIL import Image
+
+<span class=comment># RGB画像を読み込み、224×224 に縮小する</span>
+image = Image.open('input.jpg')
+image.thumbnail((224, 224))
+<span class=comment># 画像をndarray型に変換し、正規化する。</span>
+a = convert_image(image)
+<span class=comment># さらにTensor型に変換。</span>
+t = torch.tensor(a)
+<span class=comment># 次元をひとつ追加し (N×C×H×W) の形式にする。</span>
+x = t.reshape(1,3,224,224)
+<span class=comment># 推論を実行。</span>
+y = model(x)
+<span class=comment># もっとも確率の高いラベルを取得する。</span>
+i = torch.argmax(y)
+</pre></blockquote>
+
+<p>
+なお、ここでは画像を <code>ndarray</code>型に変換し、色を正規化する関数
+<code>convert_image()</code> を使っている:
+<blockquote><pre>
+def convert_image(image):
+    <span class=comment># ndarray型に変換。</span>
+    a = np.array(image)
+    <span class=comment># (H×W×C) → (C×H×W) の形式に並び換えをおこなう。</span>
+    a = a.transpose(2,0,1)
+    <span class=comment># RGBの色を正規化する。</span>
+    a = a/255
+    a[0] = (a[0]-0.485)/0.229
+    a[1] = (a[1]-0.456)/0.224
+    a[2] = (a[2]-0.406)/0.225
+    return a
+</pre></blockquote>
+
+<div class=exercise id="ex8-3">
+<div class=header>演習8-3. Torchvision を使って画像認識を実行する</div>
+<p>
+適当な画像を用意し、上の例にならって <code>torchvision</code> モジュールの
+ResNet-50 を使って認識を実行せよ。
+</div>
+
+<h3 id="transfer">3.2. 転移学習を実装する</h3>
+<p>
+<u>転移学習</u> (transfer learning) とは、
+「すでに訓練されたニューラルネットワーク (の一部) を別の目的に転用する」
+ことである。ニューラルネットワークに限らず、機械学習では一般に
+精度を上げるためには大量の訓練データを必要とするが、
+転移学習はすでに学習されたニューラルネットワークを
+微調整するだけなので、以下のメリットがあると考えられている:
+<ul>
+<li> 追加の訓練データが少なくてすむ。
+<li> 追加の訓練時間が少なくてすむ。
+</ul>
+第7回で紹介した<a href="../lec7/index.html#yolo-advanced">事前学習</a>も、
+あらかじめ学習したネットワークを別のネットワークの一部に使うことから、
+転移学習の一種である。
+実際、現在の実用的な画像認識システムのほとんどは
+あらかじめ ImageNet などを使って訓練した VGG や ResNet をもとに
+転移学習を使って作られている。自然言語処理の分野では
+<a target="_blank" href="https://en.wikipedia.org/wiki/BERT_(language_model)">BERT</a> のように
+転移学習に使われることを前提として作られたモデルも存在する。
+今後、ニューラルネットワークの利用の拡大にともなって
+転移学習はますます利用されるようになっていくと思われる。
+<p>
+一般的な転移学習では、
+あらかじめ訓練されたニューラルネットワーク末尾の
+数レイヤーを削除し、そこに新しいレイヤーを追加する:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="400" height="210">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+  <marker id="rarrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="red" stroke="none" />
+  </marker>
+</defs>
+<g transform="translate(10,10)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M-10,40 l30,0" />
+ <path d="M260,40 l30,0" />
+</g>
+<g stroke="black" fill="none" stroke-width="2">
+ <rect x="15" y="-5" width="250" height="90" />
+ <rect x="20" y="0" width="20" height="80" />
+ <path d="M80,40 l10,0" stroke-dasharray="2,2" />
+ <rect x="45" y="0" width="20" height="80" />
+ <rect x="190" y="0" width="20" height="80" />
+ <g stroke-dasharray="2,2">
+   <rect x="215" y="0" width="20" height="80" />
+   <rect x="240" y="0" width="20" height="80" />
+ </g>
+</g>
+</g>
+<g transform="translate(10,120)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M-10,40 l30,0" />
+ <path d="M285,40 l30,0" />
+</g>
+<g stroke="black" fill="none" stroke-width="2">
+ <rect x="15" y="-5" width="275" height="90" />
+ <rect x="20" y="0" width="20" height="80" />
+ <path d="M80,40 l10,0" stroke-dasharray="2,2" />
+ <rect x="45" y="0" width="20" height="80" />
+ <rect x="190" y="0" width="20" height="80" />
+ <g fill="#888">
+   <rect x="215" y="0" width="20" height="80" />
+   <rect x="240" y="0" width="20" height="80" />
+   <rect x="265" y="0" width="20" height="80" />
+ </g>
+</g>
+</g>
+<g stroke="black" fill="none" stroke-width="1">
+  <path d="M317,25 l-60,15" />
+  <path d="M337,135 l-50,15" />
+</g>
+<path stroke="red" fill="none" stroke-width="10" marker-end="url(#rarrow)"
+      d="M160,80 l0,35" />
+<g style="font-size: 75%;">
+ <text x="320" y="20" dy="0.5em">末尾の</text>
+ <text x="320" y="35" dy="0.5em">数レイヤーを</text>
+ <text x="320" y="50" dy="0.5em">削除</text>
+ <text x="340" y="130" dy="0.5em">新規に</text>
+ <text x="340" y="145" dy="0.5em">レイヤーを</text>
+ <text x="340" y="160" dy="0.5em">追加</text>
+</g>
+</svg><br>
+一般的な転移学習の方法
+</div>
+<p>
+さらに、転移学習には2種類の訓練方法が存在する:
+<ol type=a>
+<li> 訓練されたモデルを「特徴量抽出器 (feature extractor)」として利用し
+その出力を使って新たに学習する方法。もとのモデルは独立した
+「モジュール」として扱い、そこに新たなレイヤーを付加する。
+元のモデルの重み・バイアスは変更しない。
+<li> 訓練されたモデルを、別タスク用に「再調整 (fine tuning)」する方法。
+元のモデルと付加したレイヤーをまとめて「ひとつのモデル」として扱い、
+重み・バイアスをまるごと学習する。
+(以前に説明した YOLO の事前学習はこの方法を使っている)
+</ol>
+
+<h4 id="transfer-pytorch">PyTorch で転移学習を実現するには</h4>
+<p>
+では実際に PyTorch を使って転移学習を実装する。
+ここでは ResNet の簡易版である ResNet-18
+(<code>torchvision</code> モジュールに含まれる) を、
+YOLO の訓練に用いた VOC データセットの画像認識に適用してみよう。
+VOC データセットは画像の各オブジェクトに 20種類のラベルがついているが、
+ここでは各画像のうち、もっとも大きな矩形をもつ物体のラベルを
+「その画像のラベル」と定義することにする。
+また、ResNet-18 は特徴量抽出器として利用し、
+あらかじめ学習された重み・バイアスは固定する。
+<p>
+最初に、<code>torchvision</code> モジュールで定義されている
+ResNet-18 から最後のレイヤーを除いたものを取得する。
+じつは PyTorch は転移学習を簡単に実現するための枠組みが
+用意されているわけではなく、いったん定義された
+<code>nn.Module</code>クラスから特定のレイヤーを
+除去する決まった方法はない。したがって、
+ここでは場当たり的なやり方を使うことにする。
+まず <code>torchvision.models.resnet18()</code> を使って定義した
+モデルを見ると、以下のようなものが表示される:
+<blockquote><pre>
+&gt;&gt;&gt; <strong>import torchvision</strong>
+&gt;&gt;&gt; <strong>pretrained = torchvision.models.resnet18(True)</strong>
+&gt;&gt;&gt; <strong>print(prerained)</strong>
+ResNet(
+  (conv1): Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+  (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (relu): ReLU(inplace=True)
+  (maxpool): MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)
+  ...
+  (avgpool): AdaptiveAvgPool2d(output_size=(1, 1))
+  <mark>(fc): Linear(in_features=512, out_features=1000, bias=True)</mark>
+)
+</pre></blockquote>
+<p>
+ここから <code>ResNet</code> クラスの全接続レイヤー (<code>fc</code>) が
+512要素の特徴量を受けとり、1000要素の出力を返す
+<code>Linear</code> レイヤーであることが読みとれる。
+(PyTorch の慣例により、<code>fc</code> の後に活性化関数は適用されていない。)
+<code>ResNet</code>クラスはすでに
+定義されてしまっているので、このレイヤーを直接削除することはできないが、
+同様の効果を得る方法はいくつかある:
+<ul>
+<li> <code>ResNet</code> クラスとほとんど同じだが、
+  <code>fc</code> だけを除いたクラスを新たに定義し、
+  それ以外の全レイヤーの重み・バイアスをコピーする。
+<li> <code>ResNet</code> インスタンスを作成後、
+  あとから <code>fc</code> だけを「何もしない」レイヤーに上書きする。
+</ul>
+<p>
+ここでは後者の方法を使ってみよう。作成した <code>ResNet</code> インスタンスの
+<code>fc</code> を何もしないレイヤーに置き換える.
+この <code>nn.Identity</code> は、
+f(<em>x</em>) = <em>x</em> という関数を実現するだけのレイヤーで、
+入力の値はそのまま出力され、勾配も変化しない:
+<blockquote><pre>
+pretrained.fc = nn.Identity()
+</pre></blockquote>
+<p>
+さて、訓練済みレイヤーができたとして、
+次に追加で訓練すべきレイヤーを定義する:
+<blockquote><pre>
+class AdapterNet(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        <span class=comment># 512個の特徴量から 20種類のラベルを推論する。</span>
+        self.fc = nn.Linear(512, 20)
+
+    def forward(self, x):
+        x = self.fc(x)
+        return x
+
+adapter = AdapterNet()
+</pre></blockquote>
+<p>
+(<code>AdapterNet</code> クラスは 1つのレイヤーしかないので、
+クラスを定義せずに <code>adapter = nn.Linear(512, 20)</code>
+としてもかまわない。)
+<p>
+PyTorch では、2つのニューラルネットワークを接続するのは
+非常に簡単である。ただ1つの関数呼び出しの結果を別の関数に渡せばよい。
+PyTorch では勾配は各レイヤーではなく、
+渡される値 (テンソル) の中に格納されるので、
+このようにしても正しく勾配降下法が実行できる:
+<blockquote><pre>
+y = adapter(pretrained(x))
+</pre></blockquote>
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="250" height="100">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g transform="translate(10,10)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M-10,45 l30,0" />
+ <path d="M150,45 l30,0" />
+ <path d="M205,45 l30,0" />
+</g>
+<g stroke="black" fill="none" stroke-width="2">
+ <rect x="15" y="5" width="140" height="80" />
+ <rect x="20" y="10" width="20" height="70" />
+ <rect x="45" y="10" width="20" height="70" />
+ <path d="M80,45 l10,0" stroke-dasharray="2,2" />
+ <rect x="130" y="10" width="20" height="70" />
+ <rect x="180" y="5" width="30" height="80" />
+ <rect x="185" y="10" width="20" height="70" />
+</g>
+<g style="font-size: 75%;" text-anchor="middle">
+ <text x="85" y="-5" dy="0.5em">pretrained</text>
+ <text x="195" y="-5" dy="0.5em">adapter</text>
+</g>
+</g>
+</svg><br>
+2つのニューラルネットワークを接続する
+</div>
+
+<p>
+今回は <code>pretrained</code> の重み・バイアスは固定するので、
+訓練するのは <code>adapter</code> だけである。
+PyTorch で訓練時に特定のレイヤーの重み・バイアスを固定するには 3つの方法がある:
+<ol type=a>
+<li> 固定するレイヤーの重み・バイアスが格納されている各テンソルを
+  <code>requires_grad = False</code> に設定する。
+<li> 固定するレイヤーを
+  <code>with torch.no_grad():</code> ブロックの中で計算する。
+<li> 最適化器 (optimizer) に、
+  固定するレイヤーの重み・バイアスを渡さないようにする。
+</ol>
+<p>
+ここでは上の a. および c. を両方実装してみよう。
+訓練部分のコードは以下のようになる
+(強調部分はそれぞれレイヤーの重み・バイアスを固定する部分である) :
+<blockquote><pre>
+<span class=comment># 訓練ずみのモデルを取得する。</span>
+pretrained = torchvision.models.resnet18(True)
+pretrained.fc = nn.Identity()
+pretrained.eval()
+<span class=comment># 訓練ずみレイヤーの重み・バイアスを固定する (勾配の計算を禁止する)。</span>
+<mark>for p in pretrained.parameters():
+     p.requires_grad = False</mark>
+<span class=comment># 追加レイヤーを作成する。</span>
+adapter = AdapterNet()
+adapter.train()
+<span class=comment># 最適化器と学習率を定義する (追加レイヤーのみ更新する)。</span>
+optimizer = optim.Adam(<mark>adapter.parameters()</mark>, lr=0.001)
+<span class=comment># 10エポック分の訓練をおこなう。</span>
+for epoch in range(10):
+    <span class=comment># 各ミニバッチを処理する。</span>
+    for (idx, samples) in enumerate(loader):
+        (inputs, labels) = make_batch(samples)
+        inputs = torch.tensor(inputs).to(device)
+        labels = torch.tensor(labels).to(device)
+        <span class=comment># すべての勾配(.grad)をクリアしておく。</span>
+        optimizer.zero_grad()
+        <span class=comment># 与えられたミニバッチをニューラルネットワークに処理させる。</span>
+        <strong>outputs = adapter(pretrained(inputs))</strong>
+        <span class=comment># 損失を計算する。</span>
+        loss = F.cross_entropy(outputs, labels)
+        <span class=comment># 勾配を計算する。</span>
+        loss.backward()
+        <span class=comment># 重み・バイアスを更新する。</span>
+        optimizer.step()
+</pre></blockquote>
+
+<div class=exercise id="ex8-4">
+<div class=header>演習8-4. ResNet-18 を使った転移学習を実行する</div>
+<p>
+上で説明した ResNet-18 を使った転移学習をおこなうコード
+<a href="../src/transfer.py">transfer.py</a> をダウンロードし、実行せよ。
+(実行には <a href="../lec7/index.html#ex7-3">演習7-3.</a> で使った
+PASCAL VOC データセットが必要。)
+<blockquote><pre>
+$ <strong>python transfer.py ./PASCALVOC2007.zip</strong>
+</pre></blockquote>
+次に、転移学習を使ず、ランダムな重み・バイアスから
+初めて全体を訓練するモードを実行せよ:
+<blockquote><pre>
+$ <strong>python transfer.py --start-random ./PASCALVOC2007.zip</strong>
+</pre></blockquote>
+</div>
+
+<p>
+上の演習のプログラムは VOC データセットを使って、各エポックの訓練後に
+検証データを使って精度を測定している。これを実行してみると、転移学習をおこなった場合は
+3エポックほど終了した時点で、すでに 75% 程度の精度が出ていることがわかる。
+最初から (ResNetの重みも含めて) すべて学習した場合は 30% 程度しか出ていないことからも、
+少ないデータ・短い学習時間で効果が出せるという転移学習のメリットがうかがえる。
+
+<h3 id="onnx">3.3. ONNX形式を使ってモデルを出力する</h3>
+<p>
+さて、本講座では PyTorch を使ってニューラルネットワークを開発する方法を
+説明してきたが、機械学習フレームワークと呼ばれるものには
+PyTorch 以外にも多く存在する。代表的な例をあげると:
+<ul>
+<li> <a target="_blank" href="https://www.sklearn.org/">Scikit-Learn</a>
+<li> <a target="_blank" href="https://www.tensorflow.org/">TensorFlow</a>
+<li> <a target="_blank" href="https://docs.microsoft.com/en-us/cognitive-toolkit/">Microsoft Cognitive Toolkit (CNTK)</a>
+<li> <a target="_blank" href="https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software">(それ以外)</a>
+</ul>
+といったものである。これらのフレームワークはどれも基本的な機能は似ているが、
+細かい仕様は異なっており、当然ながらこれらを使って開発された
+プログラム間には互換性がない。
+しかし、これらで訓練したニューラルネットワークを、
+言語やフレームワークに依存しない共通の形式で
+(重み・バイアスも含めて) エクポートする方法がある。
+それが <a target="_blank" href="https://onnx.ai/">ONNX形式</a> である。
+たとえば PyTorch で作成したモデル (<code>nn.Module</code> クラス) を
+ONNX形式でエクスポートすると、PyTorch が動かないプラットフォーム
+(iOS や RaspberryPi など) でもモデルを使って推論することができる:
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="340" height="150">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <rect x="10" y="10" width="70" height="30" />
+  <rect x="10" y="50" width="70" height="30" />
+  <rect x="10" y="90" width="70" height="30" />
+  <circle cx="170" cy="70" r="30" />
+  <rect x="240" y="10" width="90" height="30" />
+  <rect x="240" y="50" width="90" height="30" />
+  <g marker-end="url(#arrow)">
+    <path d="M85,30 L135,55" />
+    <path d="M85,65 L135,65" />
+    <path d="M85,100 L135,75" />
+    <path d="M205,55 L235,30" />
+    <path d="M205,65 L235,65" />
+    <path d="M205,75 L235,100" />
+  </g>
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text x="45" y="30" dy="0.5m">PyTorch</text>
+  <text x="45" y="70" dy="0.5m">TensorFlow</text>
+  <text x="45" y="110" dy="0.5m">CNTK</text>
+  <text x="170" y="70" dy="-0.2em">ONNX</text>
+  <text x="170" y="70" dy="0.9em">形式</text>
+  <text x="285" y="30" dy="0.5m">ONNX Runtime</text>
+  <text x="285" y="70" dy="0.5m">TensorRT</text>
+</g>
+<text transform="translate(45,145) rotate(-90)">...</text>
+<text transform="translate(285,105) rotate(-90)">...</text>
+</svg><br>
+異なるフレームワークで開発されたモデルの統一形式としての ONNX
+</div>
+
+<p>
+ONNX形式はいくつかの
+<a target="_blank" href="https://github.com/onnx/onnx/blob/main/docs/Operators.md">演算子</a>が定義された
+小規模なプログラミング言語のようなものである。
+したがって、PyTorch のモデルを ONNX形式に変換する処理は、
+Python プログラムを他のプログラミング言語に変換する処理とみなせる。
+PyTorch では、このために 2つの方法を用意している:
+<ol type=a>
+<li> <strong>Tracing</strong> -
+  Pythonプログラムをダミーの入力を使って実際に実行し、
+  各処理を動的に ONNX の演算子に変換する。
+  手軽に変換できるが、単調なプログラムしか変換できない。
+<li> <strong>Scripting</strong> -
+  Pythonプログラムを事前に解析し、ONNX にコンパイルする。
+  場合によっては Pythonプログラムの一部変更が必要。
+</ol>
+<p>
+今回はプログラムを変更する必要のない tracing方式を使って
+モデルを ONNX形式に変換してみよう。そのためには、モデルを定義して
+実際に実行させる必要がある。
+一般的に、<strong>あらゆる PyTorch モデルが ONNX形式に変換できるわけではない</strong>。
+Tracing方式で ONNX形式に変換できるのは、<code>forward()</code> メソッド中に
+条件分岐やループを含まない「単調な」処理だけである。
+
+<div class=notice>
+ONNXの仕様・バージョンはまだ頻繁に変化しており、今後変更される可能性がある。
+</div>
+
+<p>
+PyTorch のモデルを ONNX にエクスポートする手順は以下のとおり:
+<ol>
+<li> モデルを定義し、インスタンスを作成する:
+<pre>
+class Net(nn.Module):
+    ...
+
+model = Net()
+</pre>
+<li> 各レイヤーの重み・バイアスを設定する (あるいは、読み込む)。
+また、モデルを評価モードに設定する:
+<pre>
+params = torch.load(path)
+model.load_state_dict(params)
+model.eval()
+</pre>
+<li> そのモデルを実行させるためのダミー入力を作成する。
+たとえば、このニューラルネットワークが 3×224×224 のテンソルを入力する場合は、
+ダミーのバッチサイズ 1 を加えて以下のような <code>Tensor</code> を作成する。
+<pre>
+dummy = torch.rand((1, 3, 224, 224))
+</pre>
+<li> モデルのインスタンスを
+<code>torch.onnx.export()</code> 関数に渡す。
+このときダミー入力と、出力する ONNX ファイル名も指定する。
+また、モデルの入力・出力に特定の名前をつける。
+(入力・出力名がリストになっているのは、複数の入力・出力をもつ
+ニューラルネットワークを想定しているためである。)
+<pre>
+torch.onnx.export(
+    model,                    <span class=comment># モデル</span>
+    dummy,                    <span class=comment># ダミー入力</span>
+    "model.onnx",             <span class=comment># ONNXファイル名</span>
+    input_names=["image"],    <span class=comment># モデルの入力名</span>
+    output_names=["classes"]  <span class=comment># モデルの出力名</span>
+)
+</pre>
+</ol>
+<p>
+以上で PyTorch のモデルを ONNX形式で出力できた。
+これは 1×3×224×224 の "image" テンソルを入力し、
+(ネットワークが決めた) "classes" テンソルを返すような
+ニューラルネットワークである。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="160" height="90">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="80" cy="45" r="40" />
+  <g marker-end="url(#arrow)">
+    <path d="M15,45 l20,0" />
+    <path d="M120,45 l20,0" />
+  </g>
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+  <text transform="translate(10,45) rotate(-90)">image</text>
+  <text x="80" y="45" dy="0.5em">model.onnx</text>
+  <text transform="translate(155,45) rotate(-90)">classes</text>
+</g>
+</svg>
+</div>
+
+
+<h4 id="onnxruntime">エクスポートした ONNX形式を使って推論する</h4>
+
+<p>
+ここでは代表的な <a target="_blank" href="https://onnxruntime.ai/">ONNX Runtime</a> を使って、
+生成された ONNXファイルを使って推論してみる。
+ONNX Runtime は PyTorch とは完全に独立したプロジェクトで、
+GPU (CUDA) を使って推論するコードも含まれている。まず
+GPU を使うか否かに応じて、<code>onnxruntime-gpu</code> あるいは
+<code>onnxruntime</code> のどちらかのパッケージをインストールする:
+<blockquote><pre>
+C:\&gt; <strong>pip install onnxruntime-gpu</strong>  <span class=comment># GPUを使って推論。</span>
+あるいは
+C:\&gt; <strong>pip install onnxruntime</strong>      <span class=comment># CPUを使って推論。</span>
+</pre></blockquote>
+<p>
+ONNX Runtime を使った推論は以下のようにおこなう。
+まず、ONNX形式のファイルを指定し、<code>InferenceSession</code>
+インスタンスを作成する。このとき引数 <code>providers</code> で
+どのバックエンド (CPU または GPU) を使うかを指定する:
+<blockquote><pre>
+import onnxruntime as ort
+<span class=comment># CPUを使う場合。</span>
+ort_sess = ort.InferenceSession('model.onnx', providers=['<mark>CPUExecutionProvider</mark>'])
+<span class=comment># GPU (CUDA) を使う場合。</span>
+ort_sess = ort.InferenceSession('model.onnx', providers=['<mark>CUDAExecutionProvider</mark>'])
+</pre></blockquote>
+
+<p>
+推論を実行するには、作成したインスタンスの
+<code>run()</code> メソッドを呼ぶ。ONNX Runtime では、
+入出力のデータ型として PyTorch のテンソルではなく
+NumPy の <code>ndarray</code>型を利用する。
+また ONNX形式は入力・出力ともに複数ある場合を想定しているため、
+入力は Python の辞書として与え、出力はリストとして受け取る。
+<blockquote><pre>
+<span class=comment># 入力値 (ndarray)</span>
+a = np.array(...)
+outputs = ort_sess.run(None, {'image': a})
+<span class=comment># 出力値</span>
+print(outputs[0])
+</pre></blockquote>
+
+<div class=exercise id="ex8-5">
+<div class=header>演習8-5. ResNet-18 を ONNX形式に変換し、ONNX Runtime を使って推論する</div>
+<ol>
+<li> <code>torchvision</code>モジュールで提供されている訓練済みの ResNet-18 モデルを
+<code>resnet18.onnx</code> というファイルで出力せよ。
+<li> 以下のコードを用いて <code>onnxruntime</code> を使って推論し、同一の画像の
+推論結果が PyTorch で実行したときと等しくなうことを確認せよ。
+<pre>
+<span class=comment># 推論セッションを作成する。</span>
+ort_sess = ort.InferenceSession('resnet18.onnx', providers=['CPUExecutionProvider'])
+<span class=comment># RGB画像を読み込み、224×224 に縮小する</span>
+img = Image.open('input.jpg')
+img.thumbnail((224, 224))
+<span class=comment># 画像をndarray型に変換し、正規化する。</span>
+a = convert_image(image)
+<span class=comment># 次元をひとつ追加し (N×C×H×W) の形式にする。</span>
+a = a.reshape(1,3,224,224)
+<span class=comment># 推論を実行。</span>
+inputs = {'image': a}
+outputs = ort_sess.run(None, {'image':a})
+<span class=comment># もっとも確率の高いラベルを取得する。</span>
+i = np.argmax(outputs[0])
+</pre>
+</ol>
+</div>
+
+
+<h2 id="summary">4. まとめ</h2>
+<ul>
+<li> ニューラルネットワークのレイヤーが多すぎると、
+  入力に近いレイヤーに伝播する勾配が小さくなるため、訓練に時間がかかるようになる。
+  この現象を<nobr><span class=bl>勾配消失問題</span></nobr>という。
+<li> 上の問題を解決するために開発された<nobr><span class=bl>残差ネットワーク</span></nobr>では、
+  入力と出力を直接つなぐ<nobr><span class=bl>スキップ接続</span></nobr>によって
+  勾配が減衰するのを防いでいる。
+<li> PyTorch の派生プロジェクトである <nobr><span class=bl>torchvision</span></nobr> モジュールでは、
+  VGG や ResNet などの有名なモデルがあらかじめ利用可能である。
+<li> 「すでに訓練されたニューラルネットワークを別の目的に転用する」ことを
+  <nobr><span class=bl>転移学習</span></nobr>という。
+<li> 転移学習には2種類の利用方法が存在する。訓練されたモデルの重み・バイアスを固定して<nobr><span class=bl>特徴量</span></nobr>の抽出器として利用する方法と、
+  モデル全体を調整する方法である。
+<li> <nobr><span class=bl>ONNX</span></nobr>形式は、
+  PyTorch で設計・学習したモデルを他のフレームワークでも利用できるようにした
+  共通の形式である。
+</ul>
+
+
+<hr>
+<div class=license>
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="クリエイティブ・コモンズ・ライセンス" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />この作品は、<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">クリエイティブ・コモンズ 表示 - 継承 4.0 国際 ライセンス</a>の下に提供されています。
+</div>
+<address>Yusuke Shinyama</address>

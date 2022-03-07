@@ -1,0 +1,2032 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="../common.css" />
+<title>第7回 ディープラーニング応用: 物体認識と奥行き推定
+/ 真面目なプログラマのためのディープラーニング入門</title>
+<style><!--
+.example { outline: 1px solid black; }
+.ignored { color: gray; }
+.mean { text-decoration: overline; }
+--></style>
+<body>
+<div class=nav>
+<a href="../index.html">&lt; もどる</a>
+</div>
+
+<h1>第7回 ディープラーニング応用: 物体認識と奥行き推定</h1>
+
+<ol>
+<li> <a href="#vgg16">画像認識の基礎 VGG</a>
+<ul>
+  <li> <a href="#padding">パディング (padding) とは</a>
+  <li class=ex> <a href="#ex7-1">演習7-1. VGG16 クラスを完成させる</a>
+  <li> <a href="#batchnorm">バッチ正規化 (batch normalization) とは</a>
+  <li class=ex> <a href="#ex7-2">演習7-2. <code>BatchNorm2d</code> レイヤーを使う</a>
+  <li> <a href="#dropout">Dropoutとは</a>
+</ul>
+<li> <a href="#yolo">物体認識システム (YOLO) の実装</a>
+<ul>
+  <li> <a href="#yolo-layers">YOLO のニューラルネットワーク</a>
+  <li> <a href="#yolo-training">YOLO の訓練</a>
+  <li class=ex> <a href="#ex7-3">演習7-3. YOLO の訓練を実行する</a>
+  <li> <a href="#yolo-postprocess">YOLO の後処理</a>
+  <li class=ex> <a href="#ex7-4">演習7-4. YOLO で実際に認識をおこなう</a>
+  <li> <a href="#yolo-annotation">自前の訓練データを作成する</a>
+  <li> <a href="#yolo-advanced">さらに精度を上げるには</a>
+  <li class=ex> <a href="#ex7-adv">発展課題. COCO データセットを使って学習</a>
+</ul>
+<li> <a href="#depth">奥行き推定システムの実装</a>
+<ul>
+  <li> <a href="#depth-stride">ストライド (stride) とは</a>
+  <li> <a href="#depth-loss">奥行き推定における損失関数</a>
+  <li> <a href="#depth-training">奥行き推定システムの訓練</a>
+  <li class=ex> <a href="#ex7-5">演習7-5. 奥行き推定システムの訓練を実行する</a>
+  <li class=ex> <a href="#ex7-6">演習7-6. 奥行き推定システムを利用する</a>
+</ul>
+<li> <a href="#summary">まとめ</a>
+</ol>
+
+
+<h2 id="vgg16">1. 画像認識の基礎 VGG</h2>
+<p>
+物体認識と奥行き推定の説明に入る前に、
+まずニューラルネットワークを使った画像認識システム VGG を紹介する。
+VGG は 2015年に発表された有名なディープニューラルネットワークであり、
+その構造は画像を扱う多くのニューラルネットワークにも模倣されている。
+これは与えられた画像を 1000種類のどれかに分類するものである:
+<div class=example>
+<ul>
+<li> 入力: 224×224ピクセルからなる RGB画像
+<li> 出力: 画像の種類をあらわす、1000要素の one-hot ベクトル。
+</ul>
+</div>
+<p>
+VGG-16 は計16個のレイヤー (13個の畳み込みレイヤー + 3個の全結合レイヤー)
+からなるニューラルネットワークで、
+<a target="_blank" href="https://www.image-net.org/">ImageNet データセット</a>に含まれる
+1000種類の画像を 91% 程度の精度で認識できる。
+(ImageNet データセットには約130万枚の訓練用画像が含まれているが、
+著作権上の理由により、現在、一般には非公開となっている。)
+<ul>
+<li> <a target="_blank" href="https://arxiv.org/abs/1409.1556v6">VGG が説明されている論文
+"Very Deep Convolutional Networks for Large-Scale Image Recognition"</a>
+</ul>
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="730" height="140">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,70 l35,0" />
+ <path d="M100,70 l35,0" />
+ <path d="M200,70 l35,0" />
+ <path d="M320,70 l35,0" />
+ <path d="M440,70 l35,0" />
+ <path d="M560,70 l35,0" />
+ <path d="M680,70 l45,0" />
+</g>
+<g stroke="black" fill="#ccf" stroke-width="2">
+ <rect x="40" y="10" width="20" height="120" />
+ <rect x="60" y="10" width="20" height="120" />
+ <rect x="140" y="10" width="20" height="120" />
+ <rect x="160" y="10" width="20" height="120" />
+ <rect x="240" y="10" width="20" height="120" />
+ <rect x="260" y="10" width="20" height="120" />
+ <rect x="280" y="10" width="20" height="120" />
+ <rect x="360" y="10" width="20" height="120" />
+ <rect x="380" y="10" width="20" height="120" />
+ <rect x="400" y="10" width="20" height="120" />
+ <rect x="480" y="10" width="20" height="120" />
+ <rect x="500" y="10" width="20" height="120" />
+ <rect x="520" y="10" width="20" height="120" />
+</g>
+<g stroke="black" fill="#fcc" stroke-width="2">
+ <rect x="80" y="10" width="20" height="120" />
+ <rect x="180" y="10" width="20" height="120" />
+ <rect x="300" y="10" width="20" height="120" />
+ <rect x="420" y="10" width="20" height="120" />
+ <rect x="540" y="10" width="20" height="120" />
+</g>
+<g stroke="black" fill="#cfc" stroke-width="2">
+ <rect x="600" y="10" width="20" height="120" />
+ <rect x="620" y="10" width="20" height="120" />
+ <rect x="640" y="10" width="20" height="120" />
+</g>
+<g stroke="black" fill="#ffc" stroke-width="2">
+ <rect x="660" y="10" width="20" height="120" />
+</g>
+<g stroke="none" fill="#ddd">
+ <rect x="10" y="10" width="20" height="120" />
+ <rect x="110" y="10" width="20" height="120" />
+ <rect x="210" y="10" width="20" height="120" />
+ <rect x="330" y="10" width="20" height="120" />
+ <rect x="450" y="10" width="20" height="120" />
+ <rect x="570" y="10" width="20" height="120" />
+ <rect x="690" y="10" width="20" height="120" />
+</g>
+<g style="font-size: 75%;" text-anchor="middle">
+ <text transform="translate(25,70) rotate(-90)">入力画像 (3×224×224)</text>
+ <text transform="translate(55,70) rotate(-90)">Conv-3 (64)</text>
+ <text transform="translate(75,70) rotate(-90)">Conv-3 (64)</text>
+ <text transform="translate(95,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(125,70) rotate(-90)">(64×112×112)</text>
+ <text transform="translate(155,70) rotate(-90)">Conv-3 (128)</text>
+ <text transform="translate(175,70) rotate(-90)">Conv-3 (128)</text>
+ <text transform="translate(195,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(225,70) rotate(-90)">(128×56×56)</text>
+ <text transform="translate(255,70) rotate(-90)">Conv-3 (256)</text>
+ <text transform="translate(275,70) rotate(-90)">Conv-3 (256)</text>
+ <text transform="translate(295,70) rotate(-90)">Conv-3 (256)</text>
+ <text transform="translate(315,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(345,70) rotate(-90)">(256×28×28)</text>
+ <text transform="translate(375,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(395,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(415,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(435,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(465,70) rotate(-90)">(512×14×14)</text>
+ <text transform="translate(495,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(515,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(535,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(555,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(585,70) rotate(-90)">(512×7×7)</text>
+ <text transform="translate(615,70) rotate(-90)">Linear (4096)</text>
+ <text transform="translate(635,70) rotate(-90)">Linear (4096)</text>
+ <text transform="translate(655,70) rotate(-90)">Linear (1000)</text>
+ <text transform="translate(675,70) rotate(-90)">Softmax</text>
+ <text transform="translate(705,70) rotate(-90)">(1000)</text>
+</g>
+</svg><br>
+VGG-16 のレイヤー
+</div>
+
+<p>
+上の図にある <code>Conv-3 (64)</code> は
+「3×3 のカーネルをもつ 64チャンネルの畳み込みレイヤー」をあらわす。
+各畳み込みレイヤーおよび全接続レイヤーの後には ReLU 活性化関数が使われている。
+<p>
+VGG-16 の特徴は、以下の2点である:
+<ol type=i>
+<li> レイヤーが深くなり、(Max Pooling により) 画像が小さくなるに従って、
+チャンネル数は 64 → 128 → 256 → 512 と倍々で増えている。<br>
+つまり、扱う情報の量は各レイヤーで変わらない。
+<li> <code>Conv-3 (256)</code> など同じチャンネル数の
+レイヤーを複数回重ねている。<br>
+これにより、3×3 のカーネルを使っていても実際には
+5×5 や 7×7 の領域の特徴を考慮することができる。
+</ol>
+
+<h3 id="padding">1.1. パディング (padding) とは</h3>
+<p>
+ここで、ディープな畳み込みニューラルネットワークで使われることの多い
+<u>パディング</u> (padding) という技術について説明する。
+これまでは畳み込みレイヤーでカーネルを使うと、
+以下のような問題があった:
+<ul>
+<li> <strong>入力画像に対して出力画像が
+(カーネルの大きさぶんだけ) 小さくなってしまう。</strong><br>
+たとえば 3×3 のカーネルを使った畳み込みレイヤーでは、
+入力画像よりも出力画像が縦横 2ピクセルぶんだけ小さくなってしまう。
+この調子で畳み込みレイヤーをいくつも重ねていくと、
+画像がどんどん小さくなってしまい、それだけ考慮できる特徴量も減ってしまう。
+<li> <strong>画像の端にあるピクセルが十分に考慮されない。</strong><br>
+たとえば以下の図では、カーネルの中心が動ける範囲が赤線で示されている。
+ここでは画像の左上隅にあるピクセルは1回しか
+カーネルが適用されない。これに対して中央付近のピクセルは9回
+カーネルが適用され、ピクセルの位置によって扱いに差が生じてしまう。
+</ul>
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="380" height="170">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+  <pattern id="hatch" width="3" height="3"
+	   patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0" x2="0" y2="3" stroke="black" stroke-width="1" />
+  </pattern>
+</defs>
+<g transform="translate(80,0)">
+<g fill="none" stroke="black" stroke-width="1">
+  <g stroke="gray" stroke-dasharray="2,2">
+  <path d="M30,20 l0,140 M50,20 l0,140 M70,20 l0,140 M90,20 l0,140 M110,20 l0,140 M130,20 l0,140 M150,20 l0,140 M170,20 l0,140" />
+  <path d="M10,40 l180,0 M10,60 l180,0 M10,80 l180,0 M10,100 l180,0 M10,120 l180,0 M10,140 l180,0 " />
+  </g>
+  <rect x="10" y="20" width="180" height="140" />
+  <rect x="30" y="40" width="140" height="100" stroke="red" />
+</g>
+<g stroke="none" fill="url(#hatch)">
+  <rect x="10" y="20" width="20" height="20" />
+  <rect x="110" y="100" width="20" height="20" />
+</g>
+<g fill="none" stroke="black" stroke-width="3">
+  <rect x="10" y="20" width="60" height="60" />
+  <path d="M80,50 l60,0" marker-end="url(#arrow)" />
+</g>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="20" y1="30" x2="0" y2="20" />
+  <line x1="120" y1="110" x2="200" y2="100" />
+</g>
+<g style="font-size:75%;">
+  <text x="100" y="5" dy="0.5em" text-anchor="middle">実際の画像の大きさ</text>
+  <text x="160" y="70" dy="0em" text-anchor="end">カーネル中心が</text>
+  <text x="160" y="70" dy="1em" text-anchor="end">動ける範囲</text>
+  <text x="205" y="100" dy="0em">9回考慮される</text>
+  <text x="205" y="100" dy="1em">ピクセル</text>
+  <text x="0" y="10" dy="0em" text-anchor="end">1回しか</text>
+  <text x="0" y="10" dy="1em" text-anchor="end">考慮されない</text>
+  <text x="0" y="10" dy="2em" text-anchor="end">ピクセル</text>
+</g>
+</g>
+</svg><br>
+従来のカーネルを使うことによる問題点
+</div>
+<p>
+この問題に対処するため、入力画像の周囲にピクセルをつめて
+画像サイズを広げることにする。
+3×3 のカーネルを使う場合は、画像の周囲に1ピクセル分の
+架空のピクセルがあると想定すると、この中でカーネル中心が動ける範囲は
+もとの画像の大きさに一致する。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="240" height="210">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+  <pattern id="hatch" width="3" height="3"
+	   patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0" x2="0" y2="3" stroke="black" stroke-width="1" />
+  </pattern>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <g stroke="gray" stroke-dasharray="2,2">
+  <path d="M30,20 l0,180 M50,20 l0,180 M70,20 l0,180 M90,20 l0,180 M110,20 l0,180 M130,20 l0,180 M150,20 l0,180 M170,20 l0,180 M190,20 l0,180 M210,20 l0,180" />
+  <path d="M10,40 l220,0 M10,60 l220,0 M10,80 l220,0 M10,100 l220,0 M10,120 l220,0 M10,140 l220,0 M10,160 l220,0 M10,180 l220,0" />
+  </g>
+  <rect x="10" y="20" width="220" height="180" stroke="blue" />
+  <rect x="30" y="40" width="180" height="140" stroke="red" />
+</g>
+<g stroke="none" fill="url(#hatch)">
+  <rect x="30" y="40" width="20" height="20" />
+  <rect x="130" y="120" width="20" height="20" />
+</g>
+<g fill="none" stroke="black" stroke-width="3">
+  <rect x="10" y="20" width="60" height="60" />
+  <path d="M80,50 l100,0" marker-end="url(#arrow)" />
+</g>
+<g style="font-size:75%;">
+  <text x="120" y="5" dy="0.5em" text-anchor="middle">パディングされた画像の大きさ</text>
+  <text x="160" y="70" dy="0em" text-anchor="end">カーネルが</text>
+  <text x="160" y="70" dy="1em" text-anchor="end">動ける範囲</text>
+</g>
+</svg><br>
+パディングをおこなった画像
+</div>
+
+<p>
+PyTorch では、<code>nn.Conv2d</code> レイヤーを作成するさいに
+<code>nn.Conv2d(3, 64, 3, <mark>padding=1</mark>)</code>
+などと指定するとパディングが使われる。
+カーネルが 3×3 の場合、パディングを 1 にすると
+出力画像のサイズは入力画像のサイズと正確に同じになる。
+<p>
+以上をふまえて VGG-16 を PyTorch のコードで記述すると、
+以下のようになる。<code>VGG16</code> クラスでは、
+各畳み込みレイヤーと全接続レイヤーに
+<code>conv1</code>, <code>fc14</code> などの番号をふっている。
+Max pooling レイヤーは直前の畳み込みレイヤーと同じ番号にしてある:
+<div class=file>
+vgg16.py
+<pre style="font-size: 75%;">
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+<span class=comment>##  VGG16</span>
+<span class=comment>##</span>
+class VGG16(nn.Module):
+
+    def __init__(self):
+        nn.Module.__init__(self)
+        <span class=comment># x: (N × 3 × 224 × 224)</span>
+        self.conv1 = nn.Conv2d(3, 64, 3, padding=1)
+        self.conv2 = nn.Conv2d(64, 64, 3, padding=1)
+        self.pool2 = nn.MaxPool2d(2)
+        <span class=comment># x: (N × 64 × 112 × 112)</span>
+        self.conv3 = nn.Conv2d(64, 128, 3, padding=1)
+        self.conv4 = nn.Conv2d(128, 128, 3, padding=1)
+        self.pool4 = nn.MaxPool2d(2)
+        <span class=comment># x: (N × 128 × 56 × 56)</span>
+        self.conv5 = nn.Conv2d(128, 256, 3, padding=1)
+        self.conv6 = nn.Conv2d(256, 256, 3, padding=1)
+        self.conv7 = nn.Conv2d(256, 256, 3, padding=1)
+        self.pool7 = nn.MaxPool2d(2)
+        <span class=comment># x: (N × 256 × 28 × 28)</span>
+        self.conv8 = nn.Conv2d(256, 512, 3, padding=1)
+        self.conv9 = nn.Conv2d(512, 512, 3, padding=1)
+        self.conv10 = nn.Conv2d(512, 512, 3, padding=1)
+        self.pool10 = nn.MaxPool2d(2)
+        <span class=comment># x: (N × 512 × 14 × 14)</span>
+        self.conv11 = nn.Conv2d(512, 512, 3, padding=1)
+        self.conv12 = nn.Conv2d(512, 512, 3, padding=1)
+        self.conv13 = nn.Conv2d(512, 512, 3, padding=1)
+        self.pool13 = nn.MaxPool2d(2)
+        <span class=comment># x: (N × 512 × 7 × 7)</span>
+        self.fc14 = nn.Linear(512*7*7, 4096)
+        self.fc15 = nn.Linear(4096, 4096)
+        self.fc16 = nn.Linear(4096, 1000)
+        <span class=comment># x: (N × 1000)</span>
+        return
+
+    def forward(self, x):
+        <span class=comment># x: (N × 3 × 224 × 224)</span>
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        ...
+        <span class=comment># x: (N × 1000)</span>
+        x = F.log_softmax(x, dim=1)
+        return x
+</pre>
+</div>
+
+<div class=exercise id="ex7-1">
+<div class=header>演習7-1. VGG16 クラスを完成させる</div>
+<p>
+上の <code>VGG16</code> クラスの <code>forward()</code> メソッドを完成させ、
+以下のコードを使って実行せよ:
+<pre>
+net = VGG16()
+x = torch.rand((1,3,244,244))
+y = net(x)
+</pre>
+</div>
+
+<p>
+なお、実際に ImageNet の画像を使って訓練した
+VGG16 のモデルは
+<a href="../lec8/index.html#torchvision">torchvision モジュール</a> として利用可能である。
+
+
+<h3 id="batchnorm">1.2. バッチ正規化 (batch normalization) とは</h3>
+<p>
+さらにもうひとつ、VGG-16 発表時には知られていなかったが、
+それ以降のディープラーニングでよく使われるようになった
+<u>バッチ正規化</u> (batch normalization) と呼ばれるテクニックも
+同時に紹介しておく。バッチ正規化は、各レイヤーにおける
+入力の平均と分散が同一になるよう調整するものである。
+バッチ正規化を使うと、各レイヤーへの入力が
+同一の傾向をもつようになるため、学習の効率が高まり、
+モデルの精度・学習速度ともに向上すると考えられている。
+具体的には、各ミニバッチの平均と分散がそれぞれ &beta; と
+&gamma; になるよう調整する。
+バッチ正規化の処理も<strong>微分可能</strong>であるので、
+勾配降下法によって最適な &beta; と &gamma; を学習できる。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="520" height="120">
+<defs>
+  <marker id="barrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 2,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g transform="translate(10,70)">
+  <g fill="none" stroke="black" stroke-width="2">
+    <line x1="-10" x2="200" y1="0" y2="0" />
+    <line x1="0" x2="0" y1="-50" y2="50" />
+    <path d="M10,-25 l10,-10 l10,30 l10,-10 l10,-26 l10,30 l10,-40 l10,36 l10,-20" stroke="blue" />
+    <path d="M110,30 l10,8 l10,-5 l10,-2 l10,8 l10,-10 l10,5 l10,-2 l10,3" stroke="red" />
+  </g>
+  <g style="font-size:75%;" text-anchor="middle">
+    <text x="50" y="-60" dy="0.5em">ミニバッチ1</text>
+    <text x="150" y="15" dy="0.5em">ミニバッチ2</text>
+  </g>
+</g>
+<g fill="none" stroke="black">
+  <line x1="225" x2="255" y1="70" y2="70" stroke-width="10" marker-end="url(#barrow)" />
+</g>
+<g transform="translate(280,70)">
+  <g fill="none" stroke="black" stroke-width="2">
+    <line x1="-10" x2="190" y1="0" y2="0" />
+    <line x1="0" x2="0" y1="-50" y2="50" />
+    <path d="M10,-15 l10,-5 l10,15 l10,-5 l10,-13 l10,15 l10,-20 l10,18 l10,-10" stroke="blue" />
+    <path d="M100,-25 l10,16 l10,-10 l10,-4 l10,16 l10,-20 l10,10 l10,-4 l10,6" stroke="red" />
+    <g stroke-width="1">
+      <line x1="5" x2="190" y1="-15" y2="-15" stroke-dasharray="3,3" />
+      <path d="M210,-25 l10,0 m-5,0 l0,20 m-5,0 l10,0" />
+      <path d="M185,-15 l10,0 m-5,0 l0,15 m-5,0 l10,0" />
+      <line x1="200" y1="0" x2="195" y2="25" />
+      <line x1="220" y1="-10" x2="195" y2="25" />
+    </g>
+  </g>
+  <g style="font-size:75%;" text-anchor="middle">
+    <text x="50" y="-40" dy="0.5em">ミニバッチ1</text>
+    <text x="140" y="-40" dy="0.5em">ミニバッチ2</text>
+    <text x="190" y="30" dy="0.5em">学習によって</text>
+    <text x="190" y="30" dy="1.5em">決める</text>
+  </g>
+  <g style="font-family:serif; font-weight: bold;">
+    <text x="217" y="-20" dy="0.5em">&gamma;</text>
+    <text x="192" y="-10" dy="0.5em">&beta;</text>
+  </g>
+</g>
+</svg><br>
+バッチ正規化
+</div>
+
+<p>
+&beta; と &gamma; の値は各レイヤーの特徴量 (チャンネル) ごとに決定される。
+バッチ正規化は、通常、活性化関数の直前に
+「バッチ正規化レイヤー」をはさむことで実装する。
+バッチ正規化レイヤーは現在のディープニューラルネットワークで
+広く使われており、PyTorch でも標準で利用可能である:
+
+<ul>
+<li> <code>nn.BatchNorm1d(<em>ノード数</em>)</code> …
+  全接続レイヤー (1次元) のためのバッチ正規化レイヤーを作成する。
+<li> <code>nn.BatchNorm2d(<em>チャンネル数</em>)</code> …
+  畳み込みレイヤー (2次元) のためのバッチ正規化レイヤーを作成する。
+</ul>
+
+<div class=exercise id="ex7-2">
+<div class=header>演習7-2. <code>BatchNorm2d</code> レイヤーを使う</div>
+<p>
+上の <code>VGG16</code> クラスのコードを変更し、以下の例にならって
+各畳み込みレイヤー (<code>conv<em>XX</em></code>) の後に、
+<code>BatchNorm2d</code> レイヤー (<code>norm<em>XX</em></code>) を挿入せよ。
+<div class=file>
+vgg16.py
+<pre>
+class VGG16(nn.Module):
+
+    def __init__(self):
+        nn.Module.__init__(self)
+        <span class=comment># x: (N × 3 × 224 × 224)</span>
+        self.conv1 = nn.Conv2d(3, 64, 3, padding=1)
+        <mark>self.norm1 = nn.BatchNorm2d(64)</mark>
+        self.conv2 = nn.Conv2d(64, 64, 3, padding=1)
+        ...
+
+    def forward(self, x):
+        <span class=comment># x: (N × 3 × 224 × 224)</span>
+        x = self.conv1(x)
+        <mark>x = self.norm1(x)</mark>
+        x = F.relu(x)
+        ...
+</pre></div>
+</div>
+
+<h3 id="dropout">1.3. ドロップアウト (dropout) とは</h3>
+<p>
+本講座では使わないが、かつてニューラルネットワークで
+よく使われていた <u>ドロップアウト</u> (dropout) という
+正規化テクニックについても簡単に触れておく。
+これは、訓練時にニューラルネットワーク中のノードをランダムに
+「間引く (thinning)」ことにより学習精度を向上させるものである。
+なぜノードを間引くと学習精度が上がるのか?
+これは、ニューラルネットワークのノードに見られる
+「<u>共適用</u> (co-adaptataion)」という現象によるものである。
+共適用とは「あるレイヤー中の複数のノードが、
+<strong>たまたま同じ特徴を学習してしまう</strong>」ことをいう。
+レイヤー中のノードは並列に動作するため、
+同一レイヤーの別のノードが何を学習しているかについては関知しない。
+そのため、訓練の進み方によっては、お互いに知らないまま
+2つのノードがほとんど同じことをしている、ということも起こりうる。
+これはノードが無駄になっているということであり、
+ニューラルネットワークの実際の学習能力が見かけのノード数よりも
+低くなっているということである。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="190">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="20" cy="35" r="10" />
+  <circle cx="20" cy="60" r="10" />
+  <circle cx="20" cy="85" r="10" />
+  <circle cx="20" cy="110" r="10" />
+  <circle cx="20" cy="135" r="10" />
+  <circle cx="20" cy="160" r="10" />
+  <circle cx="100" cy="45" r="10" />
+  <circle cx="100" cy="70" r="10" fill="#f44" />
+  <circle cx="100" cy="95" r="10" />
+  <circle cx="100" cy="140" r="10" fill="#f44" />
+  <g marker-end="url(#arrow)">
+    <line x1="90" x2="35" y1="70" y2="58" />
+    <line x1="90" x2="35" y1="70" y2="133" />
+    <line x1="90" x2="35" y1="140" y2="64" />
+    <line x1="90" x2="35" y1="140" y2="139" />
+  </g>
+</g>
+<g style="font-weight:bold;">
+<text transform="translate(20,20) rotate(-90)">…</text>
+<text transform="translate(20,190) rotate(-90)">…</text>
+<text transform="translate(100,30) rotate(-90)">…</text>
+<text transform="translate(100,125) rotate(-90)">…</text>
+<text transform="translate(100,170) rotate(-90)">…</text>
+</g>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="138" y1="99" x2="110" y2="75" />
+  <line x1="138" y1="101" x2="110" y2="130" />
+</g>
+<g style="font-size:75%;">
+<text x="140" y="90">偶然</text>
+<text x="140" y="105">同じ特徴を</text>
+<text x="140" y="120">学習する</text>
+</g>
+</svg><br>
+ニューラルネットワークの共適応
+</div>
+<p>
+この現象を緩和するため、ドロップアウトでは
+訓練中に (各ミニバッチごとに) あるレイヤーのノードを
+一定の確率でランダムに「無効にする」。
+無効にされたノードは値も出力せず、勾配も計算しない。
+ただしこうすると各ノードの出力値の和が減少してしまうため、
+間引いた分の定数をかけることによって全体のつじつまを合わせる、
+といった処理をおこなう。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="190">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="2">
+  <circle cx="20" cy="35" r="10" />
+  <circle cx="20" cy="60" r="10" />
+  <circle cx="20" cy="85" r="10" />
+  <circle cx="20" cy="110" r="10" />
+  <circle cx="20" cy="135" r="10" />
+  <circle cx="20" cy="160" r="10" />
+  <circle cx="100" cy="45" r="10" stroke="#ccc" fill="#888" />
+  <circle cx="100" cy="70" r="10" />
+  <circle cx="100" cy="95" r="10" />
+  <circle cx="100" cy="140" r="10" stroke="#ccc" fill="#888" />
+  <g marker-end="url(#arrow)">
+    <line x1="90" x2="35" y1="140" y2="64" stroke="#ccc" />
+    <line x1="90" x2="35" y1="140" y2="139" stroke="#ccc" />
+    <line x1="90" x2="35" y1="70" y2="58" />
+    <line x1="90" x2="35" y1="70" y2="133" />
+  </g>
+</g>
+<g style="font-weight:bold;">
+<text transform="translate(20,20) rotate(-90)">…</text>
+<text transform="translate(20,190) rotate(-90)">…</text>
+<text transform="translate(100,30) rotate(-90)">…</text>
+<text transform="translate(100,125) rotate(-90)">…</text>
+<text transform="translate(100,170) rotate(-90)">…</text>
+</g>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="138" y1="79" x2="110" y2="55" />
+  <line x1="138" y1="81" x2="110" y2="130" />
+</g>
+<g style="font-size:75%;">
+<text x="140" y="70">ランダムに</text>
+<text x="140" y="85">ノードを</text>
+<text x="140" y="100">無効にする</text>
+</g>
+</svg><br>
+ドロップアウトの仕組み
+</div>
+<p>
+PyTorch では、ドロップアウトは <code>nn.Drouout</code> クラスを
+使って簡単に実現できる:
+<ul>
+<li> <code>nn.Drouout(<em>確率</em>)</code> …
+  ある確率でノードを無効化する dropout レイヤーを作成する。
+</ul>
+<p>
+Dropout はニューラルネットワークの精度を上げるものの、
+使い方が難しいという欠点がある。まず、dropoutレイヤーは
+どのレイヤーに追加してもよいというものではなく、
+試行錯誤が必要である。また、意図的にノードを使用しないため
+訓練に時間がかかる。いっぽうバッチ正規化は同様の効果が
+より効率的に得られるため、バッチ正規化が知られるようになった現在では
+ドロップアウトはあまり使われなくなってきている。
+
+<div class=figure>
+<img width="188" height="226" src="yolofall.png">
+</div>
+
+
+<h2 id="yolo">2. 物体認識システム (YOLO) の実装</h2>
+<p>
+YOLO (You Only Look Once) はディープラーニングを使った
+ポピュラーな物体認識アルゴリズムである。
+これは画像をニューラルネットワークに一度通すと、
+その中にどんな物体が、どの位置にあるかを判別できるようになっている。
+<ul>
+<li> <a target="_blank" href="https://pjreddie.com/darknet/yolo/">YOLO作者のページ</a>。
+オリジナルの論文や実装 (v1〜v3)、訓練後の重み・バイアスが公開されている。
+</ul>
+<p>
+(<strong>注意:</strong>
+現在、YOLO には v1〜v5 までのバージョンがあり、
+他にも条件を微妙に変えた様々なパターンが存在する。
+本講座で取り上げるのは YOLO v1 をさらに単純化したバージョンであり、
+認識性能は本物の YOLO ほどよくない。)
+<p>
+YOLO の基本的なアイデアは、
+入力した画像 (224×224ピクセル) を 7×7 の升目 (セル) に分け、
+おのおのに含まれている物体の種類と位置を推測するというものである。
+まず簡単な問題として、7×7 の各セルに、あらかじめ定義した
+20種類の物体のうちどれが写っているかを推測するタスクを考えてみよう。
+入力はRGB画像とし、出力は各セルを 21要素の one-hot ベクトルで表現するとする:
+<div class=example>
+<center>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="520" height="200">
+<image x="10" y="30" width="160" height="160" href="yolo_sample1.jpg" />
+<image x="280" y="60" width="105" height="105" href="yolo_sample2.jpg" />
+<rect x="280" y="60" width="105" height="105" stroke="none" fill="rgba(255,255,255,0.5)" />
+<g stroke="black" fill="none" stroke-width="2">
+<rect x="279" y="59" width="107" height="107" />
+<line x1="280" x2="385" y1="75" y2="75" />
+<line x1="280" x2="385" y1="90" y2="90" />
+<line x1="280" x2="385" y1="105" y2="105" />
+<line x1="280" x2="385" y1="120" y2="120" />
+<line x1="280" x2="385" y1="135" y2="135" />
+<line x1="280" x2="385" y1="150" y2="150" />
+<line x1="295" x2="295" y1="60" y2="165" />
+<line x1="310" x2="310" y1="60" y2="165" />
+<line x1="325" x2="325" y1="60" y2="165" />
+<line x1="340" x2="340" y1="60" y2="165" />
+<line x1="355" x2="355" y1="60" y2="165" />
+<line x1="370" x2="370" y1="60" y2="165" />
+<g stroke-width="1">
+<line x1="180" y1="30" x2="270" y2="60" />
+<line x1="180" y1="190" x2="270" y2="165" />
+<line x1="385" y1="125" x2="400" y2="115" />
+</g>
+</g>
+<text x="400" y="110" dy="0.5em" style="font-family: monospace;">[0 1 0 ... 0]</text>
+<g style="font-size: 75%;" text-anchor="middle">
+<text x="450" y="95" dy="0.5em">one-hot ベクトル</text>
+<text x="90" y="20" dy="0.5em">入力: 224×224×3</text>
+<text x="332" y="45" dy="0.5em">出力: 7×7×21</text>
+<text x="288" y="65" dy="0.5em">0</text>
+<text x="303" y="65" dy="0.5em">0</text>
+<text x="318" y="65" dy="0.5em">0</text>
+<text x="333" y="65" dy="0.5em">0</text>
+<text x="348" y="65" dy="0.5em">0</text>
+<text x="363" y="65" dy="0.5em">0</text>
+<text x="378" y="65" dy="0.5em">0</text>
+<text x="288" y="80" dy="0.5em">0</text>
+<text x="303" y="80" dy="0.5em">0</text>
+<text x="318" y="80" dy="0.5em">0</text>
+<text x="333" y="80" dy="0.5em">1</text>
+<text x="348" y="80" dy="0.5em">1</text>
+<text x="363" y="80" dy="0.5em">1</text>
+<text x="378" y="80" dy="0.5em">0</text>
+<text x="288" y="95" dy="0.5em">0</text>
+<text x="303" y="95" dy="0.5em">0</text>
+<text x="318" y="95" dy="0.5em">0</text>
+<text x="333" y="95" dy="0.5em">1</text>
+<text x="348" y="95" dy="0.5em">1</text>
+<text x="363" y="95" dy="0.5em">1</text>
+<text x="378" y="95" dy="0.5em">0</text>
+<text x="288" y="110" dy="0.5em">0</text>
+<text x="303" y="110" dy="0.5em">0</text>
+<text x="318" y="110" dy="0.5em">0</text>
+<text x="333" y="110" dy="0.5em">1</text>
+<text x="348" y="110" dy="0.5em">1</text>
+<text x="363" y="110" dy="0.5em">1</text>
+<text x="378" y="110" dy="0.5em">0</text>
+<text x="288" y="125" dy="0.5em">2</text>
+<text x="303" y="125" dy="0.5em">2</text>
+<text x="318" y="125" dy="0.5em">2</text>
+<text x="333" y="125" dy="0.5em">0</text>
+<text x="348" y="125" dy="0.5em">1</text>
+<text x="363" y="125" dy="0.5em">1</text>
+<text x="378" y="125" dy="0.5em">1</text>
+<text x="288" y="140" dy="0.5em">2</text>
+<text x="303" y="140" dy="0.5em">2</text>
+<text x="318" y="140" dy="0.5em">2</text>
+<text x="333" y="140" dy="0.5em">1</text>
+<text x="348" y="140" dy="0.5em">1</text>
+<text x="363" y="140" dy="0.5em">1</text>
+<text x="378" y="140" dy="0.5em">1</text>
+<text x="288" y="155" dy="0.5em">2</text>
+<text x="303" y="155" dy="0.5em">2</text>
+<text x="318" y="155" dy="0.5em">1</text>
+<text x="333" y="155" dy="0.5em">1</text>
+<text x="348" y="155" dy="0.5em">1</text>
+<text x="363" y="155" dy="0.5em">1</text>
+<text x="378" y="155" dy="0.5em">1</text>
+</g>
+</svg><br>
+簡単なタスク: 各セルの物体を認識する
+</center>
+<ul>
+<li> 入力: 224×224ピクセルからなる RGB画像
+<li> 出力: 7×7個の <code>0</code>〜<code>20</code>までの「ラベル」
+(0:なし、1:人間、2:コップ、...)<br>
+  1つのラベルは、21要素の one-hot ベクトルによって表される。
+</ul>
+</div>
+<p>
+MNIST や CIFAR-10 では画像全体にひとつのラベルを付与していたが、
+ここでは物体 (あるいはその一部) が 7×7 の各セル内にどのように
+分布しているかを予測させる (各セルの画像だけを見て物体を
+判定しているわけではないことに注意)。
+あとは、畳み込みニューラルネットワークを使って
+入力から出力を推測させ、各セルの hot-oneベクトルを
+交差エントロピー誤差で評価すればよい。
+ここでセル c の出力を P(c)、
+そのセルの正解 one-hotベクトルを P<sub>0</sub>(c) とすると、
+各セルごとの損失は、以下のようになる
+(H は交差エントロピー誤差を表す) :
+<div class=formula>
+L(c) = H(P<sub>0</sub>(c), P(c))<br>
+</div>
+<p>
+最終的な損失関数 L は、各セルの損失を合計したものになる:
+<div class=formula>
+L = <span class=sym>&Sigma;</span><sub>c</sub> H(P<sub>0</sub>(c), P(c))<br>
+</div>
+<p>
+YOLOは上のタスクを拡張し、各セル内の物体の種類に加えて、
+その座標および大きさ (=<strong>矩形</strong>) も推測させるようにしたものである。
+YOLOの入力および出力は以下のようになっている:
+<div class=example>
+<center>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="540" height="200">
+<image x="10" y="30" width="160" height="160" href="yolo_sample1.jpg" />
+<image x="280" y="60" width="105" height="105" href="yolo_sample2.jpg" />
+<rect x="280" y="60" width="105" height="105" stroke="none" fill="rgba(255,255,255,0.5)" />
+<rect x="340" y="105" width="15" height="15" stroke="none" fill="rgba(255,255,0,0.5)" />
+<rect x="295" y="135" width="15" height="15" stroke="none" fill="rgba(255,255,0,0.5)" />
+<g stroke="black" fill="none" stroke-width="2">
+<rect x="279" y="59" width="107" height="107" />
+<line x1="280" x2="385" y1="75" y2="75" />
+<line x1="280" x2="385" y1="90" y2="90" />
+<line x1="280" x2="385" y1="105" y2="105" />
+<line x1="280" x2="385" y1="120" y2="120" />
+<line x1="280" x2="385" y1="135" y2="135" />
+<line x1="280" x2="385" y1="150" y2="150" />
+<line x1="295" x2="295" y1="60" y2="165" />
+<line x1="310" x2="310" y1="60" y2="165" />
+<line x1="325" x2="325" y1="60" y2="165" />
+<line x1="340" x2="340" y1="60" y2="165" />
+<line x1="355" x2="355" y1="60" y2="165" />
+<line x1="370" x2="370" y1="60" y2="165" />
+<g stroke-width="1">
+<line x1="180" y1="30" x2="270" y2="60" />
+<line x1="180" y1="190" x2="270" y2="165" />
+<line x1="350" y1="110" x2="400" y2="90" />
+</g>
+</g>
+<g stroke="black" fill="none" stroke-width="2">
+<rect x="322" y="72" width="60" height="90" stroke="rgba(255,0,0)" />
+<rect x="284" y="124" width="44" height="38" stroke="rgba(0,0,255)" />
+</g>
+<g style="font-size: 75%; font-family: monospace">
+<text x="400" y="80" dy="0.5em">[確信度, 矩形, 種類]</text>
+</g>
+<g style="font-size: 75%;" text-anchor="middle">
+<text x="90" y="20" dy="0.5em">入力: 224×224×3</text>
+<text x="332" y="45" dy="0.5em">出力: 7×7×(5+20)</text>
+<text x="348" y="110" dy="0.5em">1</text>
+<text x="303" y="140" dy="0.5em">2</text>
+</g>
+</svg><br>
+YOLO: 各矩形の<strong>中心にもっとも近いセルのみ</strong>に、その物体の矩形・種類が入る
+</center>
+<ul>
+<li> 入力: 224×224ピクセルからなる RGB画像。
+<li> 出力: 7×7 の各セルが「なんらかの物体の矩形の中心を含んでいる」確信度 (conf)。
+<ul>
+<li> セルに物体があるとき: 確信度に加えて、以下も推測する:
+<ol type=a>
+<li> セルの中央からその矩形の中心までの相対位置 (dx, dy)。
+<li> 矩形の大きさ (w, h)。
+<li> 物体の種類 (P、20要素のone-hotベクトル)。
+</ol>
+<li> セルに物体がないとき: 確信度 = 0。
+</ul>
+</ul>
+</div>
+
+<p>
+ここで、確信度、矩形の相対位置、矩形の大きさの値は、すべて 0〜1 の範囲で
+表現できるよう取り決めておく (相対位置と大きさはそれぞれ 2つの値で表すので、
+合計 1+2+2 = 5つの値が必要になる)。
+こうするとニューラルネットワークの出力であるシグモイド関数の値を利用できる。
+ここでは物体をあらわす矩形の中央は該当するセルの中にあると仮定しているので、
+セルの左上隅を (0, 0)、右下隅を (1, 1) として表現すれば相対位置を表せる。
+また、物体の大きさは入力画像 (224×224) 全体が 1×1 となるように正規化すればよい:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="220" height="200">
+<rect x="30" y="70" width="100" height="100" stroke="none" fill="#ddd" />
+<g stroke="black" fill="none" stroke-width="1">
+<line x1="10" y1="70" x2="210" y2="70" />
+<line x1="10" y1="170" x2="210" y2="170" />
+<line x1="30" y1="10" x2="30" y2="190" />
+<line x1="130" y1="10" x2="130" y2="190" />
+<line x1="75" y1="115" x2="85" y2="125" />
+<line x1="75" y1="125" x2="85" y2="115" />
+</g>
+<circle stroke="none" fill="red" cx="110" cy="90" r="4" />
+<rect stroke="red" fill="none" x="20" y="40" width="180" height="100" stroke-width="3" />
+<g style="font-size: 75%;">
+<text x="32" y="82">(0,0)</text>
+<text x="128" y="165" text-anchor="end">(1,1)</text>
+<text x="88" y="120">セルの</text>
+<text x="88" y="135">中央</text>
+<g style="font-weight: bold;" fill="red">
+<text x="115" y="85">矩形の</text>
+<text x="115" y="100">中心 (dx,dy)</text>
+<text x="110" y="35" text-anchor="middle">幅 (w)</text>
+<text transform="translate(207,90) rotate(90)" text-anchor="middle">高さ (h)</text>
+</g>
+</g>
+</svg><br>
+セルの中央から矩形の中央までの相対位置と、幅・高さを 0〜1 の範囲で表す
+</div>
+<p>
+これに物体の種類を表す20要素を加えると、各セルに対して
+合計25個の要素 (チャンネル) が出力されることになる。
+YOLO は、この各要素をやや変則的な方法で計算している。
+最終レイヤーで各チャンネルごとに同じ活性化関数を使うのではなく、
+確信度・相対位置・大きさを表す 5つのチャンネルにはシグモイド関数を、
+物体の種類を表す 20チャンネルにはSoftmax関数を適用している:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="320" height="120">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g stroke="black" fill="none" stroke-width="2">
+<rect x="10" y="-10" width="300" height="40" />
+<rect x="30" y="50" width="260" height="20" />
+<rect x="30" y="50" width="20" height="20" />
+<rect x="50" y="50" width="20" height="20" />
+<rect x="70" y="50" width="20" height="20" />
+<rect x="90" y="50" width="20" height="20" />
+<rect x="110" y="50" width="20" height="20" />
+<rect x="130" y="50" width="20" height="20" />
+<rect x="270" y="50" width="20" height="20" />
+<g marker-end="url(#arrow)">
+<line x1="160" y1="30" x2="160" y2="45" stroke-width="4" />
+<line x1="80" y1="75" x2="70" y2="95" />
+<line x1="210" y1="75" x2="220" y2="95" />
+</g>
+<g stroke="none" fill="white">
+<rect x="40" y="53" width="80" height="14" />
+<rect x="140" y="53" width="140" height="14" />
+</g>
+</g>
+<g style="font-size:75%;" text-anchor="middle">
+<g style="font-weight: bold;">
+<text x="80" y="65">Sigmoid</text>
+<text x="210" y="65">Softmax</text>
+<text x="160" y="20">最終レイヤー</text>
+</g>
+<text x="70" y="110">[conf, dx, dy, w, h]</text>
+<text x="230" y="110">[P (20要素one-hotベクトル)]</text>
+</g>
+</svg><br>
+最終レイヤーで各セルに出力される 25要素の解釈
+</div>
+<p>
+(<strong>注意:</strong>
+本物の YOLO では、各セルには1個ではなくk個の矩形が
+所属できるようになっているが、ここでは簡単のため各セルは
+たかだか1個の矩形のみを含むとした)
+
+<p>
+YOLO では、各セルに物体の中心があるかどうかによって、
+その損失を以下のように場合分けして計算している:
+<div class=formula>
+<ol type=a>
+<li> セルに物体の中心があるとき:
+  L<sub>obj</sub>(c) = (conf - conf<sub>0</sub>)<sup>2</sup> + 5 &middot; { (dx - dx<sub>0</sub>)<sup>2</sup> + (dy - dy<sub>0</sub>)<sup>2</sup> + (w - w<sub>0</sub>)<sup>2</sup> + (h - h<sub>0</sub>)<sup>2</sup> } + H(P<sub>0</sub>, P)
+<li> セルに物体の中心がないとき:
+  L<sub>noobj</sub>(c) = 0.5 &middot; (conf - 0)<sup>2</sup>
+</ol>
+</div>
+<p>
+上の式で dx<sub>0</sub>、dy<sub>0</sub>、w<sub>0</sub>、h<sub>0</sub> は
+それぞれ当該セルに含まれている正解の矩形の相対位置および大きさである。
+確信度の正解 conf<sub>0</sub> はどうやって求めるのか? というと、
+これは YOLO が予測した矩形と正解の
+「重なり具合 (Intersection over Union, IOU)」を使っている
+(予測が完全に重なっている場合は 1 となり、まったく重なっていない場合は 0 となる)。
+この式を見ると、矩形の相対位置・大きさに対しては標準的な二乗誤差を使い、
+物体の種類に対しては交差エントロピー誤差を使っていることがわかる。
+物体があるときに二乗誤差を 5倍し、ないときに 0.5倍しているのは
+(作者らによれば) 実際の画像では物体がないセルがほとんどであり、
+こちらを優先させるためである。
+
+<h3 id="yolo-layers">2.1. YOLO のニューラルネットワーク</h3>
+<p>
+以下に YOLOの各レイヤー構造を示す
+(なお、これはオリジナルの YOLOv1 ではなく、
+よりコンパクトな YOLOv2 をベースに簡単化したものである)。
+VGG-16 と同様に、YOLO のネットワークは画像が縮小されるに従って
+チャンネル数が 2倍に増えるようになっている。ただし VGG-16 と異なり、
+Conv-3 レイヤーの間に Conv-1 (1×1 のカーネルをもつ畳み込みレイヤー) が
+挟まれた構造になっている。(著者らによると、このように中間の
+畳み込みレイヤーを小さくすることによって、計算量を削減できるらしい。)
+なお、図中には示されていないが、各畳み込みレイヤーの直後に
+バッチ正規化レイヤーと活性化関数が挿入されている。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="810" height="140">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M0,70 l35,0" />
+ <path d="M80,70 l35,0" />
+ <path d="M160,70 l35,0" />
+ <path d="M280,70 l35,0" />
+ <path d="M400,70 l35,0" />
+ <path d="M560,70 l35,0" />
+ <path d="M700,70 l35,0" />
+ <path d="M760,70 l45,0" />
+</g>
+<g stroke="black" fill="#ccf" stroke-width="2">
+ <rect x="40" y="10" width="20" height="120" />
+ <rect x="120" y="10" width="20" height="120" />
+ <rect x="200" y="10" width="20" height="120" />
+ <rect x="220" y="10" width="20" height="120" />
+ <rect x="240" y="10" width="20" height="120" />
+ <rect x="320" y="10" width="20" height="120" />
+ <rect x="340" y="10" width="20" height="120" />
+ <rect x="360" y="10" width="20" height="120" />
+ <rect x="440" y="10" width="20" height="120" />
+ <rect x="460" y="10" width="20" height="120" />
+ <rect x="480" y="10" width="20" height="120" />
+ <rect x="500" y="10" width="20" height="120" />
+ <rect x="520" y="10" width="20" height="120" />
+ <rect x="600" y="10" width="20" height="120" />
+ <rect x="620" y="10" width="20" height="120" />
+ <rect x="640" y="10" width="20" height="120" />
+ <rect x="660" y="10" width="20" height="120" />
+ <rect x="680" y="10" width="20" height="120" />
+ <rect x="740" y="10" width="20" height="120" />
+</g>
+<g stroke="black" fill="#fcc" stroke-width="2">
+ <rect x="60" y="10" width="20" height="120" />
+ <rect x="140" y="10" width="20" height="120" />
+ <rect x="260" y="10" width="20" height="120" />
+ <rect x="380" y="10" width="20" height="120" />
+ <rect x="540" y="10" width="20" height="120" />
+</g>
+<g stroke="none" fill="#ddd">
+ <rect x="10" y="10" width="20" height="120" />
+ <rect x="90" y="10" width="20" height="120" />
+ <rect x="170" y="10" width="20" height="120" />
+ <rect x="290" y="10" width="20" height="120" />
+ <rect x="410" y="10" width="20" height="120" />
+ <rect x="570" y="10" width="20" height="120" />
+ <rect x="710" y="10" width="20" height="120" />
+ <rect x="770" y="10" width="20" height="120" />
+</g>
+<g style="font-size: 75%;" text-anchor="middle">
+ <text transform="translate(25,70) rotate(-90)">入力画像 (3×224×224)</text>
+ <text transform="translate(55,70) rotate(-90)">Conv-3 (32)</text>
+ <text transform="translate(75,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(105,70) rotate(-90)">(32×112×112)</text>
+ <text transform="translate(135,70) rotate(-90)">Conv-3 (64)</text>
+ <text transform="translate(155,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(185,70) rotate(-90)">(64×56×56)</text>
+ <text transform="translate(215,70) rotate(-90)">Conv-3 (128)</text>
+ <text transform="translate(235,70) rotate(-90)">Conv-1 (64)</text>
+ <text transform="translate(255,70) rotate(-90)">Conv-3 (128)</text>
+ <text transform="translate(275,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(305,70) rotate(-90)">(128×28×28)</text>
+ <text transform="translate(335,70) rotate(-90)">Conv-3 (256)</text>
+ <text transform="translate(355,70) rotate(-90)">Conv-1 (128)</text>
+ <text transform="translate(375,70) rotate(-90)">Conv-3 (256)</text>
+ <text transform="translate(395,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(425,70) rotate(-90)">(256×14×14)</text>
+ <text transform="translate(455,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(475,70) rotate(-90)">Conv-1 (256)</text>
+ <text transform="translate(495,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(515,70) rotate(-90)">Conv-1 (256)</text>
+ <text transform="translate(535,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(555,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(585,70) rotate(-90)">(512×7×7)</text>
+ <text transform="translate(615,70) rotate(-90)">Conv-3 (1024)</text>
+ <text transform="translate(635,70) rotate(-90)">Conv-1 (512)</text>
+ <text transform="translate(655,70) rotate(-90)">Conv-3 (1024)</text>
+ <text transform="translate(675,70) rotate(-90)">Conv-1 (512)</text>
+ <text transform="translate(695,70) rotate(-90)">Conv-3 (1024)</text>
+ <text transform="translate(725,70) rotate(-90)">(1024×7×7)</text>
+ <text transform="translate(755,70) rotate(-90)">Conv-1 (25)</text>
+ <text transform="translate(785,70) rotate(-90)">(25×7×7)</text>
+</g>
+</svg><br>
+YOLO のレイヤー (簡単バージョン)
+</div>
+
+<h4 id="leakyrelu">LeakyReLU活性化関数</h4>
+<p>
+YOLO のもうひとつの特徴として、活性化関数に
+通常の ReLU ではなく <strong>LeakyReLU</strong> と呼ばれる
+関数を使っていることがある。これは ReLU 関数を改良したもので、
+通常の ReLU では x &gt; 0 の勾配が完全にゼロになるところを、
+LeakyReLU ではわずかに下向きの勾配 a をもつ。
+従来の ReLU では x &gt; 0 のときに勾配がゼロになり、
+重みの更新ができなくなるが、LeakyReLU ではその間にもわずかな
+勾配が残るため、重みの更新を行うことができる。
+<div class=figure>
+<table align=center><tr><td style="padding-right:1em;">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="120">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="100" y1="120" x2="100" y2="1" marker-end="url(#arrow)" />
+  <line x1="0" y1="95" x2="199" y2="95" marker-end="url(#arrow)" />
+  <line x1="0" y1="5" x2="200" y2="5" stroke-dasharray="3,3" />
+  <path d="M0,95 l100,0 l100,-100" stroke-width="2" />
+</g>
+<g style="font-size:75%;">
+<text x="105" y="10" dy="0.5em">+1</text>
+<text x="105" y="85" dy="0.5em">0</text>
+<text x="195" y="85" dy="0.5em" text-anchor="end">x</text>
+</g>
+</svg>
+</td><td>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="120">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <line x1="100" y1="120" x2="100" y2="1" marker-end="url(#arrow)" />
+  <line x1="0" y1="95" x2="199" y2="95" marker-end="url(#arrow)" />
+  <line x1="0" y1="5" x2="200" y2="5" stroke-dasharray="3,3" />
+  <path d="M0,115 l100,-20 l100,-100" stroke-width="2" />
+</g>
+<g style="font-size:75%;">
+<text x="105" y="10" dy="0.5em">+1</text>
+<text x="105" y="85" dy="0.5em">0</text>
+<text x="195" y="85" dy="0.5em" text-anchor="end">x</text>
+<text x="80" y="105" dy="0.5em" text-anchor="middle">a</text>
+</g>
+</svg>
+</td></tr>
+<tr><td>ReLU</td><td>LeakyReLU</td></tr>
+</table>
+</div>
+<p>
+PyTorch では LeakyReLU は
+<code>F.leaky_relu</code> という関数で利用できる。
+YOLO では、勾配として a = 0.1 を使っている:
+<blockquote><pre>
+x = F.leaky_relu(x, 0.1)  <span class=comment># a=0.1</span>
+</pre></blockquote>
+
+<h3 id="yolo-training">2.2. YOLO の訓練</h3>
+<p>
+YOLO の訓練データには「<a target="_blank" href="http://host.robots.ox.ac.uk/pascal/VOC/">PASCAL VOC データセット</a>」というものを使う。
+ここには約1万枚の画像と、そこに含まれている20種類の物体
+(人間、自動車、椅子、犬、馬など) の矩形座標が記録されている。
+なお後期バージョンの YOLOv3 では、より画像の数・種類ともに多い
+<a target="_blank" href="https://cocodataset.org/">COCO データセット</a>が使われている。
+<div class=figure>
+<table align=center><tr>
+<td><img width="168" height="250" src="pascal_sample1.png"></td>
+<td><img width="250" height="166" src="pascal_sample2.png"></td>
+</tr></table>
+PASCAL VOC データセットの例
+</div>
+<p>
+VOC データセットには、画像に加えて、
+以下のようなXML形式の
+<u>アノテーション</u> (annotation) が付随している:
+<pre style="font-size: 75%;">
+&lt;annotation&gt;
+  &lt;filename&gt;000021.jpg&lt;/filename&gt;
+  &lt;object&gt;
+    &lt;name&gt;dog&lt;/name&gt;
+    &lt;bndbox&gt;&lt;xmin&gt;1&lt;/xmin&gt;&lt;ymin&gt;235&lt;/ymin&gt;&lt;xmax&gt;182&lt;/xmax&gt;&lt;ymax&gt;388&lt;/ymax&gt;&lt;/bndbox&gt;
+  &lt;/object&gt;
+  &lt;object&gt;
+    &lt;name&gt;person&lt;/name&gt;
+    &lt;bndbox&gt;&lt;xmin&gt;210&lt;/xmin&gt;&lt;ymin&gt;36&lt;/ymin&gt;&lt;xmax&gt;336&lt;/xmax&gt;&lt;ymax&gt;482&lt;/ymax&gt;&lt;/bndbox&gt;
+  &lt;/object&gt;
+  ...
+</pre>
+<p>
+これらのデータセットを使った、YOLO の訓練アルゴリズムは以下のようになる:
+<ol>
+<li> 画像を、ニューラルネットワークに通す。
+<li> 出力から損失を計算する:
+<ol type=i>
+<li> 各セルが予測する矩形の位置および大きさを計算する。
+<li> セルに正解データの矩形 (の中心) が含まれている場合、
+  2つの矩形の IOU を計算し、上記 L<sub>obj</sub>(c) を計算する。
+<li> 含まれていない場合、予測された確信度から
+  L<sub>noobj</sub>(c) を計算する。
+</ol>
+<li> これらの損失を合計し、勾配を計算して重み・バイアスを更新する。
+</ol>
+<p>
+YOLO の訓練プロセスは、損失の計算方法が若干異なることを除けば、
+他のほとんどニューラルネットワークと同じである。
+ただし、実際には訓練データの XML を解析したり、
+画像サイズをネットワークの入力 (224×224) に合わせて調整したり、
+それに合わせて各セルごとの正解値を求める処理が結構複雑である。
+このように、実際の機械学習のタスクにおいては、ニューラルネットワークの
+学習そのものよりも、データの準備や結果の後処理などのプログラミングに
+手間がかかることが多い。
+
+<p>
+以下に、YOLO を実際に実装してみたものを紹介する。
+ここではモデルを簡単にするため、2種類 (人・自動車) の物体のみを認識するように
+なっている。
+
+<div class=exercise id="ex7-3">
+<div class=header>演習7-3. YOLO の訓練を実行する</div>
+<p>
+この演習には、4GB以上のメモリをもつ NVIDIA製の GPU が必要である。
+(家庭用 PC なら、2017年以後に発売された GeForce シリーズが搭載されていれば、
+ほぼ大丈夫なはずである。)
+<ol>
+  <li> まず、PASCAL VOC データセット (1.7GBytes) をダウンロードする。
+    これはいくつかのサイトにミラーされており、ここでは
+    <a target="_blank" href="https://data.deepai.org/PASCALVOC2007.zip">DeepAI のリンク</a>
+    を利用する。
+  <li> PyTorch を使った実装 <a href="../zip/yolo.zip">yolo.zip</a> を
+    ダウンロードする。ここには、以下のファイルが含まれている:
+    <ul>
+      <li> <code>README.md</code> … 説明文書。
+      <li> <code>yolo_net.py</code> … ニューラルネットワーク本体である
+        <code>YOLONet</code>クラスを定義する。
+      <li> <code>yolo_train.py</code> … 訓練用スクリプト。
+      <li> <code>yolo_eval.py</code> … 評価・推論用スクリプト。
+      <li> <code>yolo_utils.py</code> … 画像の調整、正解データの読み込みなどの雑多な処理。
+    </ul>
+  <li> 以下のように実行する。ここではエポック数 100 とし、
+    訓練データ <code>PASCALVOC2007.zip</code> が同じディレクトリ上に存在すると仮定している。
+<pre>
+$ <strong>python yolo_train.py --epochs 100 --save-model ./yolo_model.pt ./PASCALVOC2007.zip</strong>
+2021-12-23 13:36:22,812 INFO zip_path=./PASCALVOC2007.zip
+2021-12-23 13:36:22,822 INFO images=5011
+2021-12-23 13:36:22,832 INFO annots=5011
+2021-12-23 13:36:22,977 INFO Loading: ./yolo_model.pt...
+<span class=ignored>2021-12-23 13:36:22,977 ERROR Error: [Errno 2] No such file or directory: './yolo_model.pt'</span> <sub>(このエラーは無視してよい)</sub>
+2021-12-23 13:36:24,518 INFO *** epoch=1/100 ***
+2021-12-23 13:36:36,509 INFO train: batch=10/157, loss=8.7703
+2021-12-23 13:36:45,638 INFO train: batch=20/157, loss=9.0373
+...
+</pre>
+  <li> 学習プロセスは 3時間程度で終了する。
+    学習したモデルは <code>yolo_model.pt</code> というファイルに保存される。
+  <li> さらに多くのエポックを続ける場合は、同じコマンドを繰り返せば、
+    既存のモデルを読みこんで訓練を再開する。
+</ol>
+</div>
+
+<h3 id="yolo-postprocess">2.3. YOLO の後処理</h3>
+<p>
+さて、YOLO では各物体の中心にもっとも近いセルだけが
+矩形の情報をもつことになっているが、実際にはすべての
+セルに (確信度は低いものの) 矩形の情報が出力される。
+これらの矩形をすべて有効とすると、ひとつの物体に対して
+大量の矩形が出力されてしまう。そこで YOLO は出力に対して
+<u>Non-Max Suppression</u> (NMS) と呼ばれる後処理をおこなっている。
+(NMS は YOLO に限らず、物体検出で一般的に使われている処理である。)
+<p>
+NMS の原理は単純である。これは確信度のもっとも高い矩形をとり出し、
+それとある一定以上の比率で重なっている矩形をすべて削除していけばよい。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="125" height="120">
+<image x="10" y="10" width="105" height="105" href="yolo_sample2.jpg" />
+<rect x="10" y="10" width="105" height="105" stroke="none" fill="rgba(255,255,255,0.5)" />
+<g fill="none" stroke-width="2">
+<rect x="48" y="16" width="55" height="80" stroke="rgba(255,0,0,0.3)" />
+<rect x="45" y="20" width="65" height="70" stroke="rgba(255,0,0,0.3)" />
+<rect x="56" y="26" width="58" height="80" stroke="rgba(255,0,0,0.3)" />
+<rect x="16" y="80" width="32" height="30" stroke="rgba(0,0,255,0.3)" />
+<rect x="20" y="70" width="34" height="33" stroke="rgba(0,0,255,0.3)" />
+<rect x="24" y="78" width="40" height="25" stroke="rgba(0,0,255,0.3)" />
+<rect x="52" y="22" width="60" height="90" stroke="#f00" />
+<rect x="14" y="74" width="44" height="38" stroke="#00f" />
+</g>
+<g fill="none" stroke-width="2">
+</g>
+</svg><br>
+Non-Max Suppression:
+確信度の高い矩形だけを残し、あとは捨てる。
+</div>
+
+<p>
+今回は後処理として、NMS の改良版である Soft-NMS という方法を使っている。
+これは重なり合った各矩形を即削除するのではなく「確信度を減らす」
+ことにより徐々に順位を下げていく方法である。
+Soft-NMS の具体的なアルゴリズムは以下のようになっている:
+<ol>
+<li> 現在、もっとも大きな確信度をもつ矩形を出力する。
+<li> それと重なる各矩形の比率 (IOU) を計算し、それらの確信度を
+  <code>exp(-C &middot; IOU<sup>2</sup>)</code> 倍する。
+<li> 一定のしきい値以上の矩形がなくなるまで 1. 〜 2. を繰り返す。
+</ol>
+<p>
+この結果、得られた矩形を表示すれば物体認識は完了である。
+
+<ul>
+<li> <a target="_blank" href="https://arxiv.org/abs/1704.04503v2">Soft-NMS が説明されている論文
+"Soft-NMS - Improving Object Detection With One Line of Code"</a>
+</ul>
+
+<div class=exercise id="ex7-4">
+<div class=header>演習7-4. YOLO で実際に認識をおこなう</div>
+<p>
+学習した YOLO のモデルを使って実際に認識をおこなうには、
+以下の3通りの方法がある。どの場合も、保存されたモデルを
+<code>yolo_eval.py</code> スクリプトの最初の引数として指定する。
+<ol type=a>
+<li> 画像の中の物体を認識する:
+(認識結果は <code>output_image1.png</code> のようなファイル名で保存される)
+<pre>
+$ <strong>python yolo_eval.py ./yolo_model.pt image1.jpg image2.jpg ...</strong>
+</pre>
+<li> カメラの画像をリアルタイムで認識・表示する (OpenCV が必要):
+<pre>
+$ <strong>python yolo_eval.py ./yolo_model.pt --camera</strong>
+</pre>
+<li> デストデータを使って性能測定をおこなう:
+<pre>
+$ <strong>python yolo_eval.py ./yolo_model.pt PASCALVOC2007.zip</strong>
+</pre>
+</ol>
+</div>
+
+<h4 id="map">mAP (mean Average Precision) とは</h4>
+<p>
+ここで、mAP (mean Average Precision) という概念について説明しておく。
+mAP は物体認識や情報検索の評価に使われる指標のひとつである。
+実際には、こういったタスクの評価は簡単ではない。
+すべての物体が (種類・矩形とも) 完璧に認識できた場合は単純なのだが、
+以下のようなケースに対して適切なペナルティを与えたいからである:
+<ul>
+<li> 認識されるべき物体を認識しなかった場合
+<li> 同一の物体を、2つの異なる物体として認識した場合
+</ul>
+<p>
+mAP は個々の入力 (画像) に対する認識結果の AP (Average Precision) を平均したものである。
+各AP は以下のようにして計算する:
+<ol>
+<li> 認識された物体の矩形を、確信度の高い順に並べる。
+<li> 上位 n個の認識結果に対して、そのうちのいくつが
+正解データに IOU &ge; 0.5 以上で一致しているかを数える。
+(ただし、一度正解とみなした物体は二度数えない。)
+<li> n を 1 から徐々に増やしていき、そのときの出力に含まれる
+正解の比率 (適合率) を、正解データ全体に対する比率 (再現率) によって積分する。
+<br>
+たとえば、4個の物体 (正解) に対して5個の矩形が出力された場合:
+<ul>
+  <li> n = 1 の結果: [○] (適合率 1/1、再現率 1/4) … 1/1 × 1/4
+  <li> n = 2 の結果: [○, ×] (適合率 1/2、再現率 1/4)
+  <li> n = 3 の結果: [○, ×, ○] (適合率 2/3、再現率 2/4) … 2/3 × 1/4
+  <li> n = 4 の結果: [○, ×, ○, ○] (適合率 3/4、再現率 3/4) … 3/4 × 1/4
+  <li> n = 5 の結果: [○, ×, ○, ○, ×] (適合率 3/5、再現率 3/4)
+</ul>
+この画像の AP は (1/1 + 2/3 + 3/4) × (1/4) ≒ 0.60 となる。
+<li> すべての画像に対して AP を計算し、その平均を取って mAP とする。
+</ol>
+
+
+<h3 id="yolo-annotation">2.4. 自前の訓練データを作成する</h4>
+<p>
+YOLO に新しい種類の物体を認識させるためには、訓練データとなる
+PASCAL VOCデータセットのようなもの (アノテーション) を自分で作成する必要がある。
+このためのソフトウェアを <u>画像アノテーションツール</u> (image annotation tools)
+という。画像アノテーションツールは商用・フリーのものを含めて
+多くの種類が存在するが、ここでは VGG の開発チームが製作した、
+<a target="_blank" href="https://www.robots.ox.ac.uk/~vgg/software/via/">VGG Image Annotator (VIA)</a>
+というツールを使用する。これはブラウザベースで動くため、
+追加のインストールは必要ない。
+VIA にはバージョン 2系列と バージョン 3系列があるが、
+今回は バージョン2 を利用する (こちらのほうが使い勝手がよいため)。
+
+<ol>
+<li> <code>via-2.0.11.zip</code> をダウンロード・展開し、
+ブラウザで <code>via.html</code> ファイルを開く。
+<li> 画面左側にある「Project」パネルから、
+<kbd>Add Files</kbd> ボタンをクリックし、
+アノテーションを追加したい画像を選択する。
+<div class=figure>
+<img src="via_menu.png" width="344" height="316">
+</div>
+<li> 画面左側にある「Attributes」パネルを開き、
+"attribute name" 欄に "<code>name</code>" と入力して
+<kbd>+</kbd> ボタンを押す。
+ここでは属性の型 (Type) は "text" としているが、
+いちいち種類を手入力するのが面倒な場合は、
+これを "dropdown" に切り替え、選択肢を入力してもよい。
+(この作業が必要なのは一度だけである。)
+<div class=figure>
+<img src="via_attrs.png" width="141" height="151">
+</div>
+<li> 画像中をドラッグし、矩形領域を作成して <code>name</code>欄にそれぞれの
+物体の種類を入力する。なお、画面下部の属性パネルは
+<kbd>Space</kbd> キーでオン・オフ可能である。
+<div class=figure>
+<img src="via_regions.png" width="466" height="386">
+</div>
+<li> 画面上部の「Annotation」メニューから
+<kbd>Export Annotations (as json)</kbd> を選択する。
+ブラウザからjsonファイルがダウンロードできる状態になるので、
+これをファイルに保存する。
+<li> 途中経過を保存・再開する場合は、
+画面上部の「Project」メニューから
+<kbd>Save</kbd> あるいは <kbd>Load</kbd> を選択する。
+</ol>
+<p>
+完成した JSON形式のファイルを PASCAL VOCと同等の XML形式に変換する
+<a href="via2voc.py">via2voc.py</a> というツールを用意した。
+これは以下のようにして利用する:
+<blockquote><pre>
+C:\&gt; <strong>python via2voc.py -O. output_json.json</strong>
+loading: output_json.json
+saved: ./yolo_sample1.xml
+...
+</pre></blockquote>
+
+<h3 id="yolo-advanced">2.5. さらに精度を上げるには</h3>
+<p>
+今回実装した YOLO の精度は、論文に載っている「本物」バージョンの YOLO よりも低い。
+その最大の理由は、使っている訓練データの不足である。
+本物の YOLO では、検出精度を高めるために以下のような方法を使っている:
+
+<h4 id="data-augmentation">データ拡張 (data augmentation)</h4>
+<p>
+画像認識のタスクでは、訓練データをいわば「水増し」するために
+<u>データ拡張</u> (data augmentation) というテクニックを使うことが多い。
+これは、もともとの画像にランダムな変換をほどこして訓練データに混ぜるもので、
+必要な場合は正解の矩形データもそれに合わせて変換する (切り取り・左右反転など)。
+データ拡張をおこなうことによって、訓練データを自動的に増やすことができる。
+これはモデルが単純な特徴 (画像全体の明るさや、隣り合ったピクセルの色など) だけで
+物体を判定するのを防ぎ、結果として精度が向上すると考えられている。
+<div class=figure>
+<table border align=center><tr>
+<td><img src="yolo_sample3.jpg"></td>
+<td><img src="yolo_sample4.jpg"></td>
+<td><img src="yolo_sample7.jpg"></td>
+<td><img src="yolo_sample5.jpg"></td>
+<td><img src="yolo_sample6.jpg"></td>
+<td><img src="yolo_sample8.jpg"></td>
+</tr><tr>
+<td>明るさを変える</td>
+<td>色調を変える</td>
+<td>ノイズ付加</td>
+<td>切り取り</td>
+<td>左右反転</td>
+<td>画像の混合</td>
+</tr></table>
+</div>
+
+<h4 id="pretraining">事前学習 (pretraining)</h4>
+<p>
+訓練データの不足を補うのに使われるもうひとつの方法が
+<u>事前学習</u> (pretraining) である。これは「ニューラルネットワークの一部 (または全部) を、
+あらかじめ (より訓練データが多い) 別のタスク用に訓練しておき、
+その後本来のタスク用に訓練しなおす」というものである。
+<p>
+たとえば YOLO の論文では、最初の 13層の畳み込みレイヤーを
+まず ImageNet 用に訓練している。ImageNet は画像に含まれる物体が
+1000種類のどれかを判定する単純なタスクであるが、PASCAL VOC に比べて
+画像の数が数百倍多い。YOLO では、まず 13層の畳み込みレイヤーに
+1000ノードの全接続層と Softmax活性化関数をつけたものを作り、
+これを ImageNet の判定用に学習させる。つぎに 13層の畳み込みレイヤーの
+重み・バイアスを<strong>残したままで</strong>畳み込みレイヤーを
+つけたし、今度は PASCAL VOC を使って YOLO 用に学習させる。
+こうすることによって、ImageNet で学習した知識を YOLO にも
+転用できると期待されている。
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="880" height="310">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+  <marker id="rarrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="red" stroke="none" />
+  </marker>
+</defs>
+<g transform="translate(10,10)">
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M-10,70 l45,0" />
+ <path d="M80,70 l35,0" />
+ <path d="M160,70 l35,0" />
+ <path d="M280,70 l35,0" />
+ <path d="M400,70 l35,0" />
+ <path d="M560,70 l45,0" />
+ <path d="M650,70 l55,0" />
+ <path d="M-10,230 l45,0" />
+ <path d="M560,230 l45,0" />
+ <path d="M710,230 l35,0" />
+ <path d="M770,230 l45,0" />
+</g>
+<g stroke="black" fill="#ccf" stroke-width="2">
+ <rect x="40" y="10" width="20" height="120" />
+ <rect x="120" y="10" width="20" height="120" />
+ <rect x="200" y="10" width="20" height="120" />
+ <rect x="220" y="10" width="20" height="120" />
+ <rect x="240" y="10" width="20" height="120" />
+ <rect x="320" y="10" width="20" height="120" />
+ <rect x="340" y="10" width="20" height="120" />
+ <rect x="360" y="10" width="20" height="120" />
+ <rect x="440" y="10" width="20" height="120" />
+ <rect x="460" y="10" width="20" height="120" />
+ <rect x="480" y="10" width="20" height="120" />
+ <rect x="500" y="10" width="20" height="120" />
+ <rect x="520" y="10" width="20" height="120" />
+
+ <rect x="610" y="170" width="20" height="120" />
+ <rect x="630" y="170" width="20" height="120" />
+ <rect x="650" y="170" width="20" height="120" />
+ <rect x="670" y="170" width="20" height="120" />
+ <rect x="690" y="170" width="20" height="120" />
+ <rect x="750" y="170" width="20" height="120" />
+</g>
+<g stroke="black" fill="#cfc" stroke-width="2">
+ <rect x="610" y="10" width="20" height="120" />
+</g>
+<g stroke="black" fill="#ffc" stroke-width="2">
+ <rect x="630" y="10" width="20" height="120" />
+</g>
+<g stroke="black" fill="#fcc" stroke-width="2">
+ <rect x="60" y="10" width="20" height="120" />
+ <rect x="140" y="10" width="20" height="120" />
+ <rect x="260" y="10" width="20" height="120" />
+ <rect x="380" y="10" width="20" height="120" />
+ <rect x="540" y="10" width="20" height="120" />
+</g>
+<g stroke="none" fill="#ddd">
+ <rect x="0" y="10" width="20" height="120" />
+ <rect x="90" y="10" width="20" height="120" />
+ <rect x="170" y="10" width="20" height="120" />
+ <rect x="290" y="10" width="20" height="120" />
+ <rect x="410" y="10" width="20" height="120" />
+ <rect x="580" y="10" width="20" height="120" />
+ <rect x="660" y="10" width="20" height="120" />
+ <rect x="0" y="170" width="20" height="120" />
+ <rect x="580" y="170" width="20" height="120" />
+ <rect x="720" y="170" width="20" height="120" />
+ <rect x="780" y="170" width="20" height="120" />
+</g>
+<g stroke="#cccccc" fill="none" stroke-width="2">
+ <rect x="40" y="175" width="20" height="110" />
+ <rect x="120" y="175" width="20" height="110" />
+ <rect x="200" y="175" width="20" height="110" />
+ <rect x="220" y="175" width="20" height="110" />
+ <rect x="240" y="175" width="20" height="110" />
+ <rect x="320" y="175" width="20" height="110" />
+ <rect x="340" y="175" width="20" height="110" />
+ <rect x="360" y="175" width="20" height="110" />
+ <rect x="440" y="175" width="20" height="110" />
+ <rect x="460" y="175" width="20" height="110" />
+ <rect x="480" y="175" width="20" height="110" />
+ <rect x="500" y="175" width="20" height="110" />
+ <rect x="520" y="175" width="20" height="110" />
+ <rect x="60" y="175" width="20" height="110" />
+ <rect x="140" y="175" width="20" height="110" />
+ <rect x="260" y="175" width="20" height="110" />
+ <rect x="380" y="175" width="20" height="110" />
+ <rect x="540" y="175" width="20" height="110" />
+</g>
+<g stroke="black" fill="none" stroke-width="2">
+ <rect x="25" y="-5" width="670" height="150" />
+ <rect x="25" y="165" width="780" height="130" />
+ <rect x="30" y="0" width="540" height="140" stroke-dasharray="2,2" />
+ <rect x="30" y="170" width="540" height="120" stroke-dasharray="2,2" />
+</g>
+<path stroke="red" fill="none" stroke-width="10" marker-end="url(#rarrow)"
+      d="M340,135 l0,35" />
+<g style="font-size: 75%;" text-anchor="middle">
+ <text transform="translate(15,70) rotate(-90)">入力画像 (3×224×224)</text>
+ <text transform="translate(55,70) rotate(-90)">Conv-3 (32)</text>
+ <text transform="translate(75,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(105,70) rotate(-90)">(32×112×112)</text>
+ <text transform="translate(135,70) rotate(-90)">Conv-3 (64)</text>
+ <text transform="translate(155,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(185,70) rotate(-90)">(64×56×56)</text>
+ <text transform="translate(215,70) rotate(-90)">Conv-3 (128)</text>
+ <text transform="translate(235,70) rotate(-90)">Conv-1 (64)</text>
+ <text transform="translate(255,70) rotate(-90)">Conv-3 (128)</text>
+ <text transform="translate(275,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(305,70) rotate(-90)">(128×28×28)</text>
+ <text transform="translate(335,70) rotate(-90)">Conv-3 (256)</text>
+ <text transform="translate(355,70) rotate(-90)">Conv-1 (128)</text>
+ <text transform="translate(375,70) rotate(-90)">Conv-3 (256)</text>
+ <text transform="translate(395,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(425,70) rotate(-90)">(256×14×14)</text>
+ <text transform="translate(455,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(475,70) rotate(-90)">Conv-1 (256)</text>
+ <text transform="translate(495,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(515,70) rotate(-90)">Conv-1 (256)</text>
+ <text transform="translate(535,70) rotate(-90)">Conv-3 (512)</text>
+ <text transform="translate(555,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(595,70) rotate(-90)">(512×7×7)</text>
+ <text transform="translate(625,70) rotate(-90)">Linear (1000)</text>
+ <text transform="translate(645,70) rotate(-90)">Softmax</text>
+ <text transform="translate(675,70) rotate(-90)">(1000)</text>
+
+ <text transform="translate(15,230) rotate(-90)">入力画像 (3×224×224)</text>
+ <text transform="translate(595,230) rotate(-90)">(512×7×7)</text>
+ <text transform="translate(625,230) rotate(-90)">Conv-3 (1024)</text>
+ <text transform="translate(645,230) rotate(-90)">Conv-1 (512)</text>
+ <text transform="translate(665,230) rotate(-90)">Conv-3 (1024)</text>
+ <text transform="translate(685,230) rotate(-90)">Conv-1 (512)</text>
+ <text transform="translate(705,230) rotate(-90)">Conv-3 (1024)</text>
+ <text transform="translate(735,230) rotate(-90)">(1024×7×7)</text>
+ <text transform="translate(765,230) rotate(-90)">Conv-1 (25)</text>
+ <text transform="translate(795,230) rotate(-90)">(25×7×7)</text>
+</g>
+<g style="font-size: 75%;">
+ <text x="710" y="40" dy="0.5em">Step 1.</text>
+ <text x="710" y="60" dy="0.5em">ImageNet で</text>
+ <text x="710" y="75" dy="0.5em">訓練</text>
+ <text x="820" y="200" dy="0.5em">Step 2.</text>
+ <text x="820" y="220" dy="0.5em">YOLO で</text>
+ <text x="820" y="235" dy="0.5em">訓練</text>
+</g>
+<g text-anchor="middle">
+ <text x="340" y="210" dy="0.5em">重み・バイアスを</text>
+ <text x="340" y="230" dy="0.5em">そのまま残す</text>
+</g>
+</g>
+</svg><br>
+YOLO の事前学習
+</div>
+
+<p>
+事前学習は、より一般的な手法である <u>転移学習</u>
+(transfer learning) と呼ばれるテクニックの一種とみなすことができる。
+事前学習は、画像認識の分野では頻繁に利用されている。
+これは「<strong>最初のほうのレイヤーが学習する特徴量は、
+多くの画像認識関連のタスクで共通に利用可能であろう</strong>」という
+仮説によるものである。多くの論文によれば、事前学習によって実際に
+認識精度が向上することが報告されている。
+
+<div class=exercise id="ex7-adv">
+<div class=header>発展課題. COCO データセットを使って学習</div>
+<p>
+<a href="#ex7-3">演習 7-3.</a> で使った
+<code>yolo_utils.py</code> ファイルには、
+COCO データセットを読み込む <code>COCODataset</code> クラスが用意されている。
+<a target="_blank" href="https://cocodataset.org/">COCO データセット</a> をダウンロードし、
+これを使って YOLO を訓練するよう改造せよ。
+</div>
+
+<h2 id="depth">3. 奥行き推定システムの実装</h2>
+<p>
+次に、2次元画像のみから (距離センサなどを使わずに)
+畳み込みニューラルネットワークを使って
+奥行きを推定するシステムを紹介する。
+これは以下の論文で説明されているものである:
+<ul>
+<li> <a target="_blank" href="https://cs.nyu.edu/~deigen/depth/">奥行き推定システムの作者のページ</a>。
+オリジナルの論文や実装、訓練後の重み・バイアスが公開されている。
+</ul>
+
+<p>
+この研究では
+<a target="_blank" href="https://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html">NYU Depth データセット</a>
+というものを使っている。
+ここには RGB画像と、赤外線センサによって得られた奥行き情報が
+ピクセルごとに関連づけられており、
+ニューラルネットワークは画像と (1/4 ほど粗くした) 奥行き値との
+対応関係を学習させている。
+<div class=example>
+<center>
+<table align=center><tr>
+<td><img width="240" height="180" src="nyudepth1.jpg"></td>
+<td><img width="240" height="180" src="nyudepth2.png"></td>
+</tr></table>
+NYU Depth データセットの例
+</center>
+<ul>
+<li> 入力: 304×228ピクセルからなる RGB画像
+<li> 出力: 各ピクセルの奥行きをあらわす、74×55 の行列 (画像の約1/4)
+</ul>
+</div>
+
+<p>
+ここで使われているニューラルネットワークも VGG-16 を参考に作られている。
+このシステムで特徴的なのは、最終的な結果を得るのに 2つのニューラルネットワークを
+使っていることである。最初の「粗い (coarse)」ネットワークでは
+入力画像からおおざっぱな奥行き情報のみを取得し、
+次の「細かい (fine)」ネットワークでもう一度もとの画像を参考に
+情報を洗練するというプロセスをとっている。
+ここでも図中に示されていないが、各畳み込みレイヤーの直後には
+バッチ正規化レイヤーと ReLU 活性化関数が挿入されている。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="730" height="300">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<image x="0" y="40" width="80" height="60" href="nyudepth1.jpg" />
+<image x="580" y="48" width="60" height="45" href="nyudepth3.png" />
+<image x="360" y="207" width="60" height="45" href="nyudepth4.png" />
+<g stroke="black" fill="none" stroke-width="2" marker-end="url(#arrow)">
+ <path d="M80,70 l45,0" />
+ <path d="M170,70 l35,0" />
+ <path d="M250,70 l35,0" />
+ <path d="M350,70 l35,0" />
+ <path d="M410,70 l35,0" />
+ <path d="M470,70 l35,0" />
+ <path d="M530,70 l45,0" />
+
+ <path d="M610,95 l0,55 l-400,0 l0,65 l35,0" />
+ <path d="M115,70 l0,160 l10,0" />
+ <path d="M170,230 l75,0" />
+ <path d="M310,230 l45,0" />
+</g>
+<g stroke="black" fill="#ccf" stroke-width="2">
+ <rect x="130" y="10" width="20" height="120" />
+ <rect x="210" y="10" width="20" height="120" />
+ <rect x="290" y="10" width="20" height="120" />
+ <rect x="310" y="10" width="20" height="120" />
+ <rect x="390" y="10" width="20" height="120" />
+
+ <rect x="130" y="170" width="20" height="120" />
+ <rect x="250" y="170" width="20" height="120" />
+ <rect x="270" y="170" width="20" height="120" />
+ <rect x="290" y="170" width="20" height="120" />
+</g>
+<g stroke="black" fill="#fcc" stroke-width="2">
+ <rect x="150" y="10" width="20" height="120" />
+ <rect x="230" y="10" width="20" height="120" />
+ <rect x="330" y="10" width="20" height="120" />
+
+ <rect x="150" y="170" width="20" height="120" />
+</g>
+<g stroke="black" fill="#cfc" stroke-width="2">
+ <rect x="450" y="10" width="20" height="120" />
+ <rect x="510" y="10" width="20" height="120" />
+</g>
+<g stroke="none" fill="#ddd">
+ <rect x="90" y="10" width="20" height="120" />
+ <rect x="180" y="10" width="20" height="120" />
+ <rect x="260" y="10" width="20" height="120" />
+ <rect x="360" y="10" width="20" height="120" />
+ <rect x="420" y="10" width="20" height="120" />
+ <rect x="480" y="10" width="20" height="120" />
+ <rect x="540" y="10" width="20" height="120" />
+
+ <rect x="180" y="170" width="20" height="120" />
+ <rect x="220" y="170" width="20" height="120" />
+ <rect x="320" y="170" width="20" height="120" />
+</g>
+<g stroke="black" fill="none" stroke-width="2">
+ <rect x="120" y="5" width="530" height="130" stroke-dasharray="2,2" />
+ <rect x="120" y="165" width="310" height="130" stroke-dasharray="2,2" />
+</g>
+<g style="font-size: 75%;" text-anchor="middle">
+ <text transform="translate(105,70) rotate(-90)">入力画像 (3×304×228)</text>
+ <text transform="translate(145,70) rotate(-90)">Conv-11,/4(96)</text>
+ <text transform="translate(165,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(195,70) rotate(-90)">(96×37×27)</text>
+ <text transform="translate(225,70) rotate(-90)">Conv-5 (256)</text>
+ <text transform="translate(245,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(275,70) rotate(-90)">(256×18×13)</text>
+ <text transform="translate(305,70) rotate(-90)">Conv-3 (384)</text>
+ <text transform="translate(325,70) rotate(-90)">Conv-3 (384)</text>
+ <text transform="translate(345,70) rotate(-90)">Max Pooling</text>
+ <text transform="translate(375,70) rotate(-90)">(384×9×6)</text>
+ <text transform="translate(405,70) rotate(-90)">Conv-3 (256)</text>
+ <text transform="translate(435,70) rotate(-90)">(256×9×6)</text>
+ <text transform="translate(465,70) rotate(-90)">Linear (4096)</text>
+ <text transform="translate(495,70) rotate(-90)">(4096)</text>
+ <text transform="translate(525,70) rotate(-90)">Linear (4070)</text>
+ <text transform="translate(555,70) rotate(-90)">(74×55)</text>
+
+ <text transform="translate(145,230) rotate(-90)">Conv-9,/2(63)</text>
+ <text transform="translate(165,230) rotate(-90)">Max Pooling</text>
+ <text transform="translate(195,230) rotate(-90)">(63×74×55)</text>
+ <text transform="translate(235,230) rotate(-90)">(64×74×55)</text>
+ <text transform="translate(265,230) rotate(-90)">Conv-5 (64)</text>
+ <text transform="translate(285,230) rotate(-90)">Conv-5 (64)</text>
+ <text transform="translate(305,230) rotate(-90)">Conv-5 (1)</text>
+ <text transform="translate(335,230) rotate(-90)">(1×74×55)</text>
+</g>
+<g style="font-size: 80%; font-weight: bold;">
+ <text x="580" y="15" dy="0.5em">Coarse</text>
+ <text x="580" y="30" dy="0.5em">出力</text>
+ <text x="360" y="175" dy="0.5em">Fine</text>
+ <text x="360" y="190" dy="0.5em">出力</text>
+</g>
+</svg><br>
+Coarse ネットワークと Fine ネットワーク<br>
+Coarse ネットワークの出力が Fine ネットワークの途中に挿入されている。
+</div>
+
+<p>
+奥行き推定システムの訓練は、2段階に分けて行われる。
+まず訓練データを使って Coarse ネットワークだけを訓練し、
+重み・バイアスを固定する。つぎに同じ画像を使って
+Fine ネットワークを訓練するが、このとき Coarseネットワークを
+推論として使い、その結果を途中の (63×74×55) のチャンネルに
+追加し 64チャンネルとしている。
+
+<h3 id="depth-stride">3.1. ストライド (stride) とは</h3>
+<p>
+上の図中にある「Conv-11, <mark>/4</mark>」「Conv-9, <mark>/2</mark>」という
+畳み込みレイヤーは、それぞれ
+「11×11のカーネルを使った、<mark>ストライド4</mark>の畳み込みレイヤー」
+「9×9のカーネルを使った、<mark>ストライド2</mark>の畳み込みレイヤー」
+を表している。<u>ストライド</u> (stride) とは、
+カーネルが画像上を動くときの刻み幅のことである。
+通常、カーネルのストライドは 1 だが、この例のように
+2 や 4 のケースも存在する。ストライドが 2 の場合、カーネルが適用される
+ピクセルは下図の斜線部分のように「ひとつ飛ばし」になり、畳み込みの結果は
+元画像の 1/2 に縮小されたものになる。これは max pooling とほぼ
+同じ効果をもたらすが、ストライドを増やすか max pooling を使うか、
+あるいは本手法のように両方使ったほうがよいのかは、はっきりとは決まっていない。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="380" height="170">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+  <pattern id="hatch" width="3" height="3"
+	   patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0" x2="0" y2="3" stroke="black" stroke-width="1" />
+  </pattern>
+</defs>
+<g transform="translate(80,0)">
+<g fill="none" stroke="black" stroke-width="1">
+  <g stroke="gray" stroke-dasharray="2,2">
+  <path d="M30,20 l0,140 M50,20 l0,140 M70,20 l0,140 M90,20 l0,140 M110,20 l0,140 M130,20 l0,140 M150,20 l0,140 M170,20 l0,140" />
+  <path d="M10,40 l180,0 M10,60 l180,0 M10,80 l180,0 M10,100 l180,0 M10,120 l180,0 M10,140 l180,0 " />
+  </g>
+  <rect x="10" y="20" width="180" height="140" />
+  <rect x="30" y="40" width="140" height="100" stroke="red" />
+</g>
+<g stroke="none" fill="url(#hatch)">
+  <rect x="30" y="40" width="20" height="20" />
+  <rect x="70" y="40" width="20" height="20" />
+  <rect x="110" y="40" width="20" height="20" />
+  <rect x="150" y="40" width="20" height="20" />
+  <rect x="30" y="80" width="20" height="20" />
+  <rect x="70" y="80" width="20" height="20" />
+  <rect x="110" y="80" width="20" height="20" />
+  <rect x="150" y="80" width="20" height="20" />
+  <rect x="30" y="120" width="20" height="20" />
+  <rect x="70" y="120" width="20" height="20" />
+  <rect x="110" y="120" width="20" height="20" />
+  <rect x="150" y="120" width="20" height="20" />
+</g>
+<g fill="none" stroke="black" stroke-width="3">
+  <rect x="50" y="20" width="60" height="60" stroke="#444" stroke-dasharray="4,4" />
+  <rect x="10" y="60" width="60" height="60" stroke="#444" stroke-dasharray="4,4" />
+  <rect x="10" y="20" width="60" height="60" />
+  <g marker-end="url(#arrow)">
+    <path d="M45,50 l25,0" />
+    <path d="M85,50 l25,0" />
+    <path d="M125,50 l25,0" />
+    <path d="M45,90 l25,0" />
+    <path d="M85,90 l25,0" />
+    <path d="M125,90 l25,0" />
+    <path d="M45,130 l25,0" />
+    <path d="M85,130 l25,0" />
+    <path d="M125,130 l25,0" />
+  </g>
+</g>
+</g>
+</svg><br>
+ストライド 2 の畳み込み
+</div>
+
+<p>
+PyTorch では、<code>nn.Conv2d</code> レイヤーを作成するさいに
+<code>nn.Conv2d(3, 96, 11, <mark>stride=4</mark>)</code>
+などと指定するとストライドが指定できる。
+
+<h3 id="depth-loss">3.2. 奥行き推定における損失関数</h3>
+<p>
+奥行き推定システムでは、Coarse・Fine ネットワークのどちらも、
+最終層で活性化関数を使わず、各ピクセルの推定距離 y を直接メートル単位で
+返すようになっている (厳密には、距離の対数 log(y) を返す)。
+このとき、正解に対する損失関数として、通常の平均二乗誤差ではなく
+「スケール不変平均二乗誤差 (Scale-Invariant Mean Squared Error)」
+というものを使っている。
+これは、出力の絶対値だけでなく、その変動もできるだけ正解に
+近づけるためである。通常の平均二乗誤差だけを使った場合、
+値の大きさだけが重視されるため、「大きな値」と「小さな値」の差異は
+検出できるものの、「大きな値」どうしの細かな差異は
+相対的に小さくなってしまう:
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="340" height="115">
+<defs>
+  <marker id="barrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 2,0 -5,5" fill="black" stroke="none" />
+  </marker>
+  <marker id="arrow0" viewBox="-5 -5 10 10" orient="auto">
+    <polyline points="5,-5 0,0 5,5" stroke="black" stroke-width="2" fill="none"/>
+  </marker>
+  <marker id="arrow1" viewBox="-5 -5 10 10" orient="auto">
+    <polyline points="-5,-5 0,0 -5,5" stroke="black" stroke-width="2" fill="none"/>
+  </marker>
+</defs>
+<g transform="translate(10,100)">
+  <g fill="none" stroke="black" stroke-width="2">
+    <line x1="-10" x2="120" y1="0" y2="0" />
+    <line x1="0" x2="0" y1="-90" y2="10" />
+    <path d="M10,-55 l10,10 l10,-10 l10,15 l10,-10 l10,-5 l10,15 l10,-10 l10,0" stroke="red" />
+    <path d="M10,-50 l10,-10 l10,20 l10,-5 l10,-10 l10,15 l10,-20 l10,15 l10,-10" stroke="blue" />
+    <path d="M90,-70 l15,0" stroke="red" />
+    <path d="M90,-80 l15,0" stroke="blue" />
+    <g stroke-width="1">
+      <path d="M5,-52 l100,0" stroke-dasharray="2,2" />
+      <path d="M5,-47 l90,0" stroke-dasharray="2,2" />
+    </g>
+    <path d="M100,-50 l0,48" marker-start="url(#arrow0)" marker-end="url(#arrow1)" />
+    <path d="M90,-45 l0,43" marker-start="url(#arrow0)" marker-end="url(#arrow1)" />
+  </g>
+  <g style="font-size:75%;" text-anchor="middle">
+    <text x="120" y="-85" dy="0.5em">正解</text>
+    <text x="120" y="-70" dy="0.5em">出力</text>
+  </g>
+  <g style="font-size:75%;" text-anchor="end">
+    <text x="85" y="-30" dy="0.5em">相対誤差が</text>
+    <text x="85" y="-15" dy="0.5em">小さい</text>
+  </g>
+</g>
+<g fill="none" stroke="black">
+  <path d="M140,60 l30,0" stroke-width="10" marker-end="url(#barrow)" />
+</g>
+<g transform="translate(200,60)">
+  <g fill="none" stroke="black" stroke-width="2">
+    <line x1="-10" x2="120" y1="0" y2="0" />
+    <line x1="0" x2="0" y1="-50" y2="50" />
+    <path d="M10,0 l10,-10 l10,20 l10,-5 l10,-10 l10,15 l10,-20 l10,15 l10,-10" stroke="blue" />
+    <path d="M10,-10 l10,10 l10,-10 l10,15 l10,-10 l10,-5 l10,15 l10,-10 l10,0" stroke="red" />
+    <path d="M90,-40 l15,0" stroke="blue" />
+    <path d="M90,-30 l15,0" stroke="red" />
+  </g>
+  <g style="font-size:75%;" text-anchor="middle">
+    <text x="120" y="-45" dy="0.5em">正解</text>
+    <text x="120" y="-30" dy="0.5em">出力</text>
+  </g>
+  <g style="font-size:75%;">
+    <text x="80" y="15" dy="0.5em">平均を</text>
+    <text x="80" y="30" dy="0.5em">揃える</text>
+  </g>
+</g>
+</svg><br>
+平均二乗誤差とスケール不変平均二乗誤差
+</div>
+
+<p>
+奥行き推定システムでは 2つの誤差の平均をとって、
+以下のような損失関数を使っている:
+<div class=formula>
+損失 L<sub>DEPTH</sub> = (平均二乗誤差 L<sub>MSE</sub> + スケール不変平均二乗誤差 L<sub>SIMSE</sub>) / 2
+</div>
+<p>
+スケール不変平均二乗誤差 L<sub>SIMSE</sub> は、以下のようにして求められる:
+<div class=formula>
+<table>
+<tr>
+<td>L<sub>SIMSE</sub></td><td>=</td><td><span class=sym>&Sigma;</span> {
+(y - <span class=mean>y</span>)
+- (y<sub>0</sub> - <span class=mean>y<sub>0</sub></span>)
+}<sup>2</sup> / N
+&nbsp;
+(ここで <span class=mean>y</span> = <span class=sym>&Sigma;</span>y/N
+および
+<span class=mean>y<sub>0</sub></span> = <span class=sym>&Sigma;</span>y<sub>0</sub>/N
+なので)
+</td>
+</tr><tr>
+<td></td><td>=</td><td><span class=sym>&Sigma;</span> {
+(y - y<sub>0</sub>)<sup>2</sup>
+- 2(y - y<sub>0</sub>)(<span class=sym>&Sigma;</span>y - <span class=sym>&Sigma;</span>y<sub>0</sub>)/N
++ (<span class=sym>&Sigma;</span>y - <span class=sym>&Sigma;</span>y<sub>0</sub>)<sup>2</sup>/N<sup>2</sup>
+} / N</td>
+</tr><tr>
+<td></td><td>=</td><td><span class=sym>&Sigma;</span>(y - y<sub>0</sub>)<sup>2</sup>/N
+- 2(<span class=sym>&Sigma;</span>y - <span class=sym>&Sigma;</span>y<sub>0</sub>)(<span class=sym>&Sigma;</span>y - <span class=sym>&Sigma;</span>y<sub>0</sub>)/N
++ (<span class=sym>&Sigma;</span>y - <span class=sym>&Sigma;</span>y<sub>0</sub>)<sup>2</sup>/N</td>
+</tr><tr>
+<td></td><td>=</td><td>L<sub>MSE</sub>
+- {<span class=sym>&Sigma;</span>(y - y<sub>0</sub>)}<sup>2</sup>/N</td>
+</tr>
+</table>
+</div>
+
+<h3 id="depth-training">3.3. 奥行き推定システムの訓練</h3>
+<p>
+以下に PyTorch を使った奥行き推定システムの実行方法を紹介する。
+奥行き推定システムの訓練は、2段階に分けて行われる。
+まず Coarse ネットワークを訓練し、つぎに同じ訓練データを使って
+Fine ネットワークを訓練する。このとき Coarseネットワークを
+推論として使っている。
+訓練データとして使う NYU Depth データセットには
+1,449枚の画像が含まれているが、これだけだと少ないため
+訓練時には簡単なデータ拡張 (左右反転・色調補正) をおこなうようにしている。
+
+<div class=exercise id="ex7-5">
+<div class=header>演習7-5. 奥行き推定システムの訓練を実行する</div>
+<p>
+この演習には、NVIDIA製の GPU (4GB以上のメモリをもつもの) が必要である。
+<ol>
+  <li> <a target="_blank" href="https://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html">NYU Depth データセット V2</a> のサイトにある
+    nyu_depth_v2_labeled.mat (2.8GBytes) をダウンロードする。
+  <li> <a href="../zip/depth.zip">depth.zip</a> をダウンロードする。
+    ここには、以下のファイルが含まれている:
+    <ul>
+      <li> <code>README.md</code> … 説明文書。
+      <li> <code>depth_net.py</code> … <code>CoarseNet</code> および <code>FineNet</code> クラスを定義する。
+      <li> <code>depth_train.py</code> … 訓練用スクリプト。
+      <li> <code>depth_eval.py</code> … 評価・推論用スクリプト。
+      <li> <code>depth_utils.py</code> … 画像の調整、正解データの読み込みなどの雑多な処理。
+    </ul>
+  <li> 最初に Coarseネットワークを訓練する。ここではエポック数 200 とし、
+    訓練データ <code>nyu_depth_v2_labeled.mat</code> が
+    同じディレクトリ上に存在すると仮定している:
+<pre>
+$ <strong>python depth_train.py --epochs 200 --model-coarse ./depth_model_coarse.pt ./nyu_depth_v2_labeled.mat</strong>
+2021-12-17 22:25:49,447 INFO Loading: ./depth_net_coarse.pt...
+<span class=ignored>2021-12-17 22:25:49,447 ERROR Error: [Errno 2] No such file or directory: './depth_net_coarse.pt'</span> <sub>(このエラーは無視してよい)</sub>
+2021-12-17 22:25:51,033 INFO *** epoch=1/200 ***
+2021-12-17 22:26:19,796 INFO train: batch=10/46, loss=0.0090
+2021-12-17 22:26:42,400 INFO train: batch=20/46, loss=0.0090
+...
+</pre>
+    学習プロセスは 2時間程度で終了する。
+    学習したモデルは <code>depth_model_coarse.pt</code> というファイルに保存される。
+  <li> 次に Fineネットワークを訓練する。このとき、Coarseネットワークを使うため、
+    すでに学習した <code>depth_model_coarse.pt</code> が必要である。
+    ここでもエポック数 200 としている:
+<pre>
+$ <strong>python depth_train.py --train-fine --epochs 200 --model-coarse ./depth_model_coarse.pt --model-fine ./depth_model_fine.pt ./nyu_depth_v2_labeled.mat</strong>
+2021-12-18 11:41:42,772 INFO Loading: ./depth_net_coarse.pt...
+2021-12-18 11:41:44,633 INFO Loading: ./depth_net_fine.pt...
+<span class=ignored>2021-12-18 11:41:44,634 ERROR Error: [Errno 2] No such file or directory: './depth_net_fine.pt'</span> <sub>(このエラーは無視してよい)</sub>
+2021-12-18 11:41:44,635 INFO *** epoch=1/200 ***
+2021-12-18 11:41:51,311 INFO train: batch=10/46, loss=0.0058
+2021-12-18 11:41:56,239 INFO train: batch=20/46, loss=0.0027
+...
+</pre>
+    学習プロセスは 1時間程度で終了する。
+    学習したモデルは <code>depth_model_fine.pt</code> というファイルに保存される。
+</ol>
+</div>
+
+<div class=exercise id="ex7-6">
+<div class=header>演習7-6. 奥行き推定システムを利用する</div>
+<p>
+学習したモデルを使って実際に認識をおこなうには、
+以下の方法がある。CoraseネットワークおよびFineネットワークの
+モデルが保存された 2つのファイルを指定する。
+<ol type=a>
+<li> 画像の中の物体を認識する:
+(認識結果は <code>output_image1.png</code> のようなファイル名で保存される)
+<pre>
+$ <strong>python depth_eval.py ./depth_model_coarse.pt ./depth_model_fine.pt image1.jpg image2.jpg ...</strong>
+</pre>
+<li> カメラの画像をリアルタイムで認識・表示する (OpenCV が必要):
+<pre>
+$ <strong>python depth_eval.py ./depth_model_coarse.pt ./depth_model_fine.pt --camera</strong>
+</pre>
+</ol>
+</div>
+
+
+<h2 id="summary">4. まとめ</h2>
+<ul>
+<li> <nobr><span class=bl>VGG</span></nobr>-16 は画像認識をおこなう有名なディープニューラルネットワークである。
+<li> <nobr><span class=bl>パディング</span></nobr>とは畳み込みレイヤーの画像の周囲に余分なピクセルを追加するテクニックである。
+<li> <nobr><span class=bl>バッチ正規化</span></nobr>は、各レイヤーにおける入力の平均・分散を調整する仕組みであり、モデルの精度・学習効率ともに向上する。
+<li> 物体認識システム YOLO は、画像を 7×7のセルに分割し、それぞれに含まれる物体の種類および矩形を推測する。
+<li> 奥行き推定システムは、まず画像のおおまかな奥行きを推定し、つぎにそれを洗練するという2段階のニューラルネットワークを使って実装されている。
+<li> <nobr><span class=bl>データ拡張</span></nobr>とは、画像データにさまざまな変換を施すことによって、訓練データを自動で増やすテクニックである。
+<li> 画像処理のタスクでは、ImageNet などの大量の画像を使った<nobr><span class=bl>事前学習</span></nobr>が本番のタスクの前に行われることが多い。
+</ul>
+
+<hr>
+<div class=license>
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="クリエイティブ・コモンズ・ライセンス" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />この作品は、<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">クリエイティブ・コモンズ 表示 - 継承 4.0 国際 ライセンス</a>の下に提供されています。
+</div>
+<address>Yusuke Shinyama</address>
