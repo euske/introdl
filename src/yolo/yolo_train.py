@@ -63,7 +63,7 @@ def train(model, device, loader, optimizer, log_interval=1, dry_run=False):
         outputs_raw = model(inputs).to('cpu')
         outputs = []
         for grid in outputs_raw.reshape(-1, rows, cols, model.NVALS):
-            # 各セルの出力を YOLOCell オブジェクトに変換。
+            # 各セルの出力を YOLOCell インスタンスに変換。
             cells = {}
             for (i,row) in enumerate(grid):
                 for (j,v) in enumerate(row):

@@ -1012,7 +1012,7 @@ delta = n1.mse_loss(0)
 n1.backward(delta)
 </pre></blockquote>
 <p>
-ここまで完了したあとで、オブジェクトの
+ここまで完了したあとで、インスタンスの
 <code>self.dw1</code>, <code>self.dw2</code>,
 <code>self.dw3</code>, <code>self.db</code> にはそれぞれ勾配が
 格納されているはずである。
@@ -1331,7 +1331,7 @@ layer1 = Layer(3, 1)
 </svg>
 </div>
 <p>
-ここでは 2つの <code>Layer</code> オブジェクトを使う。
+ここでは 2つの <code>Layer</code> インスタンスを使う。
 最初のレイヤーは入力値×4個と出力値×3個をもっており、
 2番目のレイヤーは入力値×3個と出力値×2個をもっている。
 1番目のレイヤーへの入力が「ネットワークへの入力」であり、
@@ -1341,8 +1341,8 @@ layer1 = Layer(3, 1)
 各レイヤー入力値の個数 (<code>nin</code>) が、
 そのひとつ前のレイヤー出力値の個数 (<code>nout</code>) と一致していなければならない。
 <p>
-上の例では、<code>layer1</code> オブジェクトの <code>nout</code> と、
-<code>layer2</code> オブジェクトの <code>nin</code> が同じである必要がある:
+上の例では、<code>layer1</code> インスタンスの <code>nout</code> と、
+<code>layer2</code> インスタンスの <code>nin</code> が同じである必要がある:
 <pre>
 layer1 = Layer(4, <mark>3</mark>)
 layer2 = Layer(<mark>3</mark>, 2)

@@ -40,7 +40,7 @@ def detect(categories, model, device, images, threshold=0.20):
     outputs = []
     for (i,grid) in enumerate(outputs_raw.reshape(-1, rows, cols, model.NVALS)):
         image = images[i]
-        # 各セルの出力を YOLOCell オブジェクトに変換し、
+        # 各セルの出力を YOLOCell インスタンスに変換し、
         # さらに YOLOObject を取得。
         found = []
         for (i,row) in enumerate(grid):

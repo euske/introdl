@@ -29,7 +29,7 @@
 <ul>
   <li> <a href="#pytorch-install">PyTorch を使う準備</a>
   <li> <a href="#pytorch-tensor">Tensor (テンソル) とは何か?</a>
-  <li class=ex> <a href="#ex6-2">演習 6-2. Tensorオブジェクトを作成する</a>
+  <li class=ex> <a href="#ex6-2">演習 6-2. Tensorを作成する</a>
   <li class=ex> <a href="#ex6-3">演習 6-3. Tensor型の演算</a>
   <li class=ex> <a href="#ex6-4">演習 6-4. Tensorの次元の並び換え</a>
   <li> <a href="#pytorch-autograd">Tensor を使って勾配を自動的に計算する</a>
@@ -289,13 +289,13 @@ True
 <code>ndarray</code>型に似せてある。
 ただし、以下のような機能が追加されている:
 <ol>
-  <li> <code>Tensor</code>オブジェクト上のデータは、CPU上の主記憶か、
+  <li> <code>Tensor</code>上のデータは、CPU上の主記憶か、
     あるいは GPU上のメモリのどちらに格納するか選ぶことができる。
-  <li> <code>Tensor</code>オブジェクト上の各数値は、
+  <li> <code>Tensor</code>上の各数値は、
     それが計算されたときの勾配 (<code>grad</code>) を保持することができる。
 </ol>
 <p>
-<code>Tensor</code>オブジェクトを作成するには、以下の方法がある:
+<code>Tensor</code>を作成するには、以下の方法がある:
 <blockquote><pre>
 &gt;&gt;&gt; <strong>torch.tensor([1,2,3,4])</strong>           <span class=comment># 4要素のPythonリストからTensorを作成</span>
 &gt;&gt;&gt; <strong>torch.tensor([[1,2,3], [4,5,6]])</strong>  <span class=comment># 2×3要素のPythonリストからTensorを作成</span>
@@ -306,7 +306,7 @@ True
 </pre></blockquote>
 
 <div class=exercise id="ex6-2">
-<div class=header>演習6-2. Tensorオブジェクトを作成する</div>
+<div class=header>演習6-2. Tensorを作成する</div>
 <ol type=a>
 <li> Pythonで10×10要素のリスト(のリスト) を作り、
   これを <code>Tensor</code>型に変換せよ。
@@ -391,7 +391,7 @@ True
 
 <h4>Tensor型の演算・参照・変更など</h4>
 <p>
-<code>Tensor</code>オブジェクトの演算も ndarray型と同じく、
+<code>Tensor</code>の演算も ndarray型と同じく、
 <strong>分配</strong> (<span class=bc>broadcast</span>) と
 <strong>要素ごとの演算</strong> (<span class=ew>element-wise</span>) が
 サポートされている。
@@ -412,7 +412,7 @@ tensor([[-1, -2, -3],
 </pre></blockquote>
 
 <p>
-<code>Tensor</code>オブジェクトの参照・変更も、
+<code>Tensor</code>の参照・変更も、
 <code>ndarray</code> とまったく同じである:
 <code>x[i][j]</code> とともに <code>x[i,j]</code> という表記も許されている。
 <blockquote><pre>
@@ -448,7 +448,7 @@ tensor([1, 2, 3, 4, 5, 6])
 </pre></blockquote>
 
 <p>
-また、<code>Tensor</code>オブジェクトと <code>ndarray</code>配列は
+また、<code>Tensor</code>と <code>ndarray</code>配列は
 相互に変換することが可能である:
 <blockquote><pre>
 &gt;&gt;&gt; <strong>np.array(torch.tensor([1,2,3]))</strong>  <span class=comment># Tensorをndarrayに変換。</span>
@@ -460,7 +460,7 @@ tensor([1, 2, 3])
 <div class=exercise id="ex6-3">
 <div class=header>演習6-3. Tensor型の演算</div>
 <p>
-以下の <code>Tensor</code>オブジェクトの演算をしたときの結果を予想し、
+以下の <code>Tensor</code>の演算をしたときの結果を予想し、
 実際に実行してみて結果を確認せよ。
 <pre>
 &gt;&gt;&gt; <strong>torch.tensor([1,2]) * torch.tensor([3,4])</strong>
@@ -529,7 +529,7 @@ N枚の画像データが (N × W × H × C) というテンソルで表され�
 
 <h3 id="pytorch-autograd">2.3. Tensor を使って勾配を自動的に計算する</h3>
 <p>
-<code>Tensor</code>オブジェクトには、勾配を自動的に計算する機能がある。
+<code>Tensor</code>には、勾配を自動的に計算する機能がある。
 この機能を使うには、まず勾配を計算したい <code>Tensor</code> を作成するときに
 <code>requires_grad=True</code> オプションを渡しておく。
 このテンソルを使って何がしかの計算をおこなった後、
@@ -564,7 +564,7 @@ tensor(10.)             <span class=comment># 値が増えている。</span>
 PyTorch を通常使っている限りでは、勾配を直接利用することはほとんどないが、
 <strong>つねに勾配が失われないように注意する必要がある</strong>。
 たとえば以下の例で、平方根を計算するのに Python 組み込みの
-<code>math.sqrt()</code> 関数を使うと、<code>Tensor</code>オブジェクトが
+<code>math.sqrt()</code> 関数を使うと、<code>Tensor</code>が
 通常の <code>float</code>型に変換されてしまい、その計算過程は失われ、
 勾配が計算できなくなってしまう。
 勾配を保持するには、つねに PyTorch の組み込み関数
@@ -586,7 +586,7 @@ NumPy では、<code>ndarray</code> では配列の各要素は
 「通常の (int型などの) 数値」であったが、
 <strong>PyTorch では <code>Tensor</code> の各要素も <code>Tensor</code>である。</strong>
 これは、すべての値が勾配を保持できるようにするためである。
-ひとつの数値をあらわすテンソルは「0次元の<code>Tensor</code>オブジェクト」として
+ひとつの数値をあらわすテンソルは「0次元の<code>Tensor</code>」として
 表されるが、これを意図的に「ただの数値」に変換するためには、
 <code>.item()</code> メソッドを使えばよい。
 当然ながら、こうすると勾配は失われてしまうので注意。
@@ -603,9 +603,9 @@ tensor(2)
 
 <h3 id="pytorch-gpu">2.4. GPU を使って計算する</h3>
 <p>
-PyTorch で CUDA が使用可能な場合、<code>Tensor</code> オブジェクトを
+PyTorch で CUDA が使用可能な場合、<code>Tensor</code> を
 GPU 上に転送し、そこで計算させることができる。
-Tensorオブジェクトに対して <code>.to('cuda')</code>メソッドを実行すると
+Tensorに対して <code>.to('cuda')</code>メソッドを実行すると
 そのテンソルは GPU 上に転送され、逆に <code>.to('cpu')</code>メソッドを実行すると
 GPU上のテンソルが CPU に転送される:
 <blockquote><pre>
@@ -815,7 +815,7 @@ class MNISTNet(nn.Module):
         <span class=comment># x: (N × 10)</span>
         return x
 
-<span class=comment># 実際のオブジェクトを作成。</span>
+<span class=comment># 実際のインスタンスを作成。</span>
 model = MNISTNet()
 </pre>
 </div>
@@ -828,7 +828,7 @@ model = MNISTNet()
 以下、順に見ていこう。
 <p>
 <code>__init__()</code> メソッドでは、 <code>nn.Conv2d</code>,
-<code>nn.MaxPool2d</code> などのオブジェクトを作成している。
+<code>nn.MaxPool2d</code> などのインスタンスを作成している。
 PyTorch では、これらは最初からニューラルネットワークの構成レイヤーとして
 利用可能である:
 <ul>
@@ -840,13 +840,13 @@ PyTorch では、これらは最初からニューラルネットワークの構
 … Max poolingレイヤーを作成する。カーネル幅は縮小率を表す。
 </ul>
 <p>
-<code>nn.Linear</code> および <code>nn.Conv2d</code> オブジェクトはどちらも
-内部に重み・バイアスを保持しており、これらはオブジェクト作成時に
+<code>nn.Linear</code> および <code>nn.Conv2d</code> インスタンスはどちらも
+内部に重み・バイアスを保持しており、これらはインスタンス作成時に
 ランダムに初期化されている。
 <p>
 次の <code>forward()</code> メソッドは、
 前に NumPy などで実装した <code>forward()</code> メソッドとほぼ同じである。
-入力値として <code>Tensor</code>オブジェクトの <code>x</code> が与えられ、
+入力値として <code>Tensor</code>の <code>x</code> が与えられ、
 それを各レイヤーに通して最終的な出力テンソルを返す。
 PyTorch では、各レイヤーは「関数呼び出しのように」利用する流儀になっている:
 <blockquote><pre>
@@ -864,7 +864,7 @@ PyTorch では、<code>nn.Module</code> の派生クラス
 <code>forward()</code> メソッドを持っているが、これらを直接呼び出すことはなく、
 つねに関数呼び出しのように利用する
 (これは Python における <code>__call__</code> メソッドを使っている)。
-<code>MNISTNet</code> オブジェクト自身も <code>nn.Module</code> の派生クラスなので、
+<code>MNISTNet</code> インスタンス自身も <code>nn.Module</code> の派生クラスなので、
 <code>forward()</code> メソッドを直接呼び出すことはなく、関数呼び出しのように利用する:
 <blockquote><pre>
 <span class=comment># ニューラルネットワークを定義する。</span>
@@ -1073,7 +1073,7 @@ Python 辞書として与えられた重み・バイアスを <code>Module</code
 <code>model.parameters()</code> も
 類似の仕組みで作られており、これは <code>Module</code>クラス内で
 使われている重み・バイアスを列挙し、一括して
-<code>optimizer</code>オブジェクトに渡せるようになっている。
+<code>optimizer</code>インスタンスに渡せるようになっている。
 
 <h3 id="mnist-gpu">3.2. GPUを使って計算させる</h3>
 <p>
@@ -1119,7 +1119,7 @@ outputs = model(inputs)
 まず、<code>Dataset</code>クラスを継承して <code>MNISTDataset</code> を定義する。
 ここでは <code>__len__()</code> と <code>__getitem__()</code> という
 2つのメソッドのみを定義しておく。Python ではこれらのメソッドを上書きすることで、
-そのオブジェクトを配列のように扱うことができる:
+そのインスタンスを配列のように扱うことができる:
 <blockquote><pre>
 from torch.utils.data import Dataset, DataLoader
 
@@ -1143,7 +1143,7 @@ class MNISTDataset(Dataset):
         <span class=comment># i番目の (入力, 正解) タプルを返す。</span>
         return (self.images[i], self.labels[i])
 
-<span class=comment># 実際のオブジェクトを作成。</span>
+<span class=comment># 実際のインスタンスを作成。</span>
 dataset = MNISTDataset('t10k-images-idx3-ubyte.gz', 't10k-labels-idx1-ubyte.gz')
 print(len(dataset))  <span class=comment># データの個数を返す。</span>
 print(dataset[0])    <span class=comment># 0番目の (入力, 正解) タプルを返す。</span>

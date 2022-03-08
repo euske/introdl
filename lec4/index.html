@@ -738,7 +738,7 @@ array([2.71828183, 7.3890561, 20.08553692])
 <p>
 では前回の Layerクラスを <code>ndarray</code>型を用いて書き直してみよう。
 <p>
-最初のオブジェクトの初期化部分では、Python のリスト内包表記を
+インスタンスの初期化部分では、Python のリスト内包表記を
 <code>ndarray</code>型の作成にすればよい。
 ここで定義される <code>self.w</code>, <code>self.dw</code> は、
 それぞれ <code>nout</code>行×<code>nin</code>列の2次元配列となり、
@@ -1014,7 +1014,7 @@ MNIST 用ニューラルネットワークの構造
 ダウンロードした MNISTのデータを読み込むため、
 <a href="mnist.py">mnist.py</a> ファイルで <code>load_mnist()</code> 関数が
 定義されている。
-これは、ファイルの内容をひとつの巨大な <code>ndarray</code>オブジェクトに変換する。
+これは、ファイルの内容をひとつの巨大な <code>ndarray</code>型に変換する。
 以下のようにして訓練データ用の画像とラベルを取得する。
 変数 <code>train_images</code> と <code>train_labels</code> の内容は、
 それぞれ次のようになっている:
