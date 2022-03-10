@@ -136,7 +136,7 @@ class FineNet(nn.Module):
 
 if __name__ == '__main__':
     import torchsummary
-    net = CoarseNet().cuda()
+    net = CoarseNet()
     torchsummary.summary(net, net.INPUT_SIZE)
-    net = FineNet().cuda()
+    net = FineNet()
     torchsummary.summary(net, net.INPUT_SIZE)

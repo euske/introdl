@@ -96,5 +96,5 @@ class VGG16(nn.Module):
 
 if __name__ == '__main__':
     import torchsummary
-    net = VGG16().cuda()
+    net = VGG16()
     torchsummary.summary(net, (3,224,224))

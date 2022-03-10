@@ -181,5 +181,5 @@ class YOLONet(nn.Module):
 
 if __name__ == '__main__':
     import torchsummary
-    net = YOLONet().cuda()
+    net = YOLONet()
     torchsummary.summary(net, net.INPUT_SIZE)
