@@ -1059,7 +1059,7 @@ PyTorch 以外にも多く存在する。代表的な例をあげると:
 しかし、これらで訓練したニューラルネットワークを、
 言語やフレームワークに依存しない共通の形式で
 (重み・バイアスも含めて) エクポートする方法がある。
-それが <a target="_blank" href="https://onnx.ai/">ONNX形式</a> である。
+それが <a target="_blank" href="https://onnx.ai/">Open Neural Network Exchange (ONNX)</a>形式 である。
 たとえば PyTorch で作成したモデル (<code>nn.Module</code> クラス) を
 ONNX形式でエクスポートすると、PyTorch が動かないプラットフォーム
 (iOS や RaspberryPi など) でもモデルを使って推論することができる:
@@ -1195,6 +1195,19 @@ torch.onnx.export(
 </g>
 </svg>
 </div>
+
+<p>
+なお、
+<a href="https://github.com/onnx/models">ONNX Model Zoo</a> のページには
+ONNX形式に変換された、さまざまな目的のためのモデルが用意されており、
+ダウンロード可能である。
+
+<p>
+ひとつのONNXモデルは単なる「Tensorを入力し、Tensorを出力する」関数であり、
+各入力・出力の意味や使い方については何も知らないので注意。
+たとえば YOLO 用の ONNX モデルは画像をどのように前処理するか、
+テンソルの次元は (N×C×H×W) か (N×H×W×C) か、
+出力の解釈はどうするかについてはほとんど説明がない。
 
 
 <h4 id="onnxruntime">エクスポートした ONNX形式を使って推論する</h4>
