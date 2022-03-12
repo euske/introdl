@@ -40,6 +40,7 @@ JavaScript や Ruby に似ている部分が多いが、いくつか重要な違
   <li> <a href="#setup-run">Pythonプログラムの実行</a>
   <li> <a href="#setup-help">ヘルプと文書</a>
   <li> <a href="#setup-pip">Python拡張機能のインストール</a>
+  <li> <a href="#setup-pyenv">別バージョンのPythonを使う</a>
 </ul>
 <li> <a href="#basics">Python の基本</a>
 <ul>
@@ -90,6 +91,8 @@ JavaScript や Ruby に似ている部分が多いが、いくつか重要な違
 <strong>注意:</strong> 2022年1月現在、Python の最新バージョンは 3.10.1 だが、
 <strong>つねに最新バージョンを使うのは危険である。</strong>
 機械学習関係のライブラリ (PyTorch) がまだ対応していない場合があるためである。</strong>
+不幸にもすでに Python 3.10 をインストールしてしまった場合は
+<a href="#setup-pyenv">1.6. 別バージョンのPythonを使う</a> を参照。
 
 <div class=figure>
 <img width="605" height="434" src="python-web.png">
@@ -304,6 +307,42 @@ Anaconda をインストールしている場合、
 <code>conda</code>コマンドで
 <a target="_blank" href="https://repo.anaconda.com/">Anaconda Repository</a>
 以下のパッケージもインストールできる。
+
+<h3 id="setup-pyenv">1.6. 別バージョンのPythonを使う</h3>
+<p>
+一部の環境 (Linux や macOS) では、Python があらかじめシステムに
+組み込まれており、バージョンを勝手に変えることができない。
+このような場合は <a href="https://github.com/pyenv/pyenv">pyenv</a> というパッケージを使うと
+バージョンが違う Python 実行環境をユーザのホームディレクトリ下に構築できる。
+なお、<code>pyenv</code> 自体は
+<code>pip</code> ではインストールできないため
+ディストリビューションのパッケージ管理ツールを使う必要がある。
+<p>
+<code>pyenv</code> をインストール後、たとえば
+Python 3.9.9 をインストールしたい場合は以下のように実行する:
+<blockquote><pre>
+$ <strong>pyenv install 3.9.9</strong>
+Downloading Python-3.9.9.tar.xz...
+-&gt; https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz
+Installing Python-3.9.9...
+Installed Python-3.9.9 to /home/euske/.pyenv/versions/3.9.9
+</pre></blockquote>
+<p>
+インストールした別バージョンの
+<code>python</code> (および <code>pip</code>) を実行するには、
+まず <code>$HOME/.pyenv/version</code> というテキストファイルに
+使いたいバージョン番号を記述する:
+<blockquote><pre>
+$ echo 3.9.9 &gt; $HOME/.pyenv/version
+</pre></blockquote>
+この後、<code>python</code> および <code>pip</code> を
+以下のように実行する:
+<blockquote><pre>
+$ <strong>python ...</strong>
+→ $ <strong><mark>pyenv exec</mark> python ...</strong>
+$ <strong>pip ...</strong>
+→ $ <strong><mark>pyenv exec</mark> pip ...</strong>
+</pre></blockquote>
 
 
 <h2 id="basics">2. Python の基本</h2>
