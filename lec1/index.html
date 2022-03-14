@@ -315,7 +315,7 @@ Anaconda をインストールしている場合、
 このような場合は <a href="https://github.com/pyenv/pyenv">pyenv</a> というパッケージを使うと
 バージョンが違う Python 実行環境をユーザのホームディレクトリ下に構築できる。
 なお、<code>pyenv</code> 自体は
-<code>pip</code> ではインストールできないため
+<code>pip</code> ではインストールできず、
 ディストリビューションのパッケージ管理ツールを使う必要がある。
 <p>
 <code>pyenv</code> をインストール後、たとえば
@@ -326,17 +326,20 @@ Downloading Python-3.9.9.tar.xz...
 -&gt; https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz
 Installing Python-3.9.9...
 Installed Python-3.9.9 to /home/euske/.pyenv/versions/3.9.9
+$ <strong>pyenv versions</strong>  <span class=comment># インストールされているバージョンの確認</span>
+* system (set by /home/euske/.pyenv/version)
+  3.9.9
 </pre></blockquote>
 <p>
-インストールした別バージョンの
+別バージョンの
 <code>python</code> (および <code>pip</code>) を実行するには、
-まず <code>$HOME/.pyenv/version</code> というテキストファイルに
-使いたいバージョン番号を記述する:
+まず <code>pyenv global</code> コマンドで使いたいバージョンを設定する:
 <blockquote><pre>
-$ <strong>echo 3.9.9 &gt; $HOME/.pyenv/version</strong>
+$ <strong>pyenv global 3.9.9</strong>
 </pre></blockquote>
-この後、<code>python</code> および <code>pip</code> を実行するときは、
-以下のように記述する:
+これ以降、<code>python</code> および <code>pip</code> を実行するかわりに
+つねに「<code>pyenv exec python</code>」「<code>pyenv exec pip</code>」のように
+記述する:
 <blockquote><pre>
 $ <strong>python ...</strong>
 → $ <strong><mark>pyenv exec</mark> python ...</strong>
@@ -344,6 +347,13 @@ $ <strong>pip ...</strong>
 → $ <strong><mark>pyenv exec</mark> pip ...</strong>
 </pre></blockquote>
 
+<p>
+なお
+<code>pyenv</code>上でインストールされた <code>python</code> および
+<code>pip</code> が使うディレクトリは、システムとは完全に独立しており、
+<strong>最初は何も拡張機能がインストールされていない状態になっている。</strong>
+そのため、必要な拡張機能は <code>pyenv exec pip</code> を使って
+適宜インストールする必要がある。
 
 <h2 id="basics">2. Python の基本</h2>
 <p>

@@ -1062,8 +1062,9 @@ PyTorch 以外にも多く存在する。代表的な例をあげると:
 それが <a target="_blank" href="https://onnx.ai/">Open Neural Network Exchange (ONNX)</a>形式 である。
 たとえば PyTorch で作成したモデル (<code>nn.Module</code> クラス) を
 ONNX形式でエクスポートすると、PyTorch が動かないプラットフォーム
-(iOS や RaspberryPi など) でもモデルを使って推論することができる:
-
+(iOS や RaspberryPi など) でもモデルを使って推論することができる。
+<a href="https://github.com/onnx/models">ONNX Model Zoo</a> のページでは、
+ONNX形式に変換されたさまざまなモデルがダウンロード可能である:
 <div class=figure>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="340" height="150">
 <defs>
@@ -1125,15 +1126,8 @@ PyTorch では、このために 2つの方法を用意している:
 一般的に、<strong>あらゆる PyTorch モデルが ONNX形式に変換できるわけではない</strong>。
 Tracing方式で ONNX形式に変換できるのは、<code>forward()</code> メソッド中に
 条件分岐やループを含まない「単調な」処理だけである。
-<a href="https://github.com/onnx/models">ONNX Model Zoo</a> のページには、
-ONNX形式に変換されたさまざまなモデルが用意されており、
-ダウンロード可能になっている。
-
-<div class=notice>
-ONNXの仕様にはいくつかの「バージョン」が存在する。
-これらはまだ頻繁に変化しており、すべてのプラットフォームで
-最新の仕様が使えるわけではないので注意。
-</div>
+また、ONNXの仕様にはいくつかの「バージョン」が存在し、
+<strong>出力した ONNX 形式がすべてのプラットフォームで使える保証はない</strong>ので注意。
 
 <p>
 PyTorch のモデルを ONNX にエクスポートする手順は以下のとおり:
