@@ -121,6 +121,8 @@ class FineNet(nn.Module):
             assert (coarse.shape[1:] == x.shape[2:] and
                     coarse.shape[0] == x.shape[0])
             x = torch.cat([x, coarse.unsqueeze(1)], 1)
+        else:
+            x = torch.cat([x, torch.zeros(x.shape[0], 1, x.shape[2], x.shape[3])], 1)
         x = self.conv2(x)
         x = self.norm3(x)
         x = F.relu(x)
