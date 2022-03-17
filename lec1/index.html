@@ -175,8 +175,8 @@ Pythonプログラムを実行するには、適当なテキストエディタ�
 C:\Users\euske&gt; <strong>python hello.py</strong>
 </pre>
 <li> Macの場合:<br>
-(2021年8月現在、macOS にはまだ旧バージョンの Python2 がインストールされているため、
-現行バージョンの Python3 を使うには、以下のようにする)
+macOS では Python は "<code>python</code>" コマンドではなく、
+"<code>python3</code>" コマンドとして実行される:
 <pre>
 (×) euske@macbook ~ % <strong>python hello.py</strong>
 (○) euske@macbook ~ % <strong>python<mark>3</mark> hello.py</strong>
@@ -184,7 +184,7 @@ C:\Users\euske&gt; <strong>python hello.py</strong>
 </ul>
 
 <p>
-スクリプト名を省略して、ただ "python" とだけ実行すると、
+いずれの場合も、スクリプト名を省略して、ただ python を実行すると、
 対話モードで使うことができる。
 これはちょっとした計算や実験をしたいときに便利である:
 <blockquote><pre>
@@ -310,13 +310,14 @@ Anaconda をインストールしている場合、
 
 <h3 id="setup-pyenv">1.6. 別バージョンのPythonを使う</h3>
 <p>
-一部の環境 (Linux や macOS) では、Python があらかじめシステムに
-組み込まれており、バージョンを勝手に変えることができない。
-このような場合は <a href="https://github.com/pyenv/pyenv">pyenv</a> というパッケージを使うと
+一部の環境 (Linux や macOS) では、あらかじめ Python がシステムの一部として
+組み込まれており、バージョンを選ぶことができない。
+このような場合は <a href="https://github.com/pyenv/pyenv">pyenv</a> というパッケージを使うと、
 バージョンが違う Python 実行環境をユーザのホームディレクトリ下に構築できる。
 なお、<code>pyenv</code> 自体は
 <code>pip</code> ではインストールできず、
-ディストリビューションのパッケージ管理ツールを使う必要がある。
+ディストリビューション特有のパッケージ管理ツール
+(<code>apt-get</code>, <code>pacman</code>, <code>rpm</code> など) を使う必要がある。
 <p>
 <code>pyenv</code> をインストール後、たとえば
 Python 3.9.10 をインストールしたい場合は以下のように実行する:
@@ -386,6 +387,9 @@ print(<strong>f</strong>"Hello, {x}!")
 </ul>
 <li> <code>x</code> のような部分を<u>変数</u> (variable) とよぶ。
   <code>x = input("name:")</code> は<u>代入文</u> (assignment) である。
+<li> 代入文の右辺は、<u>式</u> (expression) である。
+  Python は文中の式を<u>評価</u> (eval) して値を決定する。
+  C などの言語と同じく、式だけからなる文も有効である。
 <li> <code><strong>f</strong>"〜"</code> のような文字列は <u>f-string</u> と呼ばれ、
 文字列中の <code>{…}</code> で囲まれた部分が式として評価され埋め込まれる。
 この例では、変数 <code>x</code> の値が展開される。
