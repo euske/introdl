@@ -91,7 +91,7 @@ JavaScript や Ruby に似ている部分が多いが、いくつか重要な違
 <strong>注意:</strong> 2022年1月現在、Python の最新バージョンは 3.10.1 だが、
 <strong>つねに最新バージョンを使うのは危険である。</strong>
 機械学習関係のライブラリ (PyTorch) がまだ対応していない場合があるためである。</strong>
-不幸にもすでに Python 3.10 をインストールしてしまった場合は
+不幸にもすでに Python 3.10 がインストールされている場合は
 <a href="#setup-pyenv">1.6. 別バージョンのPythonを使う</a> を参照。
 
 <div class=figure>
@@ -538,9 +538,9 @@ Unicode文字は <code>\uXXXX</code> のように表すことも可能。
 Python3 では、ひとつの文字は 1つの Unicodeコードポイントに相当する。
 改行を入れたい場合は <code>\n</code> を使う。
 <div class=langnotice>
-Python は「文字」と「文字列」を区別しない。
+Python では「文字」と「文字列」を区別しない。
 char型は存在せず、文字を表現したい場合は、
-長さ 1の str型を使う。
+長さ 1 の <code>str</code>型を使う。
 </div>
 <pre>
 "foo bar"
@@ -805,6 +805,8 @@ Python の比較演算子には、次のようなものがある
 Python では (<code>int</code> と <code>float</code> を除いて)
 異なる型どうしの大小比較はできない。
 たとえば <code>"abc" &lt; 123</code> は <code>TypeError</code> を発生する。
+また、(JavaScript とは異なり) 型が異なる値は自動的、変換されないため
+<code>"123" == 123</code> は <code>False</code> となる。
 </div>
 <p>
 Python における等号 <code>==</code> は、
@@ -987,10 +989,10 @@ target = int(input("target:"))
 
 <h4 id="basic-controls-for"><code>for</code>文</h4>
 <p>
-Python の <code>for</code>文は C言語などにおけるカウンタを
-使うものではなく、「リストの各要素を1つずつたどる」動作をする。
-シェルスクリプトにおける <code>for</code> や、
-C# における <code>foreach</code> に近い。
+Python の <code>for</code>文は C言語などとは異なり
+「リストの各要素を1つずつたどる」動作をする。
+これはシェルスクリプトにおける <code>for</code> や、
+C# における <code>foreach</code> 文に近い。
 <dl>
 <dt> 基本:
 <dd> <pre>
@@ -1097,8 +1099,8 @@ Python には可変長の配列として、<u>リスト</u> (<code>list</code>�
 <dt> リストの作成
 <dd> Python のリストは、いわゆる参照型である。
 リストは式が<u>評価</u>された時点でメモリ上に作成 (new) される。
-Python はガーベジコレクション (GC) を使っているため、
-メモリの解放については考える必要がない。
+Python はガベージコレクション (GC) を使っているため、
+メモリの解放は自動的におこなわれる。
 リストの各要素には、基本型の値や、別のリストを入れることができる。
 <pre>
 a = [5, 9, 4, 0]
