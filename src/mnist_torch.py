@@ -83,7 +83,7 @@ def train(model, device, loader, optimizer, log_interval=1, dry_run=False):
         # 与えられたミニバッチをニューラルネットワークに処理させる。
         outputs = model(inputs)
         # 損失を計算する。
-        loss = F.cross_entropy_loss(outputs, targets)
+        loss = F.cross_entropy(outputs, targets)
         # 勾配を計算する。
         loss.backward()
         # 重み・バイアスを更新する。
