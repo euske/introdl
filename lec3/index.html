@@ -19,7 +19,7 @@ input[type=range][orient=vertical] {
     padding: 0 5px;
 --></style>
 <script src="optim.js"></script>
-<body onload="main();">
+<body onload="optim_setup('sliders1', 'sliders2');">
 <div class=nav>
 <a href="../index.html">&lt; もどる</a>
 </div>
@@ -409,19 +409,19 @@ w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b
 下の10個のスライダーを動かして、損失 (loss) がなるべく小さくなるように
 してほしい。最適な解を見つければ、損失は 0 になるはずである:
 <div>
-<table align=center border><tr>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b0"></td>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b1"></td>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b2"></td>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b3"></td>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b4"></td>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b5"></td>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b6"></td>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b7"></td>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b8"></td>
-<td><input oninput="fb()" orient="vertical" type="range" min="0" max="10" id="b9"></td>
+<table id="sliders1" align=center border><tr>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
 </tr><tr>
-<td colspan="8">損失 (ゼロが目標)</td><td colspan="2" align=center><span id="bout"></span></td>
+<td colspan="8">損失 (ゼロが目標)</td><td colspan="2" align=center><span class="result"></span></td>
 </table>
 </div>
 <p>
@@ -434,22 +434,22 @@ w<sub>1</sub>, w<sub>2</sub>, w<sub>3</sub>, b
 ヒントが矢印「↓」「↑」で表示される (矢印が表示されない場合は、
 スライダーをどちらに動かしても損失が増えてしまうことを示す)。
 <div>
-<table align=center border><tr>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c0"></td>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c1"></td>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c2"></td>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c3"></td>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c4"></td>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c5"></td>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c6"></td>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c7"></td>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c8"></td>
-<td><input oninput="fc()" orient="vertical" type="range" min="0" max="10" id="c9"></td>
+<table id="sliders2" align=center border><tr>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
+<td><input orient="vertical" type="range" min="0" max="10"></td>
 </tr><tr>
-<td id="d0">&nbsp;</td><td id="d1">&nbsp;</td><td id="d2">&nbsp;</td><td id="d3">&nbsp;</td><td id="d4">&nbsp;</td>
-<td id="d5">&nbsp;</td><td id="d6">&nbsp;</td><td id="d7">&nbsp;</td><td id="d8">&nbsp;</td><td id="d9">&nbsp;</td>
+<td class="grad"></td><td class="grad"></td><td class="grad"></td><td class="grad"></td><td class="grad"></td>
+<td class="grad"></td><td class="grad"></td><td class="grad"></td><td class="grad"></td><td class="grad"></td>
 </tr><tr>
-<td colspan="8">損失 (ゼロが目標)</td><td colspan="2" align=center><span id="cout"></span></td>
+<td colspan="8">損失 (ゼロが目標)</td><td colspan="2" align=center><span class="result"></span></td>
 </table>
 </div>
 <p>
