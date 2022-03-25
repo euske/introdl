@@ -2,19 +2,24 @@
 // by Yusuke Shinyama
 // License: CC-SA-4.0
 
+function mkrgb(v) {
+  v = Math.floor((1-v)*255);
+  return 'rgb('+v+','+v+','+v+')';
+}
+
 class MINIST {
 
-  input_x = 130.5;
-  input_y = 0.5;
+  input_x = 0.5;
+  input_y = 130.5;
   input_cols = 24;
   input_rows = 24;
   input_cellsize = 10;
-  out1_x = 0.5;
-  out1_y = 280.5;
+  out1_x = 320.5;
+  out1_y = 0.5;
   out1_size = 100;
   out1_cellsize = 5;
-  out2_x = 190.5;
-  out2_y = 330.5;
+  out2_x = 400.5;
+  out2_y = 190.5;
   out2_size = 10;
   out2_cellsize = 12;
 
@@ -27,27 +32,25 @@ class MINIST {
   out2 = null;
 
   prevpos = null;
-  focus = {t:null, x:-1, y:-1};
+  focus = null;
 
   setup(id1, id2) {
     this.canvas = document.getElementById(id1);
     this.result = document.getElementById(id2);
     this.ctx = this.canvas.getContext('2d');
     this.cell = Array(this.input_cols * this.input_rows);
-    this.cell.fill(0);
     this.out1 = Array(this.out1_size);
-    this.out1.fill(0);
     this.out2 = Array(this.out2_size);
-    this.out2.fill(0);
     let obj = this;
     this.canvas.addEventListener('mousedown', (e) => {obj.mousedown(e)}, false);
     this.canvas.addEventListener('mouseup', (e) => {obj.mouseup(e)}, false);
     this.canvas.addEventListener('mousemove', (e) => {obj.mousemove(e)}, false);
-    this.render();
+    this.clear();
   }
 
   clear() {
     this.cell.fill(0);
+    this.focus = {t:null, x:-1, y:-1};
     this.update();
     this.render();
   }
@@ -58,11 +61,46 @@ class MINIST {
     let cs3 = this.out2_cellsize;
     let ctx = this.ctx;
     let focus = this.focus;
-    ctx.fillStyle = 'white';
-    ctx.fillRect(this.input_x, this.input_y, this.input_cols*cs1, this.input_rows*cs1);
-    ctx.fillRect(this.out1_x, this.out1_y, this.out1_size*cs2, cs2);
-    ctx.fillRect(this.out2_x, this.out2_y, this.out2_size*cs3, cs3);
     ctx.lineWidth = 1;
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    for (let i = 0; i < this.out2_size; i++) {
+      let focused = (focus.t === 'out2' && focus.x == 0 && focus.y == i);
+      this.render1(this.out2_x, this.out2_y+cs3*i, cs3, this.out2[i], focused);
+    }
+    if (focus.t == 'out2') {
+      let i = focus.y;
+      let x0 = this.out2_x+cs3/2;
+      let y0 = this.out2_y+cs3*i+cs3/2;
+      let x1 = this.out1_x+cs2/2;
+      let y1 = this.out1_y+cs2/2;
+      for (let j = 0; j < this.out1_size; j++) {
+        ctx.strokeStyle = mkrgb(MINIST_W2[i][j]);
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1+cs2*j);
+        ctx.stroke();
+      }
+    }
+    for (let i = 0; i < this.out1_size; i++) {
+      let focused = (focus.t === 'out1' && focus.x == 0 && focus.y == i);
+      this.render1(this.out1_x, this.out1_y+cs2*i, cs2, this.out1[i], focused);
+    }
+    if (focus.t == 'out1') {
+      let i = focus.y;
+      let x0 = this.out1_x+cs2/2;
+      let y0 = this.out1_y+cs2*i+cs2/2;
+      for (let y = 0; y < this.input_rows; y++) {
+        for (let x = 0; x < this.input_cols; x++) {
+          let j = this.input_cols*y + x;
+          ctx.strokeStyle = mkrgb(MINIST_W1[i][j]);
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(this.input_x+cs1*x, this.input_y+cs1*y);
+          ctx.stroke();
+        }
+      }
+    }
     for (let y = 0; y < this.input_rows; y++) {
       for (let x = 0; x < this.input_cols; x++) {
         let focused = (focus.t === 'input' && focus.x == x && focus.y == y);
@@ -70,25 +108,16 @@ class MINIST {
                      this.cell[this.input_cols*y + x], focused);
       }
     }
-    for (let x = 0; x < this.out1_size; x++) {
-      let focused = (focus.t === 'out1' && focus.x == x && focus.y == 0);
-      this.render1(this.out1_x+cs2*x, this.out1_y, cs2, this.out1[x], focused);
-    }
-    for (let x = 0; x < this.out2_size; x++) {
-      let focused = (focus.t === 'out2' && focus.x == x && focus.y == 0);
-      this.render1(this.out2_x+cs3*x, this.out2_y, cs3, this.out2[x], focused);
-    }
   }
 
   render1(x, y, size, v, focused) {
     let ctx = this.ctx;
-    v = 255-Math.floor(v*255);
-    ctx.fillStyle = 'rgb('+v+','+v+','+v+')';
+    ctx.fillStyle = mkrgb(v);
     ctx.fillRect(x, y, size, size);
     ctx.strokeStyle = 'black';
     ctx.strokeRect(x, y, size, size);
     if (focused) {
-      ctx.strokeStyle = (v < 128)? 'white' : 'black';
+      ctx.strokeStyle = (0.5 < v)? 'white' : 'black';
       ctx.strokeRect(x+1, y+1, size-2, size-2);
     }
   }
@@ -105,13 +134,13 @@ class MINIST {
     if (0 <= cx && cx < this.input_cols && 0 <= cy && cy < this.input_rows) {
       return { t:'input', x:cx, y:cy };
     }
-    cx = Math.floor((x-this.out1_x)/cs2);
-    if (0 <= cx && cx < this.out1_size && this.out1_y <= y && y < this.out1_y+cs2) {
-      return { t:'out1', x:cx, y:0 };
+    let i = Math.floor((y-this.out1_y)/cs2);
+    if (this.out1_x <= x && x < this.out1_x+cs2 && 0 <= i && i < this.out1_size) {
+      return { t:'out1', x:0, y:i };
     }
-    cx = Math.floor((x-this.out2_x)/cs3);
-    if (0 <= cx && cx < this.out2_size && this.out2_y <= y && y < this.out2_y+cs3) {
-      return { t:'out2', x:cx, y:0 };
+    i = Math.floor((y-this.out2_y)/cs3);
+    if (this.out2_x <= x && x < this.out2_x+cs3 && 0 <= i && i < this.out2_size) {
+      return { t:'out2', x:0, y:i };
     }
     return { t:null, x:-1, y:-1 };
   }
@@ -182,7 +211,7 @@ class MINIST {
     if (n == 0) {
       this.out1.fill(0);
       this.out2.fill(0);
-      this.result.innerHTML = '???';
+      this.result.value = '???';
       return;
     }
     let out1 = this.out1;
@@ -213,8 +242,8 @@ class MINIST {
         mi = i; my = out2[i];
       }
     }
-    //console.log(mi, y2);
-    this.result.innerHTML = mi;
+    //console.log(mi, out2);
+    this.result.value = mi;
   }
 }
 
