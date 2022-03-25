@@ -18,8 +18,10 @@ input[type=range][orient=vertical] {
     height: 175px;
     padding: 0 5px;
 --></style>
+<script src="weights.js"></script>
+<script src="minist.js"></script>
 <script src="optim.js"></script>
-<body onload="optim_setup('sliders1', 'sliders2');">
+<body onload="minist_setup('canvas', 'result'); optim_setup('sliders1', 'sliders2');">
 <div class=nav>
 <a href="../index.html">&lt; もどる</a>
 </div>
@@ -148,6 +150,24 @@ input[type=range][orient=vertical] {
 これは得られた入力を重みづけて合計し、その値がある特定の
 <u>しきい値</u> (threshold) を超えたら 1 を、
 そうでなければ 0 を出力する (実際はもうすこし複雑だが、説明は後述する)。
+<p>
+百聞は一見にしかずということで、以下のデモを見てほしい。
+これは 3層のニューラルネットワーク (576ノード  + 100ノード + 10ノード) を
+使って、手書き数字認識をおこなうものである。各マスは1つのノードに対応している。
+左側の欄に数字を描くと、右側に認識結果が表示される。
+数字は 24×24ピクセルで構成されており、これが 24×24=576ノードの入力となっている。
+中間の各マスにマウスカーソルを置くと、ノード間の接続の強さが表示される。
+これほど単純な仕組みでかくも複雑な処理が実現できるのは、驚くべきことである。
+<div class=figure>
+<div style="display: flex; align-items: center; justify-content: center;">
+<canvas id="canvas" width="420" height="504"></canvas>
+<span style="width: 2em;">&nbsp;</span>
+Answer: <input id="result" size="2" disabled="true">
+&nbsp;
+<button onclick="minist_clear();">Clear</button>
+</div>
+ニューラルネットワークを使った手書き数字認識のデモ
+</div>
 
 <div class=exercise id="ex3-1">
 <div class=header>演習3-1. 入力と出力を定義する</div>
