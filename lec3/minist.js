@@ -210,7 +210,7 @@ class MINIST {
     for (let t of ev.changedTouches) {
       if (this.touchid === null) {
         this.touchid = t.identifier;
-        this.mousedown(ev);
+        this.mousedown(t);
       }
     }
     ev.preventDefault();
