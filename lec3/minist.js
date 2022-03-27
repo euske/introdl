@@ -33,6 +33,7 @@ class MINIST {
 
   prevpos = null;
   focus = null;
+  touchid = null;
 
   setup(id1, id2) {
     this.canvas = document.getElementById(id1);
@@ -45,6 +46,9 @@ class MINIST {
     this.canvas.addEventListener('mousedown', (e) => {obj.mousedown(e)}, false);
     this.canvas.addEventListener('mouseup', (e) => {obj.mouseup(e)}, false);
     this.canvas.addEventListener('mousemove', (e) => {obj.mousemove(e)}, false);
+    this.canvas.addEventListener('touchstart', (e) => {obj.touchstart(e)}, false);
+    this.canvas.addEventListener('touchend', (e) => {obj.touchend(e)}, false);
+    this.canvas.addEventListener('touchmove', (e) => {obj.touchmove(e)}, false);
     this.clear();
   }
 
@@ -200,6 +204,35 @@ class MINIST {
     }
     this.focus = p;
     this.render();
+  }
+
+  touchstart(ev) {
+    for (let t of ev.changedTouches) {
+      if (this.touchid === null) {
+        this.touchid = t.identifier;
+        this.mousedown(ev);
+      }
+    }
+    ev.preventDefault();
+  }
+
+  touchend(ev) {
+    for (let t of ev.changedTouches) {
+      if (this.touchid !== null) {
+        this.touchid = null;
+        this.mouseup(t);
+      }
+    }
+    ev.preventDefault();
+  }
+
+  touchmove(ev) {
+    for (let t of ev.changedTouches) {
+      if (this.touchid == t.identifier) {
+        this.mousemove(t);
+      }
+    }
+    ev.preventDefault();
   }
 
   update() {
