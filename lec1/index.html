@@ -2427,6 +2427,9 @@ print(c.inc(1))  <span class=comment># 3</span>
     <code>self.</code> をつける必要がある。
     同様に、同一クラス内のメソッド呼び出しも単に <code>foo()</code> とはできず、
     必ず <code>self.foo()</code> のように書く必要がある。
+    なお <code>self</code> はただの変数名であり、
+    <code>this</code> のような特殊なキーワードではない
+    (<code>self</code> という名前は慣例にすぎない)。
   </div>
   <p>
   関数と同様、Python のクラスは class文が<strong>実行されたときに</strong>定義される。
