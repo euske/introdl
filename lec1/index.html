@@ -521,7 +521,8 @@ JavaScript における数値型、C や Java でいう double型に相当する
 5.
 </pre>
 使用可能な演算子は int型と同じだが、
-<code>float</code>と<code>int</code>の演算はつねに <code>float</code>になる。
+<code>float</code>と<code>int</code>の演算はつねに <code>float</code>になる
+(いわゆる「型の昇華」)。
 <pre>
 &gt;&gt;&gt; <strong>3.14 * 2</strong>
 6.28
@@ -533,7 +534,7 @@ JavaScript における数値型、C や Java でいう double型に相当する
 
 <dt> <code>str</code>型
 <dd> いわゆる文字列型。
-文字列定数は <code>"〜”</code> あるいは <code>'〜'</code> で表す。
+文字列定数は <code>"〜"</code> あるいは <code>'〜'</code> で表す。
 Unicode文字は <code>\uXXXX</code> のように表すことも可能。
 Python3 では、ひとつの文字は 1つの Unicodeコードポイントに相当する。
 改行を入れたい場合は <code>\n</code> を使う。
@@ -2426,6 +2427,9 @@ print(c.inc(1))  <span class=comment># 3</span>
     <code>self.</code> をつける必要がある。
     同様に、同一クラス内のメソッド呼び出しも単に <code>foo()</code> とはできず、
     必ず <code>self.foo()</code> のように書く必要がある。
+    なお <code>self</code> はただの変数名であり、
+    <code>this</code> のような特殊なキーワードではない
+    (<code>self</code> という名前は慣例にすぎない)。
   </div>
   <p>
   関数と同様、Python のクラスは class文が<strong>実行されたときに</strong>定義される。
