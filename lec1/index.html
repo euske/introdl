@@ -19,15 +19,16 @@ dt { margin-top: 1em; }
 <h1>第1回 プログラマのためのPython入門</h1>
 
 <p>
-ここでは本講座のコードを読むために必要な Python の基礎知識と
+はじめに、
+本講座のコードを読むために必要な Python の基礎知識と、
 有用な tips をいくつか紹介する。
 Python は動的な型付けをもつスクリプト言語であり、
 JavaScript や Ruby に似ている部分が多いが、いくつか重要な違いがある。
 <p>
 <strong>このページの使い方:</strong>
-ここに書かれている内容をすべて覚える必要はない。
 各セクションはすぐに読める程度の長さになっているので、
 特定の箇所だけをつまみ読みすることを想定している。
+すべて読む必要はない。
 <div class=langnotice>
 他言語に慣れている人への注意は、このような囲みで示した。
 </div>
@@ -80,25 +81,28 @@ JavaScript や Ruby に似ている部分が多いが、いくつか重要な違
 <p>
 以下に Python をインストール・実行する代表的な 3つの方法を挙げる:
 <ol type=a>
-<li> <a target="_blank" href="https://www.python.org/">Python 本家</a>で配布されているバージョンを使う方法
+<li> <a target="_blank" href="https://www.python.org/">Python 本家</a>で配布されているバージョンを使う方法:
 <ul>
 <li> 長所: もっとも単純な仕組みであり、原理がわかりやすい。
   PCの操作に慣れている人には、この方法がおすすめ。
 <li> 短所: 作業がやや煩雑。
 <li> 手順:
 <a target="_blank" href="https://www.python.org/downloads/">https://www.python.org/downloads/</a> に
-アクセスし、Python 3.9.x をダウンロードする。(最後の x の部分は何でもよい)<br>
-<strong>注意:</strong> 2022年1月現在、Python の最新バージョンは 3.10.1 だが、
-<strong>つねに最新バージョンを使うのは危険である。</strong>
-機械学習関係のライブラリ (PyTorch) がまだ対応していない場合があるためである。</strong>
+アクセスし、Python 3.9.x をダウンロードする。(最後の x の部分は何でもよい)
+<div class=langnotice>
+一般的に、<strong>つねに最新バージョンを使うのは危険である。</strong>
+2022年1月現在、Python の最新バージョンは 3.10.1 だが、
+機械学習関係のライブラリ (PyTorch) がまだ対応していない。</strong>
 不幸にもすでに Python 3.10 がインストールされている場合は
 <a href="#setup-pyenv">1.6. 別バージョンのPythonを使う</a> を参照。
+</div>
 
 <div class=figure>
 <img width="605" height="434" src="python-web.png">
 </div>
 <p>
-Mac の場合はインストーラを開き、普通にインストールを完了させる。<br>
+Mac の場合はインストーラを開き、普通にインストールを完了させる。
+<p>
 Windows の場合は、インストール時のウィンドウに表示される
 <kbd>Add Python 3.9 to PATH</kbd> の部分をチェックすること:
 <div class=figure>
@@ -106,7 +110,7 @@ Windows の場合は、インストール時のウィンドウに表示される
 </div>
 </ul>
 </ul>
-<li> <a target="_blank" href="https://www.anaconda.com/">Anaconda</a> から配布されている Jupyter Notebook を使う方法
+<li> <a target="_blank" href="https://www.anaconda.com/">Anaconda</a> から配布されている Jupyter Notebook を使う方法:
 <ul>
 <li> 長所: 最初から多くの機能が使える。
 <li> 短所: 巨大かつ複雑なシステムであり、
@@ -116,7 +120,7 @@ Windows の場合は、インストール時のウィンドウに表示される
   をダウンロードし、インストールする。
  (10GB程度のディスク空き容量が必要)。
 </ul>
-<li> <a target="_blank" href="https://colab.research.google.com/">Google Colaboratory</a> を使う方法
+<li> <a target="_blank" href="https://colab.research.google.com/">Google Colaboratory</a> を使う方法:
 <ul>
 <li> 長所: PCの知識があまりなくても使える。インストールは必要ない。
 <li> 短所: Googleアカウントが必要。ブラックボックスな部分が多い。
@@ -184,8 +188,8 @@ macOS では Python は "<code>python</code>" コマンドではなく、
 </ul>
 
 <p>
-いずれの場合も、スクリプト名を省略して、ただ python を実行すると、
-対話モードで使うことができる。
+いずれの場合も、スクリプト名を省略して <code>python</code> のみを実行すると、
+<u>対話モード</u>で使うことができる。
 これはちょっとした計算や実験をしたいときに便利である:
 <blockquote><pre>
 C:\Users\euske&gt; <strong>python</strong>
@@ -197,12 +201,12 @@ hello, world!
 5
 </pre></blockquote>
 
-<p>
-<strong>注意:</strong>
+<div class=langnotice>
 プログラムがループで止まらない場合は、
 <kbd>Control</kbd> + <kbd>C</kbd> を押して止める。
 こうするとインタプリタ内部で <code>KeyboardInterrupt</code> 例外が発生し、
 Python は終了する。
+</div>
 
 <dt> VS Code 上で Python を実行する
 <dd>
@@ -251,7 +255,7 @@ print(...)
     ...
 </pre></blockquote>
 <p>
-<code>help()</code> で表示される内容はやや上級者向けなので、
+ただし <code>help()</code> で表示される内容はやや上級者向けであり、
 通常は Web上のドキュメントを参照するほうがよい:
 <ul>
   <li> <a target="_blank" href="https://docs.python.org/3/">Python 3 文書一覧</a>
@@ -508,7 +512,10 @@ Python は、代入演算子もサポートしている:
 <code>&=</code>, <code>|=</code>, <code>^=</code>,
 <code>&lt;&lt;=</code>, <code>&gt;&gt;=</code>
 <div class=langnotice>
-Python には <code>++</code> および <code>--</code> 演算子は存在しない。
+Python では、<strong>代入文は式ではない</strong>。
+C や JavaScript と違い、<code>a = (b += 1)</code> のようには書けない
+(ただし <code>a = b = 0</code> は特別に可能である)。
+<code>++</code> および <code>--</code> 演算子は存在しない。
 </div>
 
 <dt> <code>float</code>型
