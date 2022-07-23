@@ -10,14 +10,25 @@ import json
 import os.path
 from xml.etree.ElementTree import Element, tostring
 
+def getimgsize(path):
+    from PIL import Image
+    img = Image.open(path)
+    return img.size
+
 def addelem(p, k, v):
     e = Element(k)
     e.text = str(v)
     p.append(e)
 
-def via2voc(x):
+def via2voc(x, imgsize=None):
     annotation = Element('annotation')
     addelem(annotation, 'filename', x['filename'])
+    if imgsize is not None:
+        (width,height) = imgsize
+        size = Element('size')
+        addelem(size, 'width', width)
+        addelem(size, 'height', height)
+        annotation.append(size)
     for region in x['regions']:
         obj = Element('object')
         attrs = region['region_attributes']
@@ -37,22 +48,27 @@ def via2voc(x):
 def main(argv):
     import getopt
     def usage():
-        print(f'usage: {argv[0]} [-O outdir] [file ...]')
+        print(f'usage: {argv[0]} [-i imgdir] [-O outdir] [file ...]')
         return 100
     try:
-        (opts, args) = getopt.getopt(argv[1:], 'O:')
+        (opts, args) = getopt.getopt(argv[1:], 'i:O:')
     except getopt.GetoptError:
         return usage()
+    imgdir = None
     outdir = '.'
     for (k, v) in opts:
-        if k == '-O': outdir = v
+        if k == '-i': imgdir = v
+        elif k == '-O': outdir = v
     for path in args:
         print(f'loading: {path}')
         with open(path) as fp:
             data = json.load(fp)
             for x in data.values():
                 filename = x['filename']
-                annotation = via2voc(x)
+                imgsize = None
+                if imgdir is not None:
+                    imgsize = getimgsize(os.path.join(imgdir, filename))
+                annotation = via2voc(x, imgsize=imgsize)
                 (name,_) = os.path.splitext(filename)
                 outpath = os.path.join(outdir, name+'.xml')
                 with open(outpath, 'wb') as out:
