@@ -1287,10 +1287,10 @@ mAP は物体認識や情報検索の評価に使われる指標のひとつで�
 <li> 同一の物体を、2つの異なる物体として認識した場合
 </ul>
 <p>
-mAP は個々の入力 (画像) に対する認識結果の AP (Average Precision) を平均したものである。
+mAP は個々の物体に対する認識結果の AP (Average Precision) を平均したものである。
 各AP は以下のようにして計算する:
 <ol>
-<li> 認識された物体の矩形を、確信度の高い順に並べる。
+<li> ある種類の物体において、認識された矩形を、確信度の高い順に並べる。
 <li> 上位 n個の認識結果に対して、そのうちのいくつが
 正解データに IOU &ge; 0.5 以上で一致しているかを数える。
 (ただし、一度正解とみなした物体は二度数えない。)
@@ -1306,7 +1306,7 @@ mAP は個々の入力 (画像) に対する認識結果の AP (Average Precisio
   <li> n = 5 の結果: [○, ×, ○, ○, ×] (適合率 3/5、再現率 3/4)
 </ul>
 この画像の AP は (1/1 + 2/3 + 3/4) × (1/4) ≒ 0.60 となる。
-<li> すべての画像に対して AP を計算し、その平均を取って mAP とする。
+<li> すべての種類の物体に対して AP を計算し、その平均を取って mAP とする。
 </ol>
 
 
@@ -1592,6 +1592,12 @@ COCO データセットを読み込む <code>COCODataset</code> クラスが用�
 <a target="_blank" href="https://cocodataset.org/">COCO データセット</a> をダウンロードし、
 これを使って YOLO を訓練するよう改造せよ。
 </div>
+
+<h4>PyTorchによる他のオープンソース実装</h4>
+<ul>
+<li> PyTorch を使った YOLO v3 の実装: <a target="_blank" href="https://github.com/eriklindernoren/PyTorch-YOLOv3">PyTorch-YOLOv3</a>
+<li> 画像データに関するデータ拡張をおこなう Python ライブラリ: <a target="_blank" href="https://github.com/aleju/imgaug">imgaug</a>
+</ul>
 
 <h2 id="depth">3. 奥行き推定システムの実装</h2>
 <p>
