@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="../common.css" />
+<title>(数式を使わない) Transformer の直感的な説明
+/ 真面目なプログラマのためのディープラーニング入門</title>
+<style><!--
+--></style>
+<body>
+<div class=nav>
+<a href="../index.html">&lt; もどる</a>
+</div>
+
+<h1>(数式を使わない)<br>
+Transformer の直感的な説明</h1>
+
+<ol>
+<li> <a href="#rnn">RNN の何が問題なのか?</a>
+<li> <a href="#transformer">Transformer はこれをどう解決したか</a>
+<li> <a href="#basics">Transformer の動作原理</a>
+<li> <a href="#self-attention">複数の要素間の関係を考慮する (Self-Attention、自己注意)</a>
+<li> <a href="#positional-encoding">要素の順序を考慮する (Positional Encoding、位置エンコーディング)</a>
+<!-- <li> <a href="#summary">まとめ</a> -->
+</ol>
+
+<p>
+<strong>概要:</strong>
+Transformer モデル ("<a href="https://arxiv.org/abs/1706.03762">Attention is All You Need</a>" 論文で紹介されている) には、
+いくつかの革新的なアイデアが使われている。
+本記事では、プログラマに理解しやすい形でそれらのアイデアを解説する。
+実際に使われている数学の技術的詳細には触れない。
+(それらの解説については
+<a href="https://nlp.seas.harvard.edu/annotated-transformer/">The Annotated Transformer</a> を参照のこと。)
+
+<p>
+必要な前提知識:
+ニューラルネットワークの基礎、RNN の原理、および Python の基礎。
+
+
+<h2 id="rnn">1. RNN の何が問題なのか?</h2>
+<p>
+それまで使われていた (RNNによる) seq2seq モデルは
+以下のような原理であった:
+
+<blockquote><pre>
+    "King Midas has donkey ears" --[encode]--&gt;  [17 29 54] --[decode]--&gt; "王様 の 耳 は ロバ の 耳"
+                                              |&lt;--fixed--&gt;|
+</pre></blockquote>
+
+<p>
+典型的な RNN では、入力列は要素ごとにひとつずつ処理される。
+これらは一度、固定長の中間表現ベクトルに「圧縮 (エンコード)」され、
+これを元にして出力列が生成 (デコード) されていた。
+このモデルには明らかなボトルネックがある。
+中間表現は固定長なので、一定の情報量しか保持できない。
+そのため、このモデルは長い入力列に対してはうまく動かなかった。
+
+
+<h2 id="transformer">2. Transformer はこれをどう解決したか</h2>
+<p>
+Transformer モデルでは、入力列と中間表現を<strong>同じ長さ</strong>にすることで、
+上の問題を根本的に解決している。Transformer の原理をおおざっぱに図示すると、
+以下のようになる:
+
+<blockquote><pre>
+    "King Midas has donkey ears"
+       |    |    |    |     |  (encode)
+       v    v    v    v     v
+     [17   39   27    53   76] (memory)
+    |&lt;- same length as input -&gt;|
+       |    |    |    |     |  (decode)
+       v    v    v    v     v
+      "王様 の 耳 は ロバ の 耳"
+</pre></blockquote>
+
+<p>
+ここで使われている中間表現ベクトルは RNN とは
+まったく別種のものになっていることに注意してほしい。
+RNN では、単語をひとつ処理するごとにベクトル内に情報が蓄積されていくので、
+列が長くなればなるほど情報の圧縮が起こる。つまり RNN では
+短い列の中間表現と長い列の中間表現は直接比較することはできない。
+これに対して、Transformer モデルでは中間表現の各要素がほぼ等しい量の
+情報をもつため、短い列の中間表現は自然に長い列にも活用できる。
+これは情報の一貫性を上げるため、学習に有利である。
+
+<p>
+さらに RNN では各要素をひとつずつ処理する必要があったが、
+Transformer ではこれらを同時に処理できるため、訓練および推論を並列化できる。
+そのため、(少なくとも理論的には) Transformer は既存の RNN によるモデルよりも
+高い性能が期待できるだろう。
+
+
+<h2 id="basics">3. Transformer の動作原理</h2>
+
+<p>
+では実際に Transformer がどういうアルゴリズムで動作しているのかを見てみよう:
+
+<blockquote><pre>
+<span class=comment># 入力列 input に対する出力列 output を求める。</span>
+def transformer(input):
+    <span class=comment># 入力列を memory に変換する。</span>
+    memory = encoder(input)
+    <span class=comment># 出力列を初期化する。</span>
+    output = [BOS]
+    while True:
+        <span class=comment># ひとつずつ要素を足していく。</span>
+        elem = decoder(memory, output)
+        output.append(elem)
+        <span class=comment># EOS が来たら終了。</span>
+        if elem == EOS: break
+    return output
+</pre></blockquote>
+
+<p>
+アルゴリズムは非常にストレートである。
+まず、入力列が "memory" と呼ばれるものに変換され
+(これについては後述する)、出力列がひとつずつ生成されていく。
+<code>BOS</code>、<code>EOS</code> は
+それぞれ「列の先頭 (Beginning of Sequence)」
+「列の末尾 (End of Sequence)」を示す特殊な記号である。
+<p>
+さて、ではこの "memory" とは何だろうか?
+直感的にいえば、これは「連想配列」や「ハッシュテーブル」
+あるいは Python でいう「辞書」と呼ばれるものに相当する。
+<code>encoder()</code> 関数はこの辞書を作成し、
+<code>decoder()</code> 関数がその辞書を参照する。
+
+<p>
+以下はその直感的な Pythonバージョンである:
+
+<blockquote><pre>
+def encoder(src):
+    <span class=comment># 入力列から2つの辞書を作成する。</span>
+    h1 = { <mark>key1</mark>(x): <mark>value1</mark>(x) for x in src }
+    h2 = { <mark>key2</mark>(x): <mark>value2</mark>(x) for x in src }
+    memory = (h1,h2)
+    return memory
+
+def decoder(memory, target):
+    <span class=comment># 2つの辞書を使って出力を生成する。</span>
+    (h1,h2) = memory
+    v1 = [ h1.get(<mark>query1</mark>(x)) for x in target ]
+    v2 = [ h2.get(<mark>query2</mark>(x)) for x in target ]
+    return ff(v1,v2)
+</pre></blockquote>
+
+<p>
+ここで、関数
+<code>key1()</code>,
+<code>value1()</code>,
+<code>key2()</code>,
+<code>value2()</code>,
+<code>query1()</code>,
+<code>query2()</code>
+および <code>ff()</code>
+はそれぞれ学習可能な関数であるとする。
+実際のニューラルネットワークによる Transformer は
+本物の Python辞書を使っていないことに注意
+(なぜなら辞書は微分可能ではないからである)。
+かわりに、行列の乗算による類似度の計算、およびベクトルの内積による
+要素の「選択」を使って同様の処理を実現している。
+<p>
+また、上の encoder/decoder 関数は簡単のため
+2つの辞書 (<code>h1</code>, <code>h2</code>)
+しか使っていないが、論文で提案されている実際の Transformer は
+<strong>8つの</strong> 辞書らしきもの (論文中ではこれらは
+"head" と呼ばれている) を使っている。
+
+<p>
+以下は上のフレームワークを使った単純なモデルである。
+これはただ入力された列と同じものを出力する
+(実際には、以下の関数はニューラルネットワークによって
+実現されるものとする):
+
+<blockquote><pre>
+BOS = 0
+EOS = 999
+
+def key1(x): return x
+def value1(x): return x
+def key2(x): return x
+def value2(x): return 1
+def query1(x): return x
+def query2(x): return x
+def ff(v1,v2):
+    x1 = v1[-1]
+    x2 = v2[-1]
+    if x2 is None:
+        return EOS
+    else:
+        return x1+1
+
+print(transformer([BOS,1,2,3,4,5,EOS])) <span class=comment># [BOS,1,2,3,4,5,EOS]</span>
+</pre></blockquote>
+
+<p>
+しかし、このモデルは各々の要素を個別にしか考慮しておらず、
+まだ不十分である。一般的な自然言語処理では、
+以下のような処理が必要となるためだ:
+
+<ol type=a>
+<li> 複数の要素間の関係を考慮する。
+<li> 各要素の順序を考慮する。
+</ol>
+
+<p>
+以後、これらの問題を Transformer がどのように解決したかを見ていく。
+
+
+<h2 id="self-attention">4. 複数の要素間の関係を考慮する (Self-Attention、自己注意)</h2>
+
+<p>
+まずは最初の問題から見てみよう。
+Transformer は "Self-Attention (自己注意)" という仕組みを使って、
+複数の要素からの情報を集約している。
+これが Transformer 論文の題名にもなっている重要なアイデアであり、
+近年のニューラルネットワーク研究におけるブレイクスルーの
+ひとつといってもよい。
+
+<p>
+しかし、この「自己注意」という呼び名は混乱を招く。
+むしろ「内的関係」とでも呼んだほうが、より理解しやすい。
+なぜならこれが意味しているのは、入力列の各要素間の関係を
+抽出するという処理に他ならないからである。
+たとえば、以下の文における単語間の関係を考えよう:
+
+<blockquote><pre>
+             +---object--+
+             |           |
+  +-subject--+           |
+  |          |           |
+  +-adj-+    |     +-adj-+
+  |     |    |     |     |
+"King Midas has donkey ears"
+</pre></blockquote>
+
+<p>
+上の図で、それぞれの「関係」は対象となる 2つの単語および
+関係のタイプ ("object" など) からなりたっている。
+グラフ構造といってもよい。Transformer の優れた点は、
+学習によってこれらの関係を自動的に発見できるということである。
+ただしここで注意しなければいけないのは、実際に Transformer が
+発見する関係 ("注意") は必ずしも「きれいな」ものではないということである。
+Transformer の抽出した結果を人間が見ても、
+それが特定の要素間の関係を表すということはわかるものの、
+いったい「どんな関係なのか」は理解できないことが多い。
+これは畳み込みネットワーク (CNN) において、
+中間にある層がいったいどんな特徴を抽出しているか、
+人間には理解しがたいのに似ている。
+
+<p>
+この関係抽出処理を Python で表してみると、こうなる:
+
+<blockquote><pre>
+<span class=comment># 入力列 seq 内の自己注意 (self attention) を求める。</span>
+def self_attn(seq):
+    h1 = { <mark>sa_key1</mark>(x): <mark>sa_value1</mark>(x) for x in seq }
+    h2 = { <mark>sa_key2</mark>(x): <mark>sa_value2</mark>(x) for x in seq }
+    a1 = [ h1.get(<mark>sa_query1</mark>(x)) for x in seq ]
+    a2 = [ h2.get(<mark>sa_query2</mark>(x)) for x in seq ]
+    return [ aa(y1,y2) for (y1,y2) in zip(a1,a2) ]
+</pre></blockquote>
+
+<p>
+ここで <code>seq</code> は入力列であり、関数
+<code>sa_key1()</code>, <code>sa_value1()</code>,
+<code>sa_key2()</code>,
+<code>sa_value2()</code>,
+<code>sa_query1()</code>,
+<code>sa_query2()</code> および <code>aa()</code> は
+学習可能な関数である。
+まず 2つの Python辞書 <code>h1</code> と <code>h2</code> を作成しており、
+これが 2つの「関係」に相当する (論文では "head" と呼ばれている)。
+辞書内のキー/バリュー対は、要素ごとに計算される。その後
+この辞書を参照しながらもう一度同じ要素列をスキャンする。
+これにより、列内の各要素が他のすべての要素と比較されたことになる。
+この例では 2つの関係を抽出したあと、
+最後にこれら2つの列を組み合わせ、出力列を生成している。
+
+<p>
+以下の例では、入力列の各要素が他のすべての要素と比較され、
+その要素の2倍または 1/2 の要素が列中に含まれていれば
+出力は <code>1</code> となり、そうでなれば <code>0</code> になる。
+
+<blockquote><pre>
+def sa_key1(x): return x
+def sa_value1(x): return x
+def sa_key2(x): return x
+def sa_value2(x): return x
+def sa_query1(x): return x*2
+def sa_query2(x): return x/2
+def aa(v1,v2):
+    if v1 is None and v2 is None: return 0
+    return 1
+
+print(self_attn([BOS,1,2,3,4,5,8,EOS])) <span class=comment># [1,1,1,0,1,0,1,0]</span>
+</pre></blockquote>
+
+<p>
+実際の Transformer では、出力列中に 8種類の情報が別々に
+記録されるようになっている。したがってこれらは8種類の異なった
+タイプの関係 (論文中では "Multi-Head Attention" と呼ばれている)
+を保持することができる。これも本物の実装では Python の辞書は使っていないが、
+行列計算と内積によって類似の処理をおこなっている。
+また、関数 <code>self_attn()</code> の入力と出力は
+同じ形のテンソルになっていることに注意してほしい。
+実際の Transformer ではこの self attention 層を <strong>6層</strong>
+積み重ねており、まず要素間の「浅い関係」を抽出したのち、
+それらの情報を使ってより複雑な関係を記述し…
+といったことができるようになっている。
+自己注意こそが Transformer の処理能力のキモであるといってよい。
+
+
+<h2 id="positional-encoding">5. 要素の順序を考慮する (Positional Encoding、位置エンコーディング)</h2>
+
+<p>
+さて、Transformer を設計するうえでの 2つ目の問題は、
+入力列における各要素の順序を考慮することであった。
+これにはいくつか方法がある。もっとも単純なのは、
+各要素に順序をあらわす番号を付加することである:
+
+<blockquote><pre>
+['King', 'Midas', 'has', 'donkey', 'ears']
+→
+[(0, 'King'), (1, 'Midas'), (2, 'has'), (3, 'donkey'), (4, 'ears')]
+</pre></blockquote>
+
+<p>
+しかしこの方法は追加の領域が必要になり、
+ニューラルネットワークへの負荷が増すので、
+Transformer では別の方法を使っている。
+それは順序をあわらす番号のようなものを「透かし」として
+元のデータに重ね合わせることである。これが論文中で
+"Positional Encoding (位置エンコーディング)" と呼ばれている手法である。
+Positional Encoding を使うと、先に紹介した自己注意を使うさいに
+「2つ後の要素」「先頭の要素」などの条件を考慮できるため、
+より複雑な判断が可能になる。
+
+<p>
+以下は非常に単純化した positional encoding の例である:
+
+<blockquote><pre>
+def add_positional(seq):
+    return [ i*1000+x for (i, x) in enumerate(seq) ]
+
+print(add_positional([BOS,2,5,7,9,20,EOS])) <span class=comment># [0, 1002, 2005, 3007, 4009, 5020, 6999]</span>
+</pre></blockquote>
+
+<p>
+この実装には欠点があって、2つの要素を足し合わせると、
+他の要素と区別できなくなる場合がある (例: 1002 + 2005 = 3007)。
+実際の Positional Encoding はもう少し洗練されており、
+このようなことは (ほとんど) 起こらないが、基本的なアイデアは同じである。
+
+<p>
+この Positional Encoding を先の自己注意と組み合わせると、
+たとえば2回連続して同じ要素が現れるようなパターンも検出可能になる:
+
+<blockquote><pre>
+def sa_key1(x): return x // 1000
+def sa_value1(x): return x % 1000
+def sa_key2(x): return x // 1000
+def sa_value2(x): return x % 1000
+def sa_query1(x): return x // 1000
+def sa_query2(x): return (x // 1000)-1
+def aa(v1,v2):
+    if v1 != v2: return 0
+    return 1
+
+print(self_attn(add_positional([BOS,1,1,5,5,2,EOS]))) <span class=comment># [0, 0, 1, 0, 1, 0, 0]</span>
+</pre></blockquote>
+
+
+<hr>
+<div class=license>
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="クリエイティブ・コモンズ・ライセンス" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a><br />この作品は、<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">クリエイティブ・コモンズ 表示 - 継承 4.0 国際 ライセンス</a>の下に提供されています。
+</div>
+<address>Yusuke Shinyama</address>
