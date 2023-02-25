@@ -901,8 +901,8 @@ def d_sigmoid(y):
 np.random.seed(0)
 data = []
 for i in range(100):
-    x = np.random.random(3)   <span class=comment># 入力</span>
-    ya = np.sqrt((x**2) / 3)  <span class=comment># 正解</span>
+    x = np.random.random(3)         <span class=comment># 入力</span>
+    ya = np.sqrt(np.sum(x**2) / 3)  <span class=comment># 正解</span>
     data.append((x, ya))
 
 layer1 = Layer(3, 3)

@@ -106,3 +106,34 @@ class SoftmaxLayer:
         self.db.fill(0)
         self.loss = 0
         return
+
+# nn1.py の main2() の NumPy版。
+def main2():
+    # 100個分のランダムな訓練データを作成する。
+    np.random.seed(0)
+    data = []
+    for i in range(100):
+        x = np.random.random(3)
+        ya = np.sqrt(np.sum(x**2) / 3)
+        data.append((x, ya))
+
+    layer1 = Layer(3, 3)
+    layer2 = Layer(3, 1)
+    layern = layer2
+    # 1000回繰り返す。
+    for i in range(5000):
+        for (x,ya) in data:
+            # 入力に対する出力を計算する。
+            y = layer1.forward(x)
+            y = layer2.forward(y)
+            # 損失を計算する。
+            delta = layern.mse_loss(ya)
+            # 勾配を計算。
+            delta = layer2.backward(delta)
+            delta = layer1.backward(delta)
+        # 現在の損失を表示する。
+        if i % 100 == 0:
+            print(i, layern.loss)
+        # 重み・バイアスを学習率 0.1 で変化させる。
+        layer1.update(0.1)
+        layer2.update(0.1)
