@@ -17,21 +17,23 @@
 Transformer の直感的な説明</h1>
 
 <ol>
-<li> <a href="#rnn">RNN の何が問題なのか?</a>
+<li> <a href="#rnn">RNN の欠点</a>
 <li> <a href="#transformer">Transformer はこれをどう解決したか</a>
 <li> <a href="#basics">Transformer の動作原理</a>
 <li> <a href="#self-attention">複数の要素間の関係を考慮する (Self-Attention、自己注意)</a>
 <li> <a href="#positional-encoding">要素の順序を考慮する (Positional Encoding、位置エンコーディング)</a>
-<!-- <li> <a href="#summary">まとめ</a> -->
+<li> <a href="#summary">まとめ</a>
 </ol>
 
 <p>
 <strong>概要:</strong>
-Transformer モデル ("<a href="https://arxiv.org/abs/1706.03762">Attention is All You Need</a>" 論文で紹介されている) には、
-いくつかの革新的なアイデアが使われている。
+ChatGPT などで使われている Transformer モデルは、
+ニューラルネットワークの世界にいくつかの革新的なアイデアをもたらした。
 本記事では、プログラマに理解しやすい形でそれらのアイデアを解説する。
 実際に使われている数学の技術的詳細には触れない。
-(それらの解説については
+(技術的解説については元論文
+<a href="https://arxiv.org/abs/1706.03762">Attention is All You Need</a> か、
+その注釈版である
 <a href="https://nlp.seas.harvard.edu/annotated-transformer/">The Annotated Transformer</a> を参照のこと。)
 
 <p>
@@ -39,63 +41,126 @@ Transformer モデル ("<a href="https://arxiv.org/abs/1706.03762">Attention is 
 ニューラルネットワークの基礎、RNN の原理、および Python の基礎。
 
 
-<h2 id="rnn">1. RNN の何が問題なのか?</h2>
+<h2 id="rnn">1. RNN の欠点</h2>
 <p>
-それまで使われていた (RNNによる) seq2seq モデルは
-以下のような原理であった:
+これまで、可変長のデータ (音声やテキストなど) に対しては
+<u>再帰的ニューラルネットワーク</u> (RNN) や <u>LSTM</u> などが
+使われていた。これらのネットワークを使った代表的な <u>seq2seq</u>
+(sequence to sequence) モデルは以下のように機能する:
 
-<blockquote><pre>
-    "King Midas has donkey ears" --[encode]--&gt;  [17 29 54] --[decode]--&gt; "王様 の 耳 は ロバ の 耳"
-                                              |&lt;--fixed--&gt;|
-</pre></blockquote>
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="720" height="50">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <path d="M335,30 l0,20 M415,30 l0,20" />
+</g>
+<g fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)">
+  <path d="M240,15 l80,0" />
+  <path d="M430,15 l80,0" />
+  <path d="M355,40 l-15,0" />
+  <path d="M395,40 l15,0" />
+</g>
+<g>
+  <text x="10" y="20">"King Midas has donkey ears"</text>
+  <text x="340" y="20">[17 29 54]</text>
+  <text x="530" y="20">"王様 の 耳 は ロバ の 耳"</text>
+</g>
+<g style="font-size: 75%;" text-anchor="middle">
+  <text x="280" y="10">エンコード</text>
+  <text x="470" y="10">デコード</text>
+  <text x="375" y="45">固定長</text>
+</g>
+</svg>
+</div>
 
 <p>
-典型的な RNN では、入力列は要素ごとにひとつずつ処理される。
-これらは一度、固定長の中間表現ベクトルに「圧縮 (エンコード)」され、
-これを元にして出力列が生成 (デコード) されていた。
-このモデルには明らかなボトルネックがある。
-中間表現は固定長なので、一定の情報量しか保持できない。
+ここでは、入力列は要素ごとにひとつずつ処理される。
+入力列は一度、固定長の中間表現ベクトルに「圧縮 (エンコード)」され、
+これを元に出力列が生成 (デコード) される。
+しかしこのモデルには明らかなボトルネックがある。
+中間表現は固定長なので、一定の情報量しか保持できないのである。
 そのため、このモデルは長い入力列に対してはうまく動かなかった。
 
 
 <h2 id="transformer">2. Transformer はこれをどう解決したか</h2>
 <p>
-Transformer モデルでは、入力列と中間表現を<strong>同じ長さ</strong>にすることで、
-上の問題を根本的に解決している。Transformer の原理をおおざっぱに図示すると、
+Transformer モデルでは、入力列と中間表現は<strong>同じ長さ</strong>をもっている。
+これにより、上の問題が根本的に解決されている。
+Transformer の原理をおおざっぱに図示すると、
 以下のようになる:
 
-<blockquote><pre>
-    "King Midas has donkey ears"
-       |    |    |    |     |  (encode)
-       v    v    v    v     v
-     [17   39   27    53   76] (memory)
-    |&lt;- same length as input -&gt;|
-       |    |    |    |     |  (decode)
-       v    v    v    v     v
-      "王様 の 耳 は ロバ の 耳"
-</pre></blockquote>
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="320" height="190">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <path d="M55,90 l0,20 M265,90 l0,20" />
+</g>
+<g fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)">
+  <path d="M80,30 l0,40" />
+  <path d="M120,30 l0,40" />
+  <path d="M155,30 l0,40" />
+  <path d="M200,30 l0,40" />
+  <path d="M240,30 l0,40" />
+  <path d="M110,102 l-50,0" />
+  <path d="M210,102 l50,0" />
+  <path d="M80,120 l0,40" />
+  <path d="M120,120 l0,40" />
+  <path d="M155,120 l0,40" />
+  <path d="M200,120 l0,40" />
+  <path d="M240,120 l0,40" />
+</g>
+<g text-anchor="middle">
+  <text x="160" y="20">"King Midas has donkey ears"</text>
+  <text x="60" y="90">[</text>
+  <text x="80" y="90">17</text>
+  <text x="120" y="90">39</text>
+  <text x="155" y="90">27</text>
+  <text x="200" y="90">53</text>
+  <text x="240" y="90">76</text>
+  <text x="260" y="90">]</text>
+  <text x="160" y="185">"王様 の 耳 は ロバ の 耳"</text>
+</g>
+<g style="font-size: 75%;">
+  <text x="250" y="55">エンコード</text>
+  <text x="250" y="145">デコード</text>
+  <text x="160" y="107" text-anchor="middle">入力列と同じ長さ</text>
+</g>
+</svg>
+</div>
 
 <p>
 ここで使われている中間表現ベクトルは RNN とは
 まったく別種のものになっていることに注意してほしい。
 RNN では、単語をひとつ処理するごとにベクトル内に情報が蓄積されていくので、
-列が長くなればなるほど情報の圧縮が起こる。つまり RNN では
-短い列の中間表現と長い列の中間表現は直接比較することはできない。
+列が長くなればなるほど情報の圧縮が起こっていた。
+つまり RNN では、
+短い列と長い列の中間表現どうしを直接比較することはできない。
 これに対して、Transformer モデルでは中間表現の各要素がほぼ等しい量の
-情報をもつため、短い列の中間表現は自然に長い列にも活用できる。
-これは情報の一貫性を上げるため、学習に有利である。
+情報をもつため、短い列の中間表現は自然に長い列にも拡張できる。
+これは情報の一貫性を上げ、学習に有利となる。
 
 <p>
 さらに RNN では各要素をひとつずつ処理する必要があったが、
-Transformer ではこれらを同時に処理できるため、訓練および推論を並列化できる。
-そのため、(少なくとも理論的には) Transformer は既存の RNN によるモデルよりも
-高い性能が期待できるだろう。
+Transformer ではこれらを同時に処理できるため、
+訓練および推論プロセスを並列化できる。
+そのため、(少なくとも理論的には) Transformer は既存の
+RNN・LSTM によるモデルよりも高い性能が期待できる。
 
 
 <h2 id="basics">3. Transformer の動作原理</h2>
 
 <p>
-では実際に Transformer がどういうアルゴリズムで動作しているのかを見てみよう:
+では実際に Transformer の動作原理を見てみよう。
+Transformer アルゴリズムを簡単な Python コードで示すと、
+以下のようになる:
 
 <blockquote><pre>
 <span class=comment># 入力列 input に対する出力列 output を求める。</span>
@@ -115,13 +180,13 @@ def transformer(input):
 
 <p>
 アルゴリズムは非常にストレートである。
-まず、入力列が "memory" と呼ばれるものに変換され
-(これについては後述する)、出力列がひとつずつ生成されていく。
+まず入力列が "memory" と呼ばれるものに変換され
+(これが何であるかについては後述する)、出力列がひとつずつ生成されていく。
 <code>BOS</code>、<code>EOS</code> は
-それぞれ「列の先頭 (Beginning of Sequence)」
-「列の末尾 (End of Sequence)」を示す特殊な記号である。
+それぞれ「列の先頭 (<strong>B</strong>eginning <strong>o</strong>f <strong>S</strong>equence)」
+「列の末尾 (<strong>E</strong>nd <strong>o</strong>f <strong>S</strong>equence)」を示す特別な記号である。
 <p>
-さて、ではこの "memory" とは何だろうか?
+さて、この "memory" とは何だろうか?
 直感的にいえば、これは「連想配列」や「ハッシュテーブル」
 あるいは Python でいう「辞書」と呼ばれるものに相当する。
 <code>encoder()</code> 関数はこの辞書を作成し、
@@ -169,15 +234,16 @@ def decoder(memory, target):
 "head" と呼ばれている) を使っている。
 
 <p>
-以下は上のフレームワークを使った単純なモデルである。
-これはただ入力された列と同じものを出力する
-(実際には、以下の関数はニューラルネットワークによって
-実現されるものとする):
+上のフレームワークを使ったごく単純なモデルを作ってみると、
+以下のようになる。これはただ入力された列と同じものを出力する
+(この例は Python だが、実際にはこれらの関数は
+ニューラルネットワークによって実現されるものとする):
 
 <blockquote><pre>
 BOS = 0
 EOS = 999
 
+<span class=comment># ニューラルネットワークによって学習された関数</span>
 def key1(x): return x
 def value1(x): return x
 def key2(x): return x
@@ -196,13 +262,13 @@ print(transformer([BOS,1,2,3,4,5,EOS])) <span class=comment># [BOS,1,2,3,4,5,EOS
 </pre></blockquote>
 
 <p>
-しかし、このモデルは各々の要素を個別にしか考慮しておらず、
-まだ不十分である。一般的な自然言語処理では、
-以下のような処理が必要となるためだ:
+しかし、このモデルはまだ不十分である。
+このアルゴリズムでは、一度にひとつの要素しか考慮できない。
+自然言語処理などでは、一般的に以下のような情報を考慮する必要がある:
 
 <ol type=a>
-<li> 複数の要素間の関係を考慮する。
-<li> 各要素の順序を考慮する。
+<li> 複数の要素間の関係。
+<li> 各要素の順序。
 </ol>
 
 <p>
@@ -212,19 +278,19 @@ print(transformer([BOS,1,2,3,4,5,EOS])) <span class=comment># [BOS,1,2,3,4,5,EOS
 <h2 id="self-attention">4. 複数の要素間の関係を考慮する (Self-Attention、自己注意)</h2>
 
 <p>
-まずは最初の問題から見てみよう。
-Transformer は "Self-Attention (自己注意)" という仕組みを使って、
+まず最初の問題から見てみよう。
+Transformer は "<u>Self-Attention</u> (自己注意)" という仕組みを使って、
 複数の要素からの情報を集約している。
-これが Transformer 論文の題名にもなっている重要なアイデアであり、
-近年のニューラルネットワーク研究におけるブレイクスルーの
-ひとつといってもよい。
+これは Transformer 論文の題名となっている重要なアイデアであり、
+近年のニューラルネットワーク研究におけるブレイクスルーのひとつである。
 
 <p>
-しかし、この「自己注意」という呼び名は混乱を招く。
-むしろ「内的関係」とでも呼んだほうが、より理解しやすい。
+しかしながら、この「自己注意」という呼び名は誤解を招く。
+むしろ「内部関係」とでも呼んだほうがわかりやすい。
 なぜならこれが意味しているのは、入力列の各要素間の関係を
-抽出するという処理に他ならないからである。
-たとえば、以下の文における単語間の関係を考えよう:
+考慮するという処理に他ならないからである。
+「各要素間の関係」とは、たとえば以下の文における
+単語間の関係に相当する:
 
 <blockquote><pre>
              +---object--+
@@ -238,23 +304,22 @@ Transformer は "Self-Attention (自己注意)" という仕組みを使って�
 
 <p>
 上の図で、それぞれの「関係」は対象となる 2つの単語および
-関係のタイプ ("object" など) からなりたっている。
-グラフ構造といってもよい。Transformer の優れた点は、
-学習によってこれらの関係を自動的に発見できるということである。
-ただしここで注意しなければいけないのは、実際に Transformer が
-発見する関係 ("注意") は必ずしも「きれいな」ものではないということである。
-Transformer の抽出した結果を人間が見ても、
-それが特定の要素間の関係を表すということはわかるものの、
-いったい「どんな関係なのか」は理解できないことが多い。
-これは畳み込みネットワーク (CNN) において、
-中間にある層がいったいどんな特徴を抽出しているか、
+関係のタイプ ("object" など) からなりたっている。Transformer の優れた点は、
+学習によってこれらの関係を<strong>自動的に発見</strong>できるということである。
+ただし、実際に Transformer が発見する「関係」は必ずしも
+「きれいな」ものではないということに注意。
+Transformer の抽出した関係を人間が見ても、
+それが特定の要素間の関係であるということはわかるものの、
+いったい「どんな種類の関係なのか」は理解できないことが多い。
+これは畳み込みネットワーク (CNN) で、中間層を表示してみても、
+それがいったいどんな特徴を表現しているのか、
 人間には理解しがたいのに似ている。
 
 <p>
-この関係抽出処理を Python で表してみると、こうなる:
+この「関係」抽出処理を Python で表してみると、こうなる:
 
 <blockquote><pre>
-<span class=comment># 入力列 seq 内の自己注意 (self attention) を求める。</span>
+<span class=comment># 入力列 seq 内の self attention を求める。</span>
 def self_attn(seq):
     h1 = { <mark>sa_key1</mark>(x): <mark>sa_value1</mark>(x) for x in seq }
     h2 = { <mark>sa_key2</mark>(x): <mark>sa_value2</mark>(x) for x in seq }
@@ -272,12 +337,43 @@ def self_attn(seq):
 <code>sa_query2()</code> および <code>aa()</code> は
 学習可能な関数である。
 まず 2つの Python辞書 <code>h1</code> と <code>h2</code> を作成しており、
-これが 2つの「関係」に相当する (論文では "head" と呼ばれている)。
+これが 2つの「関係」 (論文では "<u>head</u>" と呼ばれている) に相当する。
 辞書内のキー/バリュー対は、要素ごとに計算される。その後
 この辞書を参照しながらもう一度同じ要素列をスキャンする。
-これにより、列内の各要素が他のすべての要素と比較されたことになる。
+これにより、列内の各要素を任意の他の要素と比較できることになる。
 この例では 2つの関係を抽出したあと、
 最後にこれら2つの列を組み合わせ、出力列を生成している。
+
+<div class=figure>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="320" height="70">
+<defs>
+  <marker id="arrow" viewBox="-5 -5 10 10" orient="auto">
+    <polygon points="-5,-5 5,0 -5,5" fill="black" stroke="none" />
+  </marker>
+</defs>
+<g fill="none" stroke="black" stroke-width="1">
+  <rect x="110" y="30" width="30" height="20" />
+</g>
+<g fill="none" stroke="black" stroke-width="2" marker-end="url(#arrow)">
+  <path d="M120,30 c-20,-20,-80,-20,-95,0" />
+  <path d="M115,30 c-10,-10,-30,-10,-40,0" />
+  <path d="M135,30 c10,-10,30,-10,40,0" />
+  <path d="M130,30 c20,-20,80,-20,95,0" />
+</g>
+<g text-anchor="middle">
+  <text x="25" y="45">King</text>
+  <text x="75" y="45">Midas</text>
+  <text x="125" y="45">has</text>
+  <text x="175" y="45">Donkey</text>
+  <text x="225" y="45">ears</text>
+</g>
+<g style="font-size: 75%;">
+  <text x="260" y="35">sa_key</text>
+  <text x="260" y="50">sa_value</text>
+  <text x="125" y="65" text-anchor="middle">sa_query</text>
+</g>
+</svg>
+</div>
 
 <p>
 以下の例では、入力列の各要素が他のすべての要素と比較され、
@@ -285,6 +381,7 @@ def self_attn(seq):
 出力は <code>1</code> となり、そうでなれば <code>0</code> になる。
 
 <blockquote><pre>
+<span class=comment># ニューラルネットワークによって学習された関数</span>
 def sa_key1(x): return x
 def sa_value1(x): return x
 def sa_key2(x): return x
@@ -301,45 +398,43 @@ print(self_attn([BOS,1,2,3,4,5,8,EOS])) <span class=comment># [1,1,1,0,1,0,1,0]<
 <p>
 実際の Transformer では、出力列中に 8種類の情報が別々に
 記録されるようになっている。したがってこれらは8種類の異なった
-タイプの関係 (論文中では "Multi-Head Attention" と呼ばれている)
-を保持することができる。これも本物の実装では Python の辞書は使っていないが、
+タイプの関係 (論文中では "<u>Multi-Head Attention</u>" と呼ばれている)
+を考慮することができる。これも本物の実装では Python の辞書は使っていないが、
 行列計算と内積によって類似の処理をおこなっている。
 また、関数 <code>self_attn()</code> の入力と出力は
 同じ形のテンソルになっていることに注意してほしい。
-実際の Transformer ではこの self attention 層を <strong>6層</strong>
+実際の Transformer ではこの Self-Attention 層を <strong>6つ</strong>
 積み重ねており、まず要素間の「浅い関係」を抽出したのち、
 それらの情報を使ってより複雑な関係を記述し…
 といったことができるようになっている。
-自己注意こそが Transformer の処理能力のキモであるといってよい。
+この Self-Attention 機構こそが Transformer の処理能力のキモであるといってよい。
 
 
 <h2 id="positional-encoding">5. 要素の順序を考慮する (Positional Encoding、位置エンコーディング)</h2>
 
 <p>
-さて、Transformer を設計するうえでの 2つ目の問題は、
+さて、複雑な順列を扱うニューラルネットワークを
+設計するうえでの 2つ目の問題は、
 入力列における各要素の順序を考慮することであった。
 これにはいくつか方法がある。もっとも単純なのは、
 各要素に順序をあらわす番号を付加することである:
 
 <blockquote><pre>
 ['King', 'Midas', 'has', 'donkey', 'ears']
-→
+  ↓
 [(0, 'King'), (1, 'Midas'), (2, 'has'), (3, 'donkey'), (4, 'ears')]
 </pre></blockquote>
 
 <p>
 しかしこの方法は追加の領域が必要になり、
-ニューラルネットワークへの負荷が増すので、
+ニューラルネットワークへの負荷が増すため
 Transformer では別の方法を使っている。
 それは順序をあわらす番号のようなものを「透かし」として
 元のデータに重ね合わせることである。これが論文中で
-"Positional Encoding (位置エンコーディング)" と呼ばれている手法である。
-Positional Encoding を使うと、先に紹介した自己注意を使うさいに
-「2つ後の要素」「先頭の要素」などの条件を考慮できるため、
-より複雑な判断が可能になる。
+"<u>Positional Encoding</u> (位置エンコーディング)" と呼ばれている手法である。
 
 <p>
-以下は非常に単純化した positional encoding の例である:
+以下は非常に単純化した例である:
 
 <blockquote><pre>
 def add_positional(seq):
@@ -349,16 +444,20 @@ print(add_positional([BOS,2,5,7,9,20,EOS])) <span class=comment># [0, 1002, 2005
 </pre></blockquote>
 
 <p>
-この実装には欠点があって、2つの要素を足し合わせると、
+ただし、この実装では 2つの要素を足し合わせると、
 他の要素と区別できなくなる場合がある (例: 1002 + 2005 = 3007)。
 実際の Positional Encoding はもう少し洗練されており、
-このようなことは (ほとんど) 起こらないが、基本的なアイデアは同じである。
+このようなことは (ほとんど) 起こらないようになっている。
+が、基本的なアイデアは同じである。
 
 <p>
-この Positional Encoding を先の自己注意と組み合わせると、
-たとえば2回連続して同じ要素が現れるようなパターンも検出可能になる:
+このような Positional Encoding を入力列に対して施すと、
+「2つ後の要素」「先頭の要素」などの条件を考慮できるため、
+より複雑な判断が可能になる。たとえば以下の例は
+「同じ要素が2回連続して現れるパターン」も検出するものである:
 
 <blockquote><pre>
+<span class=comment># Positional Encoding + Self-Attention</span>
 def sa_key1(x): return x // 1000
 def sa_value1(x): return x % 1000
 def sa_key2(x): return x // 1000
@@ -371,6 +470,16 @@ def aa(v1,v2):
 
 print(self_attn(add_positional([BOS,1,1,5,5,2,EOS]))) <span class=comment># [0, 0, 1, 0, 1, 0, 0]</span>
 </pre></blockquote>
+
+
+<h2 id="summary">6. まとめ</h2>
+<p>
+このように Transformer モデルは
+Self-Attention 機構と Positional Encoding を組み合わせて
+各要素間で <strong>8つ</strong>の異なる関係を考慮させ、
+さらにこの処理を <strong>6回</strong> くり返すことで
+自然言語文などにみられる複雑な構造を扱えるようになっている。
+以上が数式を使わない Transformer モデルの直感的な説明である。
 
 
 <hr>
