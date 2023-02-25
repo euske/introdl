@@ -20,6 +20,7 @@
 
  - 演習の回答を提示・解説するYouTube動画を作成。
  - データ形式について説明する入門的な章を挿入。
+ - RNN および Transformer に関する章を追加。
 
 ## サイト製作の動機
 
@@ -39,3 +40,13 @@ Python を使った機械学習の書籍・講義等では NumPy や PyTorch を
 これをふまえて、本講座は「画像認識システムを作る」という目的に特化し、
 実践的なシステム設計に使ってもらえるよう、アノテーションツールや
 転移学習、ONNX などの周辺技術もカバーすることにした。
+
+## 謝辞
+
+本講座の作成にあたっては、以下の書籍・サイトを参考にさせていただきました。
+深く感謝いたします:
+
+ - 斎藤 康毅 著、「ゼロから作るDeep Learning」 https://www.oreilly.co.jp/books/9784873117584/
+ - Ani Aggarwal, "YOLO Explained", https://medium.com/analytics-vidhya/yolo-explained-5b6f4564f31
+ - Miguel Fernández Zafra, "Understanding Convolutions and Pooling in Neural Networks: a simple explanation", https://towardsdatascience.com/understanding-convolutions-and-pooling-in-neural-networks-a-simple-explanation-885a2d78f211
+ - Wikipedia、Reddit、StackOverflow, Papers With Code
