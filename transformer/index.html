@@ -338,11 +338,16 @@ def self_attn(seq):
 学習可能な関数である。
 まず 2つの Python辞書 <code>h1</code> と <code>h2</code> を作成しており、
 これが 2つの「関係」 (論文では "<u>head</u>" と呼ばれている) に相当する。
-辞書内のキー/バリュー対は、要素ごとに計算される。その後
-この辞書を参照しながらもう一度同じ要素列をスキャンする。
+この例では 2つの関係を最後に組み合わせ、出力列を生成する。
+
+<p>
+辞書内のキー/バリュー対は、それぞれ <code>sa_key</code> と
+<code>sa_value</code> 関数によって要素ごとに計算される。
+その後、関数 <code>sa_query</code> がこれらを参照しながら、
+もう一度同じ要素列をスキャンする。
 これにより、列内の各要素を任意の他の要素と比較できることになる。
-この例では 2つの関係を抽出したあと、
-最後にこれら2つの列を組み合わせ、出力列を生成している。
+以下の図は要素 "<code>has</code>" が他の要素を参照している
+様子を例示したものである:
 
 <div class=figure>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="320" height="70">
@@ -376,7 +381,7 @@ def self_attn(seq):
 </div>
 
 <p>
-以下の例では、入力列の各要素が他のすべての要素と比較され、
+以下のコードでは、入力列の各要素が他のすべての要素と比較され、
 その要素の2倍または 1/2 の要素が列中に含まれていれば
 出力は <code>1</code> となり、そうでなれば <code>0</code> になる。
 
@@ -396,8 +401,8 @@ print(self_attn([BOS,1,2,3,4,5,8,EOS])) <span class=comment># [1,1,1,0,1,0,1,0]<
 </pre></blockquote>
 
 <p>
-実際の Transformer では、出力列中に 8種類の情報が別々に
-記録されるようになっている。したがってこれらは8種類の異なった
+実際の Transformer では、(2つではなく) 8つの辞書が出力される
+ようになっている。したがってこれらは8種類の異なった
 タイプの関係 (論文中では "<u>Multi-Head Attention</u>" と呼ばれている)
 を考慮することができる。これも本物の実装では Python の辞書は使っていないが、
 行列計算と内積によって類似の処理をおこなっている。
@@ -422,7 +427,7 @@ print(self_attn([BOS,1,2,3,4,5,8,EOS])) <span class=comment># [1,1,1,0,1,0,1,0]<
 <blockquote><pre>
 ['King', 'Midas', 'has', 'donkey', 'ears']
   ↓
-[(0, 'King'), (1, 'Midas'), (2, 'has'), (3, 'donkey'), (4, 'ears')]
+[(0,'King'), (1,'Midas'), (2,'has'), (3,'donkey'), (4,'ears')]
 </pre></blockquote>
 
 <p>
