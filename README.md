@@ -49,4 +49,5 @@ Python を使った機械学習の書籍・講義等では NumPy や PyTorch を
  - 斎藤 康毅 著、「ゼロから作るDeep Learning」 https://www.oreilly.co.jp/books/9784873117584/
  - Ani Aggarwal, "YOLO Explained", https://medium.com/analytics-vidhya/yolo-explained-5b6f4564f31
  - Miguel Fernández Zafra, "Understanding Convolutions and Pooling in Neural Networks: a simple explanation", https://towardsdatascience.com/understanding-convolutions-and-pooling-in-neural-networks-a-simple-explanation-885a2d78f211
+ - Ryobot, "論文解説 Attention Is All You Need (Transformer)", https://deeplearning.hatenablog.com/entry/transformer
  - Wikipedia、Reddit、StackOverflow, Papers With Code
