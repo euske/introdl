@@ -87,7 +87,7 @@ ChatGPT などで使われている Transformer モデルは、
 </div>
 
 <p>
-ここでは、入力列は一度、固定長の中間表現ベクトルに「圧縮 (エンコード)」され、
+ここでは、入力列は一度、<strong>固定長</strong>の中間表現ベクトルに「圧縮 (エンコード)」され、
 これを元に出力列が生成 (デコード) される。
 自然言語文のようなものは入力のすべての部分を
 見なければ適切な出力が求まらないので、一度すべてを読む必要があるためである。
@@ -218,7 +218,7 @@ def decoder(memory, target):
     (h1,h2) = memory
     v1 = [ h1.get(<mark>query1</mark>(x)) for x in target ]
     v2 = [ h2.get(<mark>query2</mark>(x)) for x in target ]
-    return ff(v1,v2)
+    return <mark>ff</mark>(v1,v2)
 </pre></blockquote>
 
 <p>
@@ -338,7 +338,7 @@ def self_attn(seq):
     h2 = { <mark>sa_key2</mark>(x): <mark>sa_value2</mark>(x) for x in seq }
     a1 = [ h1.get(<mark>sa_query1</mark>(x)) for x in seq ]
     a2 = [ h2.get(<mark>sa_query2</mark>(x)) for x in seq ]
-    return [ aa(y1,y2) for (y1,y2) in zip(a1,a2) ]
+    return [ <mark>aa</mark>(y1,y2) for (y1,y2) in zip(a1,a2) ]
 </pre></blockquote>
 
 <p>
